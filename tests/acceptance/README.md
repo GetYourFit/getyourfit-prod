@@ -1,0 +1,9 @@
+# GetYourFit black-box acceptance
+
+This suite uses Playwright for browser coverage and Playwright's request client for API coverage. It tests the public behavior of the app at `ACCEPTANCE_BASE_URL`; it does not import application code.
+
+The initial contract is explicit because this checkout has no product source or `docs/PRODUCT.md`. Authentication APIs use JSON under `/api/auth`: `POST /register`, `POST /verify`, `POST /login`, `POST /logout`, `POST /logout-everywhere`, `POST /password/forgot`, `POST /password/reset`, `POST /2fa/verify`, `DELETE /account`, and `GET /export`. Wardrobe and outfit APIs use `/api/wardrobe/items` and `/api/outfits`. These paths and response expectations are proposals derived from the requirements. Align them with the builder's product contract when it lands. The stub is an executable contract fixture, not a substitute for production.
+
+Run `npm ci --prefix tests/acceptance`, `npx --prefix tests/acceptance playwright install chromium`, then `npm run acceptance` from the repository root once the root package script is wired, or `npm run acceptance --prefix tests/acceptance` during development. Set `ACCEPTANCE_BASE_URL` and `ACCEPTANCE_MAIL_CATCHER_URL` to exercise a running production-mode app and local Mailpit instance. The suite reads verification and reset links from [Mailpit's search and rendered-text APIs](https://mailpit.axllent.org/docs/integration/). It uses synthetic, per-case `example.test` addresses and does not reset an external app database. Without the app URL, the runner starts the local contract stub. Results are written to `tests/acceptance/results/report.json`; failed browser cases save screenshots under `tests/acceptance/results/screenshots/`.
+
+`npm run acceptance:stubs --prefix tests/acceptance` runs the suite against a good stub and verifies each auth case fails when its corresponding behavior is mutated. This validates the checks themselves, not the app.

@@ -1,0 +1,1 @@
+`garment-photo.jpg` is “Womens orvis shirt white.jpg” by Punker1999, downloaded from Wikimedia Commons. The photographer released it under CC0 1.0 Universal: https://commons.wikimedia.org/wiki/File:Womens_orvis_shirt_white.jpg
