@@ -249,7 +249,7 @@ async function create(ctx, user = accounts.valid) {
   assert([200, 201, 202].includes(response.status()), `register returned ${response.status()}`);
   return response;
 }
-async function verifyAccount(ctx, email = accounts.valid.email, token = 'verify-valid') {
+async function verifyAccount(ctx, email = accounts.valid.email, token = randomUUID()) {
   return api(ctx, 'POST', contract.verify, { email, token });
 }
 async function makeVerified(ctx, user = accounts.valid) {
@@ -268,6 +268,7 @@ async function isolated(fn) {
   accounts.valid.email = `acceptance-${runId}-${caseIndex}@example.test`;
   accounts.other.email = `acceptance-${runId}-${caseIndex}-other@example.test`;
   accounts.weak.email = `acceptance-${runId}-${caseIndex}-weak@example.test`;
+  accounts.unknown.email = `acceptance-${runId}-${caseIndex}-unknown@example.test`;
   try { if (usingStub) await api(ctx, 'POST', '/__reset', {}); await fn(ctx); } finally { await ctx.dispose(); }
 }
 function assert(value, message) { if (!value) throw new Error(message); }
@@ -399,18 +400,18 @@ async function logout() { await isolated(async c => {
   assert(!(await api(observer, 'GET', '/api/auth/session')).ok(), 'session remained valid after local sign-out');
   } finally { await observer.dispose(); }
 }); }
-async function wrongPassword() { await isolated(async c => { await makeVerified(c); const res = await signIn(c, { ...accounts.valid, password: 'incorrect' }); assert(!res.ok(), 'wrong password accepted'); }); }
+async function wrongPassword() { await isolated(async c => { await makeVerified(c); const res = await signIn(c, { ...accounts.valid, password: accounts.invalidPassword }); assert(!res.ok(), 'wrong password accepted'); }); }
 async function unknownEmail() { await isolated(async c => {
   await makeVerified(c);
-  const knownLogin = await signIn(c, { ...accounts.valid, password: 'wrong-password' });
-  const unknownLogin = await signIn(c, { email: 'nobody@example.test', password: 'wrong-password' });
+  const knownLogin = await signIn(c, { ...accounts.valid, password: accounts.invalidPassword });
+  const unknownLogin = await signIn(c, { email: accounts.unknown.email, password: accounts.invalidPassword });
   assert(knownLogin.status() === unknownLogin.status(), 'sign-in status reveals whether the email exists');
   assert(JSON.stringify(await knownLogin.json()) === JSON.stringify(await unknownLogin.json()), 'sign-in response reveals whether the email exists');
   const a = await api(c, 'POST', contract.forgot, { email: accounts.valid.email });
-  const b = await api(c, 'POST', contract.forgot, { email: 'nobody@example.test' });
+  const b = await api(c, 'POST', contract.forgot, { email: accounts.unknown.email });
   assert(a.status() === b.status(), 'password reset status reveals whether account exists');
   assert(JSON.stringify(await a.json()) === JSON.stringify(await b.json()), 'password reset response reveals whether account exists');
-  await assertNoMailLink('nobody@example.test', 'reset');
+  await assertNoMailLink(accounts.unknown.email, 'reset');
 }); }
 async function unverified() { await isolated(async c => { await create(c); const r = await signIn(c); assert(!r.ok(), 'unverified account signed in'); }); }
 async function expiredLink() { await isolated(async c => {
@@ -425,7 +426,7 @@ async function expiredLink() { await isolated(async c => {
   assert(request.ok(), 'password reset request failed before expiry check');
   const resetLink = await mailLink(accounts.other.email, { purpose: 'reset', after: requestedAt });
   await waitUntilLinkExpired(resetLink);
-  const refusedReset = await api(c, 'POST', contract.reset, { email: accounts.other.email, token: resetLink.searchParams.get('token'), password: 'New-Password-72!fine' });
+  const refusedReset = await api(c, 'POST', contract.reset, { email: accounts.other.email, token: resetLink.searchParams.get('token'), password: accounts.resetPassword });
   assert([400,410,422].includes(refusedReset.status()), `expired issued reset link returned ${refusedReset.status()}`);
 }); }
 async function reusedLink() { await isolated(async c => {
@@ -438,10 +439,10 @@ async function passwordReset() { await isolated(async c => {
   const requestedAt = Date.now();
   const r = await api(c, 'POST', contract.forgot, { email: accounts.valid.email }); assert(r.ok(), 'reset request failed');
   const token = (await mailLink(accounts.valid.email, { purpose: 'reset', after: requestedAt })).searchParams.get('token');
-  const reset = await api(c, 'POST', contract.reset, { email: accounts.valid.email, token, password: 'New-Password-72!fine' }); assert(reset.ok(), 'reset failed');
+  const reset = await api(c, 'POST', contract.reset, { email: accounts.valid.email, token, password: accounts.resetPassword }); assert(reset.ok(), 'reset failed');
   assert(!(await api(c, 'GET', '/api/auth/session')).ok(), 'password reset left the existing session active');
-  assert((await signIn(c, { email: accounts.valid.email, password: 'New-Password-72!fine' })).ok(), 'new password rejected');
-  assert(!(await api(c, 'POST', contract.reset, { email: accounts.valid.email, token, password: 'Another-Password-72!fine' })).ok(), 'reset token reused');
+  assert((await signIn(c, { email: accounts.valid.email, password: accounts.resetPassword })).ok(), 'new password rejected');
+  assert(!(await api(c, 'POST', contract.reset, { email: accounts.valid.email, token, password: accounts.reusedResetPassword })).ok(), 'reset token reused');
 }); }
 async function weakPassword() { await isolated(async c => {
   const r = await api(c, 'POST', contract.register, accounts.weak);
@@ -451,10 +452,10 @@ async function weakPassword() { await isolated(async c => {
 }); }
 async function duplicateEmail() { await isolated(async c => {
   await makeVerified(c);
-  const duplicate = await api(c, 'POST', contract.register, { ...accounts.valid, password: 'Takeover-Password-91!bad' });
+  const duplicate = await api(c, 'POST', contract.register, { ...accounts.valid, password: accounts.takeoverPassword });
   assert([400,409,422].includes(duplicate.status()), `duplicate registration returned ${duplicate.status()}`);
   assert((await signIn(c)).ok(), 'duplicate registration changed the original account password');
-  assert([401,403].includes((await signIn(c, { ...accounts.valid, password: 'Takeover-Password-91!bad' })).status()), 'duplicate registration took over the original account');
+  assert([401,403].includes((await signIn(c, { ...accounts.valid, password: accounts.takeoverPassword })).status()), 'duplicate registration took over the original account');
 }); }
 async function ageConfirmation() { await isolated(async c => {
   const res = await api(c, 'POST', contract.register, { ...accounts.valid, age_confirmed: false });
@@ -464,7 +465,7 @@ async function ageConfirmation() { await isolated(async c => {
 }); }
 async function lockout() { await isolated(async c => {
   await makeVerified(c);
-  const fail = () => signIn(c, { ...accounts.valid, password: 'wrong-password' });
+  const fail = () => signIn(c, { ...accounts.valid, password: accounts.invalidPassword });
   assert([401,403].includes((await fail()).status()), 'wrong password did not return an authentication refusal');
   assert((await signIn(c)).ok(), 'successful sign-in after a failed attempt was refused');
   assert([401,403].includes((await fail()).status()), 'successful sign-in did not clear the failed-attempt state');
@@ -482,7 +483,7 @@ async function missingOrigin() { await isolated(async c => {
   assert([400,403].includes(response.status()), `state-changing request without Origin returned ${response.status()}`);
 }); }
 async function rateControls() { await isolated(async c => {
-  const reset = () => api(c, 'POST', contract.forgot, { email: 'nobody@example.test' });
+  const reset = () => api(c, 'POST', contract.forgot, { email: accounts.unknown.email });
   let limited = false;
   for (let attempt = 0; attempt < 64; attempt++) {
     const response = await reset();
@@ -899,7 +900,7 @@ async function offlineRecovery() {
 }
 async function serverDownRecovery() {
   const page = await newBrowserPage();
-  await page.route('**/api/auth/login', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"SQLite database secret at /private/server/trace"}' }));
+  await page.route('**/api/auth/login', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"SQLite database error: internal diagnostic detail"}' }));
   await page.goto(`${baseURL}/sign-in`, { waitUntil: 'domcontentloaded' });
   const email = page.getByLabel(/email/i);
   const password = page.getByLabel(/password/i);
@@ -910,7 +911,7 @@ async function serverDownRecovery() {
   assert(await email.inputValue() === accounts.valid.email, 'service-down response cleared the typed email');
   assert(await password.inputValue() === accounts.valid.password, 'service-down response cleared the typed password');
   const state = await page.getByRole('status').innerText();
-  assert(!/sqlite|database|\/private\/|stack|trace/i.test(state), `service-down state exposed server details: ${state}`);
+  assert(!/sqlite|database|internal|diagnostic|stack|trace/i.test(state), `service-down state exposed server details: ${state}`);
   await page.close();
 }
 async function newBrowserPage(options = {}) {

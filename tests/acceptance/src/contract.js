@@ -1,3 +1,5 @@
+import { randomBytes, randomUUID } from 'node:crypto';
+
 export const contract = {
   register: '/api/auth/register',
   verify: '/api/auth/verify',
@@ -13,8 +15,16 @@ export const contract = {
   outfits: '/api/outfits',
 };
 
+const email = label => `acceptance-${label}-${randomUUID()}@example.test`;
+const password = () => `Aa1!${randomBytes(24).toString('base64url')}`;
+
 export const accounts = {
-  valid: { email: 'alice@example.test', password: 'Saffron-River-83!ok', age_confirmed: true },
-  other: { email: 'bea@example.test', password: 'Cedar-Moon-47!fine', age_confirmed: true },
-  weak: { email: 'weak@example.test', password: '123', age_confirmed: true },
+  valid: { email: email('valid'), password: password(), age_confirmed: true },
+  other: { email: email('other'), password: password(), age_confirmed: true },
+  weak: { email: email('weak'), password: randomBytes(5).toString('hex'), age_confirmed: true },
+  unknown: { email: email('unknown') },
+  invalidPassword: password(),
+  resetPassword: password(),
+  reusedResetPassword: password(),
+  takeoverPassword: password(),
 };

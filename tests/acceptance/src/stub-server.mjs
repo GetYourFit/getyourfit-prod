@@ -1,9 +1,11 @@
 import http from 'node:http';
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 
 const port = Number(process.env.PORT || 4179);
 const mutation = process.env.MUTATION || '';
 const origin = 'http://localhost:4179';
+const base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const totpSecret = encodeBase32(randomBytes(10));
 const users = new Map();
 const sessions = new Map();
 const wardrobe = new Map();
@@ -29,9 +31,8 @@ const issueLink = (email, purpose) => {
 const sessionCookie = token => `gyf_session=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Strict; Path=/`;
 const clearedCookie = 'gyf_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0';
 function totp(secret, now = Date.now()) {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let bits = '';
-  for (const char of secret) bits += alphabet.indexOf(char).toString(2).padStart(5, '0');
+  for (const char of secret) bits += base32Alphabet.indexOf(char).toString(2).padStart(5, '0');
   const key = Buffer.from(bits.match(/.{8}/g).map(byte => parseInt(byte, 2)));
   let counter = BigInt(Math.floor(now / 30000));
   const message = Buffer.alloc(8);
@@ -40,6 +41,13 @@ function totp(secret, now = Date.now()) {
   const offset = digest[digest.length - 1] & 15;
   const value = ((digest[offset] & 127) << 24) | (digest[offset + 1] << 16) | (digest[offset + 2] << 8) | digest[offset + 3];
   return String(value % 1000000).padStart(6, '0');
+}
+function encodeBase32(bytes) {
+  let bits = '';
+  for (const byte of bytes) bits += byte.toString(2).padStart(8, '0');
+  let encoded = '';
+  for (let offset = 0; offset < bits.length; offset += 5) encoded += base32Alphabet[parseInt(bits.slice(offset, offset + 5).padEnd(5, '0'), 2)];
+  return encoded;
 }
 function sessionFor(req) {
   const token = decodeURIComponent((req.headers.cookie || '').match(/gyf_session=([^;]+)/)?.[1] || '');
@@ -151,11 +159,11 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/auth/2fa/enable') {
     const user = users.get(sessionEmail); if (!user) return json(res, 401, { error: 'unauthorized' });
     user.twoFactor = true;
-    return json(res, 200, { provisioning_uri: 'otpauth://totp/GetYourFit:acceptance?secret=JBSWY3DPEHPK3PXP&issuer=GetYourFit' });
+    return json(res, 200, { provisioning_uri: `otpauth://totp/GetYourFit:acceptance?secret=${totpSecret}&issuer=GetYourFit` });
   }
   if (req.method === 'POST' && url.pathname === '/api/auth/2fa/verify') {
     const owner = challenges.get(body.challenge);
-    if (!owner || body.code !== totp('JBSWY3DPEHPK3PXP') || mutation === 'second-factor') return json(res, 401, { error: 'invalid code' });
+    if (!owner || body.code !== totp(totpSecret) || mutation === 'second-factor') return json(res, 401, { error: 'invalid code' });
     challenges.delete(body.challenge);
     const session = randomUUID(); sessions.set(session, owner);
     return json(res, 200, { user: { email: owner } }, { 'set-cookie': sessionCookie(session) });
