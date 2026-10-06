@@ -4,7 +4,7 @@ Date: 2026-10-05
 
 ## Delivery scope
 
-The foundation PR delivered the buildable app shell. This follow-on increment implements accounts and account-level data controls, following the approved sequence from foundation to accounts and data to wardrobe. The shell-only and pending-status decision applied to the foundation PR and remains true for that PR. Results recorded here are local-runtime evidence, not deployment proof; garment, wardrobe, outfit, and deployment outcomes remain pending.
+The foundation PR delivered the buildable app shell. This follow-on increment implements accounts and account-level data controls, following the approved sequence from foundation to accounts and data to wardrobe. The shell-only and pending-status decision applied to the foundation PR and remains true for that PR. This account-only increment is intermediate and not product-ready; real garment photos, wearer correction, wardrobe management, complete outfit decisions, and deployment remain required first-slice work. Results recorded here are local-runtime evidence, not deployment proof.
 
 ## Product sources reviewed
 
@@ -22,7 +22,7 @@ The foundation PR delivered the buildable app shell. This follow-on increment im
 
 ## Stack
 
-React, TypeScript, and Vite serve the browser UI. A Node.js service bound to loopback uses Express and SQLite. Better Auth provides email/password authentication, Argon2id password hashing, email verification, and optional TOTP. Password reset tokens are random, short-lived, single-use, and stored as hashes. The local account path includes session controls, account export, and account deletion. Real verification and recovery messages use SMTP settings from the server environment. Automated tests can enable an in-memory catcher that only the runner can read; the browser-facing mailbox route is unavailable in SMTP mode. This worktree has no provider configuration, so tests do not prove real-user email delivery. The wardrobe, garment data export/deletion, and Apple Vision path remain unimplemented and are not available claims.
+React, TypeScript, and Vite serve the browser UI. A Node.js service bound to loopback uses Express and SQLite. Better Auth provides email/password authentication, Argon2id password hashing, email verification, and optional TOTP. Password reset tokens are random, short-lived, single-use, and stored as hashes. The local account path includes session controls, account export, and account deletion. Real verification and recovery messages use TLS-protected SMTP settings from the server environment. Automated tests can enable an in-memory catcher that only the runner can read; the browser-facing mailbox route is unavailable in SMTP mode. This worktree has no provider configuration, so tests do not prove real-user email delivery. The required garment photo, correction, wardrobe, outfit, and garment-data control path remains unimplemented here.
 
 ## Account and privacy decisions
 

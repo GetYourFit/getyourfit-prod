@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
-import { auth, clearLockout, consumeEmailVerificationToken, hashPassword, isLockedOut, localMailbox, migrateAuth, recordSignInResult, sendMail, settleMailForAccountDeletion } from './auth.mjs';
+import { auth, clearLockout, consumeEmailVerificationToken, emailDeliveryMode, hashPassword, isLockedOut, localMailbox, migrateAuth, recordSignInResult, sendMail, settleMailForAccountDeletion } from './auth.mjs';
 import { audit, database, ensureAuthSchema } from './database.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -102,8 +102,8 @@ app.post('/api/auth/reset-password', limitSensitiveRequest, async (request, resp
 
 app.get('/api/session', async (request, response) => {
   const user = await userFor(request);
-  if (!user) return response.json({ signedIn: false });
-  response.json({ signedIn: true, email: user.email, twoFactorEnabled: user.twoFactorEnabled === true });
+  if (!user) return response.json({ signedIn: false, emailDeliveryMode });
+  response.json({ signedIn: true, email: user.email, twoFactorEnabled: user.twoFactorEnabled === true, emailDeliveryMode });
 });
 
 app.get('/__mail', (request, response) => {

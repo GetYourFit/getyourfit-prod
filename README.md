@@ -1,14 +1,14 @@
 # GetYourFit
 
-GetYourFit aims to be a private, local-first wardrobe companion: add a real garment photo, correct what the device recognizes, and get one complete explained outfit for a stated occasion from clothes you own. “You already own it” is a useful result. The foundation PR delivered the buildable app shell; this follow-on account-and-data increment implements local accounts and account data controls. The wardrobe and outfit decision arrive in later changes.
+GetYourFit aims to be a private, local-first wardrobe companion: add a real garment photo, correct what the device recognizes, and get one complete explained outfit for a stated occasion from clothes you own. “You already own it” is a useful result. The foundation PR delivered the buildable app shell; this follow-on account-and-data increment implements local accounts and account data controls. This increment is not product-ready and does not complete the first slice. Real garment photos, wearer correction, the wardrobe, and complete outfit decisions remain required work.
 
-Create an account with email and password, then manage account security and account data from the private account page. Configure outbound SMTP before starting the app so people can receive verification and reset links. Garment photos and outfit decisions are not available yet.
+Create an account with email and password, then manage account security and account data from the private account page. Configure outbound SMTP before starting the app so people can receive verification and reset links. Garment photo capture and correction, wardrobe management, and outfit decisions are not available in this increment.
 
 ## Run locally
 
 Requirements: Node.js 22.12 or later.
 
-Set `SMTP_HOST` and `SMTP_FROM` in the server environment before starting the app. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Set both `SMTP_USER` and `SMTP_PASS` when the server requires authentication. The project has no provider credentials. Keep them in your local environment, not in source files.
+Set `SMTP_HOST` and `SMTP_FROM` in the server environment before starting the app. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Non-implicit TLS connections require STARTTLS. Set both `SMTP_USER` and `SMTP_PASS` when the server requires authentication. The project has no provider credentials. Keep them in your local environment, not in source files.
 
 ```sh
 npm install

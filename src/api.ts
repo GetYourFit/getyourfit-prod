@@ -2,6 +2,8 @@ interface ApiError {
   error?: string;
 }
 
+export type EmailDeliveryMode = 'smtp' | 'local-test' | 'unknown';
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {

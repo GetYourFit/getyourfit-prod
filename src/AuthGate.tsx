@@ -1,7 +1,22 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react';
+import type { EmailDeliveryMode } from './api';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot' | 'reset' | 'sent';
+const deliveryCopy: Record<EmailDeliveryMode, { sent: string; privacy: string }> = {
+  smtp: {
+    sent: 'Verification and reset links are sent by email to the address you provide.',
+    privacy: 'Verification and reset messages go to the email address you provide.',
+  },
+  'local-test': {
+    sent: 'Automated verification and recovery messages are available only to the test runner.',
+    privacy: 'Automated test messages are restricted to the verification runner.',
+  },
+  unknown: {
+    sent: 'Email delivery details are unavailable while the local service is offline.',
+    privacy: 'Email delivery details are unavailable while the local service is offline.',
+  },
+};
 
 async function authRequest(path: string, body: Record<string, string | boolean>) {
   let response: Response;
@@ -33,7 +48,7 @@ async function authRequest(path: string, body: Record<string, string | boolean>)
   return result;
 }
 
-export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => Promise<void>; initialError?: string }) {
+export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSignedIn: () => Promise<void>; deliveryMode: EmailDeliveryMode; initialError?: string }) {
   const resetToken = new URLSearchParams(window.location.search).get('token');
   const verificationError = new URLSearchParams(window.location.search).get('error');
   const [mode, setMode] = useState<Mode>(resetToken ? 'reset' : 'sign-in');
@@ -103,7 +118,7 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
   }
 
   const title = mode === 'sign-up' ? 'Make it yours.' : mode === 'forgot' ? 'Find your way back.' : mode === 'reset' ? 'Choose a new password.' : mode === 'sent' ? 'Request received.' : needsCode ? 'One more step.' : 'Welcome back.';
-  const intro = mode === 'sign-up' ? 'Create a private account. Your email stays here.' : mode === 'forgot' ? 'We’ll send a single-use reset link if this address has an account.' : mode === 'reset' ? 'Use a long, unique password you do not use elsewhere.' : mode === 'sent' ? 'Messages stay private to the local verification runner.' : needsCode ? 'Enter the code from your authenticator app.' : 'Sign in to your GetYourFit account.';
+  const intro = mode === 'sign-up' ? 'Create a private account with an email address you can access.' : mode === 'forgot' ? 'We’ll send a single-use reset link if this address has an account.' : mode === 'reset' ? 'Use a long, unique password you do not use elsewhere.' : mode === 'sent' ? 'If this request can be completed, follow the link sent to your email address.' : needsCode ? 'Enter the code from your authenticator app.' : 'Sign in to your GetYourFit account.';
   const showCredential = mode === 'sign-up' || mode === 'sign-in' || mode === 'forgot';
 
   return <main className="auth-layout">
@@ -111,7 +126,7 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
       <span className="brand-mark">g.</span>
       <div className="auth-main">
         <h1>GetYourFit</h1>
-        <p className="auth-description">Sign-in is ready. Wardrobe features arrive in a later update.</p>
+        <p className="auth-description">Account access for your local GetYourFit setup.</p>
       </div>
     </section>
     <section className="auth-action">
@@ -120,7 +135,7 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
         <h2>{title}</h2><p>{intro}</p>
         {error && <p className="inline-error" role="alert">{error}</p>}
         {error.includes('local service is unavailable') && <button className="text-button" onClick={() => void retryService()} disabled={busy}>Try the connection again</button>}
-        {mode === 'sent' ? <div className="mail-catcher-note"><ShieldCheck size={17} /><span>This local build keeps verification messages private to its test runner.</span></div> : needsCode ? <form onSubmit={verifyCode} className="auth-form">
+        {mode === 'sent' ? <div className="mail-delivery-note"><ShieldCheck size={17} /><span>{deliveryCopy[deliveryMode].sent}</span></div> : needsCode ? <form onSubmit={verifyCode} className="auth-form">
           <label><span className="field-label">AUTHENTICATOR CODE</span><input className="text-input" name="code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} required /></label>
           <button className="button button-primary button-wide" disabled={busy}>{busy ? 'Checking…' : 'Verify code'}<ArrowRight size={16} /></button>
         </form> : <form onSubmit={(event) => void submit(event)} className="auth-form">
@@ -135,7 +150,7 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
           {mode === 'sign-up' && <button className="text-button" onClick={() => { setMode('sign-in'); setError(''); }}>Already have an account? Sign in</button>}
           {(mode === 'forgot' || mode === 'reset') && <button className="text-button" onClick={() => { setMode('sign-in'); setError(''); }}>Back to sign in</button>}
         </div>}
-        <div className="privacy-note"><LockKeyhole size={15} /><span>Account details stay in the local app. Authentication mail is held in its local mail catcher.</span></div>
+        <div className="privacy-note"><LockKeyhole size={15} /><span>Account details stay in the local app. {deliveryCopy[deliveryMode].privacy}</span></div>
       </div>
       <span className="auth-edge-note">GETYOURFIT / LOCAL EDITION</span>
     </section>

@@ -62,9 +62,8 @@ h1, h2, h3, p { margin-top: 0; }
 .consent-check input { margin: 2px 0 0; accent-color: var(--positive); }
 .privacy-note { display: flex; gap: 9px; margin-top: 25px; border-top: 1px solid #d9d4ca; padding-top: 15px; color: #77756d; font-size: 10px; line-height: 1.6; }
 .privacy-note svg { flex: 0 0 auto; margin-top: 1px; color: var(--positive); }
-.mail-catcher-note { display: flex; gap: 9px; border: 1px solid #d9d4ca; border-radius: 5px; padding: 12px; color: #5d5c55; font-size: 11px; line-height: 1.6; }
-.mail-catcher-note svg { flex: 0 0 auto; color: var(--positive); }
-.mail-catcher-note a { color: #345d4c; font-weight: 600; }
+.mail-delivery-note { display: flex; gap: 9px; border: 1px solid #d9d4ca; border-radius: 5px; padding: 12px; color: #5d5c55; font-size: 11px; line-height: 1.6; }
+.mail-delivery-note svg { flex: 0 0 auto; color: var(--positive); }
 .auth-edge-note { position: absolute; right: 24px; bottom: 19px; color: #979288; font-size: 8px; }
 .account-shell { min-height: 100vh; }
 .account-topbar { display: flex; height: 68px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--rule); padding: 0 clamp(24px, 7vw, 100px); }

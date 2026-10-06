@@ -1,12 +1,12 @@
 <!-- Generated from src/verification/features.json. Edit that file, then run npm run feature-map. -->
 # Export or delete account data
 
-Download the current account record or delete the account and its credentials, sessions, tokens, and exact-recipient local email.
+Download the current account record or delete the account and its credentials, sessions, tokens, and exact-recipient test mail.
 
 ## Sub-features
 
 - account-export downloads email, name, verification status, adult confirmation, and account creation time without password hashes or session secrets.
-- account-delete removes the account and related credentials, sessions, tokens, lockout record, and in-memory mail.
+- account-delete removes the account and related credentials, sessions, tokens, lockout record, and in-memory test mail.
 
 ## How to get to it (user POV)
 

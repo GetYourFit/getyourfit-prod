@@ -208,12 +208,15 @@ function queryError(location) {
 
 async function browserSignup(session, accountEmail, accountPassword) {
   click(session, 'button', 'Create an account');
+  pageContains(session, 'Create a private account with an email address you can access.');
+  pageContains(session, 'Automated test messages are restricted to the verification runner.');
   fill(session, 'YOUR NAME', 'Auth verification');
   fill(session, 'EMAIL ADDRESS', accountEmail);
   fill(session, 'PASSWORD', accountPassword);
   click(session, 'checkbox', 'I confirm I am at least 18 years old. GetYourFit does not create an account for minors.');
   click(session, 'button', 'Create account');
   await waitForPage(session, 'Request received.');
+  pageContains(session, 'Automated verification and recovery messages are available only to the test runner.');
 }
 
 async function browserSignin(session, accountEmail, accountPassword, code) {
@@ -359,7 +362,7 @@ async function main() {
 
   await browserSignup(sessionA, email, password);
   const anonymousSession = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/api/session")).json()'));
-  assert.equal(anonymousSession.signedIn, false, 'The unverified browser unexpectedly has an account session.');
+  assert.deepEqual(anonymousSession, { signedIn: false, emailDeliveryMode: 'local-test' }, 'The signed-out browser session did not expose only the local-test delivery mode.');
   const anonymousMailboxStatus = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/__mail")).status'));
   assert.equal(anonymousMailboxStatus, 404, 'An unauthenticated browser could read the local mailbox.');
   const verificationLink = await mailLink(email, 'Verify your GetYourFit email');
@@ -371,6 +374,8 @@ async function main() {
   assert.equal(firstUseEvent.error, null, 'First verification reported an error.');
   const sessionState = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/api/session")).json()'));
   assert.equal(sessionState.signedIn, true, 'Verified signup did not create a session.');
+  assert.equal(sessionState.emailDeliveryMode, 'local-test', 'The signed-in browser session lost its local-test delivery mode.');
+  pageContains(sessionA, 'Automated test messages are available only to the verification runner.');
   const verificationDb = new Database(databasePath);
   const sessionsAfterFirstUse = verificationDb.prepare('SELECT count(*) AS count FROM session WHERE userId = (SELECT id FROM user WHERE email = ?)').get(email).count;
   verificationDb.close();

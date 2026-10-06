@@ -10,7 +10,8 @@ const outputDir = path.join(root, '.cursor/skills/verify-getyourfit/features');
 const publicMap = path.join(root, 'FEATURE_MAP.md');
 const commands = ['map', 'doctor', 'verify', 'help'];
 const arguments_ = process.argv.slice(2);
-const action = arguments_[0] ?? 'home';
+const defaultView = arguments_.length === 0;
+const action = arguments_[0] ?? 'doctor';
 
 function line(key, value) {
   return `${key}: ${JSON.stringify(value)}`;
@@ -134,7 +135,7 @@ if (arguments_.some((argument) => argument.startsWith('--') && argument !== '--h
 } else if (arguments_.includes('--help') || action === 'help') {
   if (arguments_.length > 1) usageError('Help accepts no additional arguments.');
   else help();
-} else if (arguments_.length > 1 || !['home', ...commands].includes(action)) {
+} else if (arguments_.length > 1 || !commands.includes(action)) {
   usageError(`Unknown command ${action}.`);
 } else if (action === 'map') {
   try {
@@ -152,7 +153,7 @@ if (arguments_.some((argument) => argument.startsWith('--') && argument !== '--h
     process.stdout.write([
       line('tool', 'gyf'),
       line('description', 'Checks local GetYourFit services and maintains real-browser feature guides.'),
-      ...(action === 'home' ? [line('executable', executablePath())] : []),
+      ...(defaultView ? [line('executable', executablePath())] : []),
       line('instance', ready ? 'ready' : 'not-ready'),
       rows('checks', ['service', 'status', 'url'], serviceChecks.map(({ name, status, url }) => [name, status, url])),
       rows('features', ['id', 'title', 'entrypoint'], featureRows(source)),

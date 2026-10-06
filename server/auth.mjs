@@ -29,6 +29,7 @@ function parsedRecipients(addresses = []) {
 const mailTransport = process.env.GYF_MAIL_TRANSPORT || 'smtp';
 if (!['local', 'smtp'].includes(mailTransport)) throw new Error('GYF_MAIL_TRANSPORT must be local or smtp.');
 const localMailboxEnabled = mailTransport === 'local';
+export const emailDeliveryMode = localMailboxEnabled ? 'local-test' : 'smtp';
 const runnerToken = process.env.GYF_MAILBOX_RUNNER_TOKEN;
 if (localMailboxEnabled && process.env.NODE_ENV === 'production') throw new Error('The local mail catcher is available only in development and test mode.');
 if (localMailboxEnabled && !runnerToken) throw new Error('GYF_MAILBOX_RUNNER_TOKEN is required for the local mail catcher.');
@@ -82,10 +83,12 @@ if (localMailboxEnabled) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('SMTP_PORT must be a valid TCP port.');
   if (secureSetting && !['true', 'false'].includes(secureSetting.toLowerCase())) throw new Error('SMTP_SECURE must be true or false.');
   if (Boolean(user) !== Boolean(password)) throw new Error('SMTP_USER and SMTP_PASS must be set together.');
+  const secure = secureSetting ? secureSetting.toLowerCase() === 'true' : port === 465;
   mailer = nodemailer.createTransport({
     host,
     port,
-    secure: secureSetting ? secureSetting.toLowerCase() === 'true' : port === 465,
+    secure,
+    requireTLS: !secure,
     ...(user ? { auth: { user, pass: password } } : {}),
   });
 }

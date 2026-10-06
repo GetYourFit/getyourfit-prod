@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowDownToLine, LogOut, ShieldCheck, Trash2 } from 'lucide-react';
 import { AuthGate } from './AuthGate';
 import { AccountSecurity } from './AccountSecurity';
-import { request } from './api';
+import { request, type EmailDeliveryMode } from './api';
 
-type SessionState = { signedIn: boolean; email?: string; twoFactorEnabled?: boolean };
+type SessionState =
+  | { signedIn: false; emailDeliveryMode: EmailDeliveryMode }
+  | { signedIn: true; email: string; twoFactorEnabled: boolean; emailDeliveryMode: EmailDeliveryMode };
 
 export default function App() {
   const [session, setSession] = useState<SessionState | null>(null);
@@ -23,7 +25,7 @@ export default function App() {
     }).catch((cause: unknown) => {
       if (!mounted) return;
       setError(cause instanceof Error ? cause.message : 'Could not reach the local service.');
-      setSession({ signedIn: false });
+      setSession({ signedIn: false, emailDeliveryMode: 'unknown' });
     });
     return () => { mounted = false; };
   }, []);
@@ -38,6 +40,10 @@ export default function App() {
     } finally {
       setBusy('');
     }
+  }
+
+  function showSignedOut() {
+    setSession((current) => ({ signedIn: false, emailDeliveryMode: current?.emailDeliveryMode ?? 'unknown' }));
   }
 
   function exportData() {
@@ -59,14 +65,14 @@ export default function App() {
   function signOut() {
     return perform('sign-out', async () => {
       await request('/api/auth/sign-out', { method: 'POST', body: '{}' });
-      setSession({ signedIn: false });
+      showSignedOut();
     });
   }
 
   function signOutEverywhere() {
     return perform('revoke', async () => {
       await request('/api/auth/sign-out-everywhere', { method: 'POST', body: '{}' });
-      setSession({ signedIn: false });
+      showSignedOut();
     });
   }
 
@@ -74,23 +80,23 @@ export default function App() {
     return perform('delete', async () => {
       await request('/api/data', { method: 'DELETE', body: JSON.stringify({ confirm: 'delete my account' }) });
       setConfirmDelete(false);
-      setSession({ signedIn: false });
+      showSignedOut();
     });
   }
 
   if (!session) return <div className="boot-screen"><span className="brand-mark">g.</span><span className="spinner" aria-label="Loading" /></div>;
-  if (!session.signedIn) return <AuthGate onSignedIn={refresh} initialError={error} />;
+  if (!session.signedIn) return <AuthGate onSignedIn={refresh} deliveryMode={session.emailDeliveryMode} initialError={error} />;
 
   return <main className="account-shell">
     <header className="account-topbar"><a className="brand-lockup" href="/" aria-label="GetYourFit home"><span className="brand-mark">g.</span><span>GETYOURFIT</span></a><span className="account-email">{session.email}</span><button className="text-button" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>Privacy</button></header>
     <section className="account-content" aria-labelledby="account-title">
       <p className="eyebrow">YOUR ACCOUNT</p>
       <h1 id="account-title">Your account, in your hands.</h1>
-      <p className="lede">Wardrobe features arrive in a later update. For now, you can manage your account and its data.</p>
+      <p className="lede">This build covers account access and account data. Garment photos, wardrobe, and outfit decisions are not available here.</p>
       {error && <p className="inline-error" role="alert">{error}</p>}
       <section className="privacy-card" aria-labelledby="privacy-title">
         <div className="privacy-card-title"><span className="privacy-icon"><ShieldCheck size={18} /></span><div><h2 id="privacy-title">Stored on this device</h2><p>{session.email} · Account details stay in the local app database.</p></div></div>
-        <div className="privacy-list"><p><ShieldCheck size={14} /> Authentication mail is kept in the local mail catcher.</p><p><ShieldCheck size={14} /> Personal data is never sold.</p><p><ShieldCheck size={14} /> Your password is stored as a one-way hash.</p><p><ShieldCheck size={14} /> Sign out here or revoke every active session.</p></div>
+        <div className="privacy-list"><p><ShieldCheck size={14} /> {session.emailDeliveryMode === 'smtp' ? 'Verification and reset messages are sent to your email address.' : session.emailDeliveryMode === 'local-test' ? 'Automated test messages are available only to the verification runner.' : 'Email delivery details are unavailable while the service is offline.'}</p><p><ShieldCheck size={14} /> Personal data is never sold.</p><p><ShieldCheck size={14} /> Your password is stored as a one-way hash.</p><p><ShieldCheck size={14} /> Sign out here or revoke every active session.</p></div>
       </section>
       <section className="data-action-card">
         <span className="data-action-icon"><ArrowDownToLine size={18} /></span><div className="data-action-copy"><h2>Export account data</h2><p>Download your account details as a JSON file.</p></div>
