@@ -13,8 +13,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const origin = 'http://127.0.0.1:4174';
 const webOrigin = 'http://127.0.0.1:5173';
 const email = 'alice@example.test';
-const password = 'LocalTestOnly-2026-EnoughLength!';
-const updatedPassword = 'LocalTestOnly-NewPassword-2026!';
+const password = `Verify-${randomBytes(32).toString('base64url')}!`;
+const updatedPassword = `Verify-${randomBytes(32).toString('base64url')}!`;
+const weakPassword = randomBytes(3).toString('hex');
+const wrongPassword = `Verify-${randomBytes(32).toString('base64url')}!`;
 const mailboxRunnerToken = randomBytes(32).toString('base64url');
 const sessionA = 'gyf-auth-verify-a';
 const sessionB = 'gyf-auth-verify-b';
@@ -453,13 +455,13 @@ async function main() {
   const underAge = await api('/api/auth/sign-up/email', { name: 'Under age', email: `minor-${Date.now()}@example.test`, password, adultConfirmed: false, callbackURL: origin });
   assert.ok(!underAge.ok, 'The server accepted signup without adult confirmation.');
   currentStage = 'weak password signup rejection';
-  const weakPassword = await api('/api/auth/sign-up/email', { name: 'Weak password', email: `weak-${Date.now()}@example.test`, password: 'short', adultConfirmed: true, callbackURL: origin });
-  assert.ok(!weakPassword.ok, 'The API accepted a weak password.');
+  const weakPasswordResponse = await api('/api/auth/sign-up/email', { name: 'Weak password', email: `weak-${Date.now()}@example.test`, password: weakPassword, adultConfirmed: true, callbackURL: origin });
+  assert.ok(!weakPasswordResponse.ok, 'The API accepted a weak password.');
 
   currentStage = 'unknown and wrong-password response comparison';
   const unknownSignIn = await api('/api/auth/sign-in/email', { email: `unknown-${Date.now()}@example.test`, password });
-  const wrongPassword = await api('/api/auth/sign-in/email', { email, password: 'wrong-password-for-test' });
-  assert.equal(unknownSignIn.status, wrongPassword.status, 'Unknown email and wrong password have different responses.');
+  const wrongPasswordSignIn = await api('/api/auth/sign-in/email', { email, password: wrongPassword });
+  assert.equal(unknownSignIn.status, wrongPasswordSignIn.status, 'Unknown email and wrong password have different responses.');
 
   currentStage = 'launch second browser session';
   chrome(sessionB, ['open', origin]);

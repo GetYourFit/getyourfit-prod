@@ -26,7 +26,9 @@ Verification and reset messages stay in process memory. Only `npm run verify:aut
 
 ## Evidence
 
-Store screenshots, snapshots, and scratch data outside the repository under `/Users/rvzaku/firstmate/data/gyf-slice-1/` or an OS temporary directory. Update `docs/slice-1-acceptance.md` only for rows proven by the exact user flow. A screenshot without its triggering action is incomplete evidence.
+Store screenshots, snapshots, and scratch data in the task data directory or an OS temporary directory. Keep those artifacts outside the repository. Update `docs/slice-1-acceptance.md` only for rows proven by the exact user flow. A screenshot without its triggering action is incomplete evidence.
+
+The isolated verification scripts generate disposable random test passwords for each run. They do not require or accept a shared test password.
 
 ## Commands
 
