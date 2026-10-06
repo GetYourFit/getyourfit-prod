@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.gyf-data/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-*
+*.db
+.DS_Store
