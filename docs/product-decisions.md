@@ -18,7 +18,7 @@ Date: 2026-10-05
 
 ## Stack
 
-Planned: React, TypeScript, and Vite serve the browser UI. A same-device Node.js service will use Express and SQLite. Better Auth will provide email/password authentication, Argon2id password hashing, email verification, reset tokens, and optional TOTP. Apple Vision will perform local garment classification on macOS; no external image or inference service will receive the photo. The planned dependencies have no per-user or API charge. Only the React, TypeScript, and Vite shell exists so far.
+React, TypeScript, and Vite serve the browser UI. A Node.js service bound to loopback uses Express and SQLite. Better Auth provides email/password authentication, Argon2id password hashing, email verification, and optional TOTP. Password reset tokens are random, short-lived, single-use, and stored as hashes. The local account path includes session controls, account export, and account deletion. Verification mail stays in process memory. The wardrobe, garment data export/deletion, and Apple Vision path remain unimplemented and are not available claims.
 
 ## Account and privacy decisions
 
