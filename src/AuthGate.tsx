@@ -13,8 +13,8 @@ const deliveryCopy: Record<EmailDeliveryMode, { sent: string; privacy: string }>
     privacy: 'Automated test messages are restricted to the verification runner.',
   },
   unknown: {
-    sent: 'Email delivery details are unavailable while the local service is offline.',
-    privacy: 'Email delivery details are unavailable while the local service is offline.',
+    sent: 'Email delivery mode is unknown.',
+    privacy: 'Email delivery mode is unknown.',
   },
 };
 

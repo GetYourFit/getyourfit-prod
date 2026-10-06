@@ -11,6 +11,7 @@ import nodemailer from 'nodemailer';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const origin = 'http://127.0.0.1:4174';
+const webOrigin = 'http://127.0.0.1:5173';
 const email = 'alice@example.test';
 const password = 'LocalTestOnly-2026-EnoughLength!';
 const updatedPassword = 'LocalTestOnly-NewPassword-2026!';
@@ -21,6 +22,8 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-auth-'));
 const databasePath = path.join(dataDir, 'getyourfit.sqlite');
 let server;
 let serverWasStopped = false;
+let webServer;
+let webServerStopPromise;
 let enabledTotpUri = '';
 let serverOutput = '';
 let serverOutputRemainder = '';
@@ -206,17 +209,20 @@ function queryError(location) {
   return new URL(location, origin).searchParams.get('error');
 }
 
-async function browserSignup(session, accountEmail, accountPassword) {
+async function browserSignup(session, accountEmail, accountPassword, deliveryMode = 'local-test') {
+  const deliveryCopy = deliveryMode === 'unknown'
+    ? { privacy: 'Email delivery mode is unknown.', sent: 'Email delivery mode is unknown.' }
+    : { privacy: 'Automated test messages are restricted to the verification runner.', sent: 'Automated verification and recovery messages are available only to the test runner.' };
   click(session, 'button', 'Create an account');
   pageContains(session, 'Create a private account with an email address you can access.');
-  pageContains(session, 'Automated test messages are restricted to the verification runner.');
+  pageContains(session, deliveryCopy.privacy);
   fill(session, 'YOUR NAME', 'Auth verification');
   fill(session, 'EMAIL ADDRESS', accountEmail);
   fill(session, 'PASSWORD', accountPassword);
   click(session, 'checkbox', 'I confirm I am at least 18 years old. GetYourFit does not create an account for minors.');
   click(session, 'button', 'Create account');
   await waitForPage(session, 'Request received.');
-  pageContains(session, 'Automated verification and recovery messages are available only to the test runner.');
+  pageContains(session, deliveryCopy.sent);
 }
 
 async function browserSignin(session, accountEmail, accountPassword, code) {
@@ -338,6 +344,35 @@ async function startServer() {
   throw new Error(`Local service did not start on port 4174: ${serverError}`);
 }
 
+async function startWebApp() {
+  assert.ok(await portIsAvailable(5173), 'Port 5173 is already in use. Stop the local web app and retry.');
+  webServer = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], {
+    cwd: root,
+    stdio: 'ignore',
+  });
+  const until = Date.now() + 15_000;
+  while (Date.now() < until) {
+    if (webServer.exitCode !== null) throw new Error('The local web app stopped during startup.');
+    try {
+      const response = await fetch(webOrigin, { signal: AbortSignal.timeout(500) });
+      await response.arrayBuffer();
+      if (response.ok) return;
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('The local web app did not start on port 5173.');
+}
+
+function stopWebApp() {
+  if (!webServer || webServer.exitCode !== null) return Promise.resolve();
+  if (webServerStopPromise) return webServerStopPromise;
+  webServerStopPromise = new Promise((resolve) => webServer.once('exit', resolve));
+  webServer.kill('SIGTERM');
+  return webServerStopPromise;
+}
+
 async function stopServer() {
   if (!server || server.exitCode !== null || serverWasStopped) return;
   serverWasStopped = true;
@@ -354,15 +389,21 @@ async function main() {
       if (!(error instanceof Error)) throw error;
     }
   }
-  currentStage = 'production service startup';
+  currentStage = 'web app starts before its session API';
+  await startWebApp();
+  chrome(sessionA, ['open', webOrigin]);
+  await waitForPage(sessionA, 'Welcome back.');
+  pageContains(sessionA, 'Email delivery mode is unknown.');
+
+  currentStage = 'session API starts after the browser shows unknown delivery mode';
   await startServer();
-  currentStage = 'browser signup and first email verification';
+  currentStage = 'signup succeeds after the initial session request failed';
+  await browserSignup(sessionA, email, password, 'unknown');
+  const anonymousSession = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/api/session")).json()'));
+  assert.deepEqual(anonymousSession, { signedIn: false, emailDeliveryMode: 'local-test' }, 'The service did not report its local-test delivery mode after startup.');
   chrome(sessionA, ['open', origin]);
   await waitForPage(sessionA, 'Welcome back.');
-
-  await browserSignup(sessionA, email, password);
-  const anonymousSession = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/api/session")).json()'));
-  assert.deepEqual(anonymousSession, { signedIn: false, emailDeliveryMode: 'local-test' }, 'The signed-out browser session did not expose only the local-test delivery mode.');
+  pageContains(sessionA, 'Automated test messages are restricted to the verification runner.');
   const anonymousMailboxStatus = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/__mail")).status'));
   assert.equal(anonymousMailboxStatus, 404, 'An unauthenticated browser could read the local mailbox.');
   const verificationLink = await mailLink(email, 'Verify your GetYourFit email');
@@ -382,6 +423,7 @@ async function main() {
   assert.ok(sessionsAfterFirstUse > 0, 'First verification did not create a session.');
   chrome(sessionA, ['open', origin]);
   await waitForPage(sessionA, 'Your account, in your hands.');
+  await stopWebApp();
 
   const reusedVerification = await fetch(verificationLink, { redirect: 'manual' });
   await reusedVerification.arrayBuffer();
@@ -552,7 +594,6 @@ async function main() {
   fill(sessionA, 'PASSWORD', updatedPassword);
   click(sessionA, 'button', 'Sign in');
   pageContains(sessionA, 'The local service is unavailable. Check that it is running, then try again.');
-
   chrome(sessionA, ['stop']);
   chrome(sessionB, ['stop']);
   process.stdout.write('verify:auth passed: production build, test-mode browser signup/verification/session/sign-out, multi-user signup, no-enumeration responses, password validation/reset expiry and reuse, rate limits, CSRF/origin, concurrent sessions, TOTP wrong and right codes, revocation, export/deletion, and server-down UI.\n');
@@ -588,6 +629,7 @@ try {
   process.exitCode = 1;
 } finally {
   if (server && server.exitCode === null) await stopServer();
+  if (webServer && webServer.exitCode === null) await stopWebApp();
   fs.rmSync(dataDir, { recursive: true, force: true });
   if (serverWasStopped) process.stdout.write('Stopped the isolated verification service.\n');
 }
