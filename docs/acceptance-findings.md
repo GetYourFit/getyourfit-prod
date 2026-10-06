@@ -8,4 +8,4 @@
 - Actual: the paragraph using `--muted-ink` fails the automated contrast check.
 - Evidence: `tests/acceptance/results/report.json` (generated locally; not committed).
 
-Journeys without a corresponding user flow are reported as `not_yet_applicable` until the feature lands.
+Cases whose cited requirement is still pending or deferred in [requirements](requirements.md) are reported as `not_yet_applicable` with that status as the reason.

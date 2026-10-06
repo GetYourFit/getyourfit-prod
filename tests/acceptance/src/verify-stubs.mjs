@@ -17,7 +17,7 @@ const mutations = new Map([
   ['correction-persistence', 'user correction persists'], ['provenance', 'ownership and provenance'],
   ['outfit-generation', 'natural-language request returns'], ['wardrobe-reuse', 'recommendation reuses owned'],
   ['low-confidence', 'low-confidence request asks'], ['browser', 'reachable in a real browser'],
-  ['browser-auth', 'browser account journey'],
+  ['browser-auth', 'browser account journey'], ['sign-up-render', 'browser account journey'], ['wardrobe-route', 'offline wardrobe state'],
   ['offline-recovery', 'offline wardrobe state'], ['server-down-recovery', 'server-down wardrobe state'],
   ['responsive', 'responsive layout'], ['keyboard', 'keyboard can reach'], ['accessibility', 'WCAG accessibility'], ['security-headers', 'security headers'],
   ['performance', 'performance budget'], ['console', 'no console errors'],
