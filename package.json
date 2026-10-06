@@ -7,15 +7,9 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "concurrently -k \"node server/index.mjs\" \"vite --host 127.0.0.1 --port 5173\"",
-    "server": "node server/index.mjs",
-    "start": "NODE_ENV=production node server/index.mjs",
-    "reset:local": "node scripts/reset-local-data.mjs",
+    "dev": "vite --host 127.0.0.1 --port 5173",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "verify": "node scripts/gyf.mjs verify",
-    "verify:auth": "node scripts/verify-auth.mjs",
-    "feature-map": "node scripts/gyf.mjs map"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

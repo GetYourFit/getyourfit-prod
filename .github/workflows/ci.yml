@@ -2,39 +2,7 @@ name: CI
 
 on:
   pull_request:
-    paths:
-      - '.github/workflows/ci.yml'
-      - '.gitignore'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'eslint.config.js'
-      - 'index.html'
-      - 'src/**'
-      - 'server/**'
-      - 'scripts/**'
-      - 'docs/**'
-      - '.cursor/skills/verify-getyourfit/**'
-      - 'src/verification/**'
-      - 'README.md'
-      - 'DESIGN.md'
-      - 'FEATURE_MAP.md'
   push:
-    paths:
-      - '.github/workflows/ci.yml'
-      - '.gitignore'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'eslint.config.js'
-      - 'index.html'
-      - 'src/**'
-      - 'server/**'
-      - 'scripts/**'
-      - 'docs/**'
-      - '.cursor/skills/verify-getyourfit/**'
-      - 'src/verification/**'
-      - 'README.md'
-      - 'DESIGN.md'
-      - 'FEATURE_MAP.md'
 
 permissions:
   contents: read
@@ -53,4 +21,3 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-      - run: npm run feature-map && git diff --exit-code

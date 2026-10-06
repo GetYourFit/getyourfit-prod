@@ -5,7 +5,7 @@ import refresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', '.gyf-data', 'FEATURE_MAP.md'] },
+  { ignores: ['dist', 'node_modules'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
@@ -18,7 +18,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['server/**/*.mjs', 'scripts/**/*.mjs', '*.config.js'],
+    files: ['*.config.js'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },

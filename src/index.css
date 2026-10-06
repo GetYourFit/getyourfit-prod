@@ -1,0 +1,65 @@
+:root {
+  --canvas: #f4f1eb;
+  --surface: #fffefc;
+  --ink: #252621;
+  --muted-ink: #74736b;
+  --rule: #ddd9d0;
+  --accent: #c65d43;
+  --serif: ui-serif, Georgia, 'Times New Roman', serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+  font-family: var(--sans);
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.brand {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.shell-main {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+.shell-main h1 {
+  margin: 0 0 16px;
+  font-family: var(--serif);
+  font-size: clamp(32px, 6vw, 48px);
+  line-height: 1.1;
+}
+
+.shell-main p {
+  margin: 0;
+  color: var(--muted-ink);
+  font-size: 18px;
+}
