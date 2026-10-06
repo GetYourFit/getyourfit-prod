@@ -1,8 +1,8 @@
 # GetYourFit
 
-GetYourFit aims to be a private, local-first wardrobe companion: add a real garment photo, correct what the device recognizes, and get one complete explained outfit for a stated occasion from clothes you own. “You already own it” is a useful result. The current app provides the account path and account data controls; the wardrobe and outfit decision arrive in later changes.
+GetYourFit aims to be a private, local-first wardrobe companion: add a real garment photo, correct what the device recognizes, and get one complete explained outfit for a stated occasion from clothes you own. “You already own it” is a useful result. The foundation PR delivered the buildable app shell; this follow-on account-and-data increment implements local accounts and account data controls. The wardrobe and outfit decision arrive in later changes.
 
-Create an account with email and password, verify the address in the local mail catcher, and manage account security and data from the private account page. Garment photos and outfit decisions are not available yet.
+Create an account with email and password, then manage account security and account data from the private account page. Garment photos and outfit decisions are not available yet. Verification and reset messages stay in process memory; only the isolated verification runner can read them and open their links in its browser sessions.
 
 ## Run locally
 
@@ -15,7 +15,7 @@ npm run dev
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-In another tab, open [http://127.0.0.1:4174/__mail](http://127.0.0.1:4174/__mail) to read local verification and password reset messages.
+Run `npm run verify:auth` to drive the account journey in isolated browser sessions. Its runner alone can read the process-local verification mailbox; normal browser requests cannot read those messages.
 
 ## Check
 

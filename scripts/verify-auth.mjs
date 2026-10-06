@@ -7,12 +7,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
+import nodemailer from 'nodemailer';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const origin = 'http://127.0.0.1:4174';
-const email = `auth-${Date.now()}@example.test`;
+const email = 'alice@example.test';
 const password = 'LocalTestOnly-2026-EnoughLength!';
 const updatedPassword = 'LocalTestOnly-NewPassword-2026!';
+const mailboxRunnerToken = randomBytes(32).toString('base64url');
 const sessionA = 'gyf-auth-verify-a';
 const sessionB = 'gyf-auth-verify-b';
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-auth-'));
@@ -25,6 +27,7 @@ let serverOutputRemainder = '';
 let serverErrorOutput = '';
 let currentStage = 'startup';
 const verificationEvents = [];
+const verificationMailer = nodemailer.createTransport({ host: '127.0.0.1', port: 1025, secure: false, ignoreTLS: true });
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -107,14 +110,22 @@ async function api(pathname, body, { method = 'POST', requestOrigin = origin } =
   }
 }
 
+async function requestPasswordReset(email) {
+  const response = await fetch(`${origin}/api/auth/request-password-reset`, {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  return { status: response.status, body: await response.json() };
+}
+
 async function mailLink(recipient, subject) {
   const until = Date.now() + 5_000;
   while (Date.now() < until) {
-    const html = await (await fetch(`${origin}/__mail`)).text();
-    const article = html.match(/<article>([\s\S]*?)<\/article>/g)?.find((card) => card.includes(recipient) && card.includes(subject));
-    const href = article?.match(/<a href="([^"]+)"/)?.[1];
-    if (href) {
-      const link = href.replaceAll('&amp;', '&');
+    const messages = await mailboxMessages();
+    const message = messages.find((entry) => entry.recipients.includes(recipient.trim().toLowerCase()) && entry.subject === subject);
+    const link = message?.text.match(/https?:\/\/[^\s"'<>]+/)?.[0];
+    if (link) {
       if (!subject.includes('Verify')) return link;
       const token = new URL(link).searchParams.get('token');
       const database = new Database(databasePath);
@@ -125,6 +136,15 @@ async function mailLink(recipient, subject) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   assert.fail(`Local mail catcher has no current "${subject}" message for the test account.`);
+}
+
+async function mailboxMessages() {
+  const response = await fetch(`${origin}/__mail`, {
+    headers: { Authorization: `Bearer ${mailboxRunnerToken}` },
+    signal: AbortSignal.timeout(3_000),
+  });
+  assert.equal(response.status, 200, 'Verification runner could not read the local mailbox.');
+  return (await response.json()).messages;
 }
 
 async function waitForVerificationEvent(count, timeout = 5_000) {
@@ -165,10 +185,8 @@ function pageContains(session, text) {
   assert.ok(readRefs(session).includes(text), `Browser did not show: ${text}`);
 }
 
-async function openMailAction(session, recipient, subject) {
-  chrome(session, ['newpage', `${origin}/__mail`]);
-  const expression = `() => { const card = [...document.querySelectorAll('article')].find((entry) => entry.textContent.includes(${JSON.stringify(recipient)}) && entry.textContent.includes(${JSON.stringify(subject)})); const link = card?.querySelector('a'); if (!link) throw new Error('mail action missing'); link.click(); return 'mail action opened'; }`;
-  evalInBrowser(session, expression);
+function openMailAction(session, link) {
+  chrome(session, ['open', link]);
 }
 
 function queryError(location) {
@@ -183,7 +201,7 @@ async function browserSignup(session, accountEmail, accountPassword) {
   fill(session, 'PASSWORD', accountPassword);
   click(session, 'checkbox', 'I confirm I am at least 18 years old. GetYourFit does not create an account for minors.');
   click(session, 'button', 'Create account');
-  await waitForPage(session, 'Check your inbox.');
+  await waitForPage(session, 'Request received.');
 }
 
 async function browserSignin(session, accountEmail, accountPassword, code) {
@@ -265,7 +283,7 @@ async function startServer() {
     env: {
       ...process.env,
       NODE_ENV: 'production',
-      GYF_ENABLE_LOCAL_MAILCATCHER: '1',
+      GYF_MAILBOX_RUNNER_TOKEN: mailboxRunnerToken,
       GYF_DATA_DIR: dataDir,
       GYF_PORT: '4174',
       BETTER_AUTH_URL: origin,
@@ -327,8 +345,12 @@ async function main() {
   await waitForPage(sessionA, 'Welcome back.');
 
   await browserSignup(sessionA, email, password);
+  const anonymousSession = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/api/session")).json()'));
+  assert.equal(anonymousSession.signedIn, false, 'The unverified browser unexpectedly has an account session.');
+  const anonymousMailboxStatus = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/__mail")).status'));
+  assert.equal(anonymousMailboxStatus, 404, 'An unauthenticated browser could read the local mailbox.');
   const verificationLink = await mailLink(email, 'Verify your GetYourFit email');
-  await openMailAction(sessionA, email, 'Verify your GetYourFit email');
+  openMailAction(sessionA, verificationLink);
   await waitForPage(sessionA, 'Your account, in your hands.');
   const firstUseEvent = await waitForVerificationEvent(1);
   process.stdout.write(`Verification first use: status=${firstUseEvent.status} Location=${firstUseEvent.location ?? '(none)'} error=${firstUseEvent.error ?? '(none)'}\n`);
@@ -393,28 +415,24 @@ async function main() {
     process.stderr.write(`Browser auth diagnostics:\nnetwork=${network}\nconsole=${consoleOutput}\nsnapshot=${snapshot}\n`);
     throw error;
   }
-  currentStage = 'read the local mail catcher after unverified sign-in triggers resend';
-  let mailResponse;
-  try {
-    mailResponse = await fetch(`${origin}/__mail`, { signal: AbortSignal.timeout(3_000) });
-    await mailResponse.arrayBuffer();
-  } catch (cause) {
-    const nested = cause instanceof Error && cause.cause instanceof Error ? { name: cause.cause.name, message: cause.cause.message, code: cause.cause.code, errors: cause.cause.errors?.map((entry) => ({ message: entry.message, code: entry.code })) } : null;
-    const listenerAvailable = await portIsAvailable(4174);
-    throw new Error(`The local mail catcher request failed; server exit=${server.exitCode}, signal=${server.signalCode}, portAvailable=${listenerAvailable}, cause=${JSON.stringify(nested)}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
-  }
-  assert.equal(mailResponse.status, 200, 'Local verification mail catcher is unavailable.');
   currentStage = 'read the resent verification message';
   const secondLink = await mailLink(secondEmail, 'Verify your GetYourFit email');
   currentStage = 'second account email verification';
-  await openMailAction(sessionB, secondEmail, 'Verify your GetYourFit email');
+  openMailAction(sessionB, secondLink);
   await waitForPage(sessionB, 'Your account, in your hands.');
+  const secondUserSession = evalResult(evalInBrowser(sessionB, 'async () => await (await fetch("/api/session")).json()'));
+  assert.equal(secondUserSession.signedIn, true, 'The second account browser did not establish its own session.');
+  const secondUserMailboxStatus = evalResult(evalInBrowser(sessionB, 'async () => await (await fetch("/__mail")).status'));
+  assert.equal(secondUserMailboxStatus, 404, 'A different signed-in user could read the local mailbox.');
   const reusedSecondLink = await fetch(secondLink, { redirect: 'manual' });
   await reusedSecondLink.arrayBuffer();
   assert.match(reusedSecondLink.headers.get('location') ?? '', /error=INVALID_TOKEN/, `A second user verification link was reusable or not consumed: status=${reusedSecondLink.status}, location=${reusedSecondLink.headers.get('location')}.`);
 
-  const resetRequested = await api('/api/auth/request-password-reset', { email });
-  assertApiResponse(resetRequested, 200, 'Password reset request failed');
+  const resetRequested = await requestPasswordReset(email);
+  assert.equal(resetRequested.status, 200, 'Password reset request failed');
+  const unknownReset = await requestPasswordReset(`unknown-reset-${Date.now()}@example.test`);
+  assert.equal(unknownReset.status, 200, 'Unknown-account password reset request failed');
+  assert.deepEqual(unknownReset.body, resetRequested.body, 'Known and unknown password reset requests have different responses.');
   currentStage = 'password reset valid, reused, and expired cases';
   const resetLink = await mailLink(email, 'Reset your GetYourFit password');
   const resetToken = new URL(resetLink).searchParams.get('token');
@@ -424,8 +442,8 @@ async function main() {
   const reusedReset = await api('/api/auth/reset-password', { token: resetToken, newPassword: `${updatedPassword}A` });
   assert.ok(!reusedReset.ok, 'A reset token was accepted twice.');
 
-  const expiredRequest = await api('/api/auth/request-password-reset', { email });
-  assertApiResponse(expiredRequest, 200, 'Expired reset test could not request a token');
+  const expiredRequest = await requestPasswordReset(email);
+  assert.equal(expiredRequest.status, 200, 'Expired reset test could not request a token');
   const expiredLink = await mailLink(email, 'Reset your GetYourFit password');
   const expiredToken = new URL(expiredLink).searchParams.get('token');
   const db = new Database(databasePath);
@@ -435,7 +453,13 @@ async function main() {
   assert.ok(!rejectedExpiredReset.ok, 'An expired reset token was accepted.');
   db.close();
 
-  for (let i = 0; i < 4; i += 1) await api('/api/auth/request-password-reset', { email: `rate-${Date.now()}-${i}@example.test` });
+  for (let i = 0; i < 2; i += 1) {
+    const invalidReset = await api('/api/auth/reset-password', { token: `invalid-reset-${i}`, newPassword: updatedPassword });
+    assert.equal(invalidReset.status, 400, 'Password reset rate limit triggered before its configured threshold.');
+  }
+  const limitedPasswordReset = await api('/api/auth/reset-password', { token: 'invalid-reset-limit', newPassword: updatedPassword });
+  assert.equal(limitedPasswordReset.status, 429, 'Password reset endpoint rate limit did not trigger.');
+
   const limitedReset = await api('/api/auth/request-password-reset', { email: `rate-${Date.now()}@example.test` });
   assert.equal(limitedReset.status, 429, 'Password reset rate limiting did not trigger.');
 
@@ -486,11 +510,17 @@ async function main() {
   const initialExport = evalResult(evalInBrowser(sessionA, 'async () => { const r = await fetch("/api/data/export"); const data = await r.json(); return { ok: r.ok, format: data.format, account: data.account.email }; }'));
   assert.equal(initialExport.ok, true, 'Data export failed.');
   assert.equal(initialExport.format, 'getyourfit-account-export-v1', 'Data export format is incorrect.');
+  const foreignRecipient = `xx${email}`.toLowerCase();
+  await verificationMailer.sendMail({ from: 'GetYourFit <wardrobe@localhost>', to: foreignRecipient, subject: 'Recipient deletion isolation', text: 'This message belongs to a different recipient.' });
+  assert.ok((await mailboxMessages()).some((message) => message.recipients.includes(foreignRecipient)), 'The recipient-isolation message was not parsed by the local mailbox.');
+  const mailboxBeforeDelete = await mailboxMessages();
+  assert.ok(mailboxBeforeDelete.some((message) => message.recipients.includes(email.toLowerCase())), 'The account mailbox had no message to clean up.');
   click(sessionA, 'button', 'Delete my data');
   click(sessionA, 'button', 'Erase permanently');
   await waitForPage(sessionA, 'Welcome back.');
-  const mailboxAfterDelete = await (await fetch(`${origin}/__mail`)).text();
-  assert.ok(!mailboxAfterDelete.includes(email), 'Account deletion left its verification or reset mail in the local mailbox.');
+  const mailboxAfterDelete = await mailboxMessages();
+  assert.ok(!mailboxAfterDelete.some((message) => message.recipients.includes(email.toLowerCase())), 'Account deletion left its verification or reset mail in the local mailbox.');
+  assert.ok(mailboxAfterDelete.some((message) => message.recipients.includes(foreignRecipient)), 'Deleting alice@example.test removed mail addressed to xxalice@example.test.');
   const deletedSignIn = await api('/api/auth/sign-in/email', { email, password: updatedPassword });
   assert.ok(!deletedSignIn.ok, 'A deleted account could sign in.');
 

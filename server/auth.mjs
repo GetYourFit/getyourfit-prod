@@ -19,6 +19,13 @@ const trustedOrigins = new Set([
 ]);
 
 const messages = [];
+function parsedRecipients(addresses = []) {
+  return addresses.flatMap(({ address, group }) => [
+    ...(typeof address === 'string' ? [address.trim().toLowerCase()] : []),
+    ...parsedRecipients(group ?? []),
+  ]);
+}
+
 const mailServer = new SMTPServer({
   authOptional: true,
   disabledCommands: ['AUTH', 'STARTTLS'],
@@ -33,12 +40,9 @@ const mailServer = new SMTPServer({
       try {
         const mail = await simpleParser(Buffer.concat(chunks));
         messages.unshift({
-          id: crypto.randomUUID(),
           subject: mail.subject || 'GetYourFit message',
-          to: mail.to?.text || '',
+          recipients: parsedRecipients(mail.to?.value),
           text: mail.text || '',
-          html: typeof mail.html === 'string' ? mail.html : '',
-          receivedAt: new Date().toISOString(),
         });
         messages.splice(50);
         callback();
@@ -89,31 +93,16 @@ export const auth = betterAuth({
     customRules: {
       '/sign-in/email': { window: 60, max: 5 },
       '/sign-up/email': { window: 60, max: 5 },
-      '/request-password-reset': { window: 60, max: 3 },
-      '/reset-password': { window: 60, max: 5 },
     },
   },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    revokeSessionsOnPasswordReset: true,
     minPasswordLength: 12,
     maxPasswordLength: 1024,
-    resetPasswordTokenExpiresIn: 15 * 60,
     password: {
       hash: hashPassword,
       verify: ({ password, hash: encoded }) => verify(encoded, password, argon2id),
-    },
-    sendResetPassword: async ({ user, url }) => {
-      const token = new URL(url).pathname.split('/').at(-1);
-      const appURL = process.env.BETTER_AUTH_URL || (localOnly ? 'http://127.0.0.1:5173' : 'http://127.0.0.1:4174');
-      const resetURL = new URL('/', appURL);
-      resetURL.searchParams.set('token', token);
-      await sendLocalMail({
-        to: user.email,
-        subject: 'Reset your GetYourFit password',
-        text: `Use this single-use link within 15 minutes to reset your password:\n\n${resetURL}\n\nIf you did not request this, ignore this message.`,
-      });
     },
     onExistingUserSignUp: async () => {},
   },
@@ -165,7 +154,7 @@ export const localMailbox = () => messages;
 export function clearLocalMailbox(email) {
   const normalized = String(email).trim().toLowerCase();
   for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index].to.toLowerCase().includes(normalized)) messages.splice(index, 1);
+    if (messages[index].recipients.includes(normalized)) messages.splice(index, 1);
   }
 }
 

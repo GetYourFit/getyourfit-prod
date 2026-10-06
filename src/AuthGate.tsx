@@ -22,7 +22,7 @@ async function authRequest(path: string, body: Record<string, string | boolean>)
     const code = typeof result === 'object' && result !== null && 'code' in result && typeof result.code === 'string' ? result.code : '';
     const message = typeof result === 'object' && result !== null && 'message' in result && typeof result.message === 'string' ? result.message : '';
     console.error(`GetYourFit auth request rejected ${JSON.stringify({ url: `/api/auth/${path}`, method: 'POST', status: response.status, code, message, origin: window.location.origin })}`);
-    if (path === 'sign-in/email') throw new Error('We could not sign you in. Check your email and password, then try again. If you need email verification, check your inbox for a fresh link.');
+    if (path === 'sign-in/email') throw new Error('We could not sign you in. Check your email and password, then try again.');
     if (path === 'sign-up/email' && ['PASSWORD_TOO_SHORT', 'PASSWORD_TOO_LONG'].includes(code)) throw new Error('Use a password between 12 and 1024 characters.');
     if (path === 'sign-up/email') throw new Error('We could not create the account. If you may already have one, try signing in or reset your password.');
     if (path === 'reset-password') throw new Error('This reset link is invalid or expired. Request another link.');
@@ -102,8 +102,8 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
     }
   }
 
-  const title = mode === 'sign-up' ? 'Make it yours.' : mode === 'forgot' ? 'Find your way back.' : mode === 'reset' ? 'Choose a new password.' : mode === 'sent' ? 'Check your inbox.' : needsCode ? 'One more step.' : 'Welcome back.';
-  const intro = mode === 'sign-up' ? 'Create a private account. Your email stays here.' : mode === 'forgot' ? 'We’ll send a single-use reset link if this address has an account.' : mode === 'reset' ? 'Use a long, unique password you do not use elsewhere.' : mode === 'sent' ? 'Open the message in your local mail catcher to continue.' : needsCode ? 'Enter the code from your authenticator app.' : 'Sign in to your GetYourFit account.';
+  const title = mode === 'sign-up' ? 'Make it yours.' : mode === 'forgot' ? 'Find your way back.' : mode === 'reset' ? 'Choose a new password.' : mode === 'sent' ? 'Request received.' : needsCode ? 'One more step.' : 'Welcome back.';
+  const intro = mode === 'sign-up' ? 'Create a private account. Your email stays here.' : mode === 'forgot' ? 'We’ll send a single-use reset link if this address has an account.' : mode === 'reset' ? 'Use a long, unique password you do not use elsewhere.' : mode === 'sent' ? 'Messages stay private to the local verification runner.' : needsCode ? 'Enter the code from your authenticator app.' : 'Sign in to your GetYourFit account.';
   const showCredential = mode === 'sign-up' || mode === 'sign-in' || mode === 'forgot';
 
   return <main className="auth-layout">
@@ -120,7 +120,7 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
         <h2>{title}</h2><p>{intro}</p>
         {error && <p className="inline-error" role="alert">{error}</p>}
         {error.includes('local service is unavailable') && <button className="text-button" onClick={() => void retryService()} disabled={busy}>Try the connection again</button>}
-        {mode === 'sent' ? <div className="mail-catcher-note"><ShieldCheck size={17} /><span>Messages are held locally. <a href="/__mail" target="_blank" rel="noreferrer">Open the mail catcher</a> to verify your email or reset your password.</span></div> : needsCode ? <form onSubmit={verifyCode} className="auth-form">
+        {mode === 'sent' ? <div className="mail-catcher-note"><ShieldCheck size={17} /><span>This local build keeps verification messages private to its test runner.</span></div> : needsCode ? <form onSubmit={verifyCode} className="auth-form">
           <label><span className="field-label">AUTHENTICATOR CODE</span><input className="text-input" name="code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} required /></label>
           <button className="button button-primary button-wide" disabled={busy}>{busy ? 'Checking…' : 'Verify code'}<ArrowRight size={16} /></button>
         </form> : <form onSubmit={(event) => void submit(event)} className="auth-form">

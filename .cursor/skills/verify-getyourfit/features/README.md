@@ -8,7 +8,7 @@ Local responsive browser app, loopback Node service, and SQLite account data. Re
 - Run npm run dev with a disposable GYF_DATA_DIR and open http://127.0.0.1:5173.
 - Run npm run verify to check the browser app and data service readiness.
 - Use chrome-devtools-axi and a named browser session for user-visible checks.
-- npm run verify:auth starts its own temporary production-mode service, isolated database, local mail catcher, and browser sessions.
+- npm run verify:auth starts an isolated service and database, creates an ephemeral mailbox token for its Node runner, and drives named browser sessions.
 
 ## Features
 

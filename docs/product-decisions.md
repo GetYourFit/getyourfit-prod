@@ -2,6 +2,10 @@
 
 Date: 2026-10-05
 
+## Delivery scope
+
+The foundation PR delivered the buildable app shell. This follow-on increment implements accounts and account-level data controls, following the approved sequence from foundation to accounts and data to wardrobe. The shell-only and pending-status decision applied to the foundation PR and remains true for that PR. Results recorded here are local-runtime evidence, not deployment proof; garment, wardrobe, outfit, and deployment outcomes remain pending.
+
 ## Product sources reviewed
 
 - `GetYourFit/GYF_APP` is a React/Vite prototype with mock garments, shuffled combinations, and community, profile, sharing, and try-on surfaces.
@@ -18,11 +22,11 @@ Date: 2026-10-05
 
 ## Stack
 
-React, TypeScript, and Vite serve the browser UI. A Node.js service bound to loopback uses Express and SQLite. Better Auth provides email/password authentication, Argon2id password hashing, email verification, and optional TOTP. Password reset tokens are random, short-lived, single-use, and stored as hashes. The local account path includes session controls, account export, and account deletion. Verification mail stays in process memory. The wardrobe, garment data export/deletion, and Apple Vision path remain unimplemented and are not available claims.
+React, TypeScript, and Vite serve the browser UI. A Node.js service bound to loopback uses Express and SQLite. Better Auth provides email/password authentication, Argon2id password hashing, email verification, and optional TOTP. Password reset tokens are random, short-lived, single-use, and stored as hashes. The local account path includes session controls, account export, and account deletion. Verification mail stays in process memory and only the explicitly enabled local verification runner can read it; the browser-facing mailbox route returns no messages. The wardrobe, garment data export/deletion, and Apple Vision path remain unimplemented and are not available claims.
 
 ## Account and privacy decisions
 
-The captain replaced the earlier passkey decision with email/password authentication, verified email, short-lived single-use password-reset links stored as hashes, optional TOTP, secure cookies, origin checks, rate limits, safe logs, sign-out everywhere, export, deletion, a local mail catcher, and an explicit 18+ gate. Optional Google sign-in is deferred unless a free configuration becomes available. The planned local mail catcher will keep verification and reset messages in process memory and send nothing externally.
+The captain replaced the earlier passkey decision with email/password authentication, verified email, short-lived single-use password-reset links stored as hashes, optional TOTP, secure cookies, origin checks, rate limits, safe logs, sign-out everywhere, export, deletion, a local mail catcher, and an explicit 18+ gate. Optional Google sign-in is deferred unless a free configuration becomes available. The local mail catcher keeps verification and reset messages in process memory and sends nothing externally. An ephemeral bearer token created by `npm run verify:auth` limits message access to that verification runner; browser users receive no mailbox content.
 
 Photo permission will cover local processing and storage of the garment photo. It will not grant publication, sharing, or model-training rights. Photo resizing is planned in the browser before the local service receives the image. Temporary image files will be removed after classification.
 

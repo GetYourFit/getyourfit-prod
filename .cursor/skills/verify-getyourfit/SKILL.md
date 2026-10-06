@@ -22,7 +22,7 @@ Use `chrome-devtools-axi` and follow the selected guide:
 3. Capture both the action and resulting state. Inspect network requests when privacy or locality matters.
 4. Confirm persisted effects through a second user view or the isolated SQLite database.
 
-The local mailbox at `http://127.0.0.1:4174/__mail` keeps verification and reset messages in process memory. Use a named browser session and disposable data. The current product path covers account access and account data control; wardrobe features are still pending.
+Verification and reset messages stay in process memory. Only `npm run verify:auth` receives an ephemeral token for mailbox access; its Node runner opens links in named browser sessions. Normal browser requests to `/__mail` return no messages. The current product path covers account access and account data control; wardrobe features are still pending.
 
 ## Evidence
 

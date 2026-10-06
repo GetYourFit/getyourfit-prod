@@ -76,7 +76,7 @@ app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, re
     resetURL.searchParams.set('token', token);
     void sendLocalMail({ to: email, subject: 'Reset your GetYourFit password', text: `Use this single-use link within 15 minutes to reset your password:\n\n${resetURL}\n\nIf you did not request this, ignore this message.` }).catch(() => audit('mail-delivery-failed'));
   }
-  response.json({ status: true, message: 'If this email has an account, check your local inbox for a reset link.' });
+  response.json({ status: true, message: 'If this email has an account, a reset message was queued locally.' });
 });
 
 app.post('/api/auth/reset-password', limitSensitiveRequest, async (request, response) => {
@@ -106,14 +106,15 @@ app.get('/api/session', async (request, response) => {
   response.json({ signedIn: true, email: user.email, twoFactorEnabled: user.twoFactorEnabled === true });
 });
 
-app.get('/__mail', (_request, response) => {
-  if (process.env.NODE_ENV === 'production' && process.env.GYF_ENABLE_LOCAL_MAILCATCHER !== '1') return response.status(404).end();
-  const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-  const cards = localMailbox().map((mail) => {
-    const urls = [...`${mail.text}\n${mail.html}`.matchAll(/https?:\/\/[^\s"'<>]+/g)].map((match) => match[0].replaceAll('&amp;', '&'));
-    return `<article><small>${escapeHtml(mail.to)} · ${escapeHtml(mail.receivedAt)}</small><h2>${escapeHtml(mail.subject)}</h2><p>${escapeHtml(mail.text)}</p>${urls.map((url) => `<a href="${escapeHtml(url)}">Open link</a>`).join(' ')}</article>`;
-  }).join('') || '<p>No messages yet. Create an account or request a password reset.</p>';
-  response.type('html').send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Local mail catcher · GetYourFit</title><style>body{max-width:760px;margin:48px auto;padding:0 20px;background:#f4f1ea;color:#26312c;font:16px/1.5 system-ui}article{background:white;border:1px solid #ddd8cd;padding:24px;margin:16px 0;border-radius:14px}small{color:#68736c}a{color:#225d4f;font-weight:650}h1{font-size:28px}</style><h1>Local mail catcher</h1><p>Messages stay in this process memory and are never delivered externally.</p>${cards}`);
+app.get('/__mail', (request, response) => {
+  const expected = process.env.GYF_MAILBOX_RUNNER_TOKEN;
+  const authorization = request.get('authorization') ?? '';
+  const prefix = 'Bearer ';
+  if (!expected || !authorization.startsWith(prefix)) return response.status(404).end();
+  const suppliedToken = Buffer.from(authorization.slice(prefix.length));
+  const expectedToken = Buffer.from(expected);
+  if (suppliedToken.length !== expectedToken.length || !crypto.timingSafeEqual(suppliedToken, expectedToken)) return response.status(404).end();
+  response.json({ messages: localMailbox() });
 });
 
 app.post('/api/auth/sign-out-everywhere', requireUser, async (request, response) => {
@@ -157,11 +158,6 @@ app.delete('/api/data', requireUser, (request, response) => {
 });
 
 app.use('/api/auth', (request, response, next) => {
-  if (request.path.endsWith('request-password-reset') || request.path.endsWith('reset-password')) {
-    return limitSensitiveRequest(request, response, next);
-  }
-  next();
-}, (request, response, next) => {
   if (request.method === 'GET' && request.path === '/verify-email') {
     const callback = request.query.callbackURL;
     const requestOrigin = `${request.protocol}://${request.get('host')}`;
@@ -203,7 +199,6 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(staticRoot, { etag: true, maxAge: '1h' }));
   app.use((request, response) => {
     if (request.path.startsWith('/api/')) return response.status(404).json({ error: 'This action is not available.' });
-    if (request.path === '/__mail') return response.status(404).end();
     response.sendFile('index.html', { root: staticRoot });
   });
 }
