@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
-import { auth, clearLocalMailbox, clearLockout, consumeEmailVerificationToken, hashPassword, isLockedOut, localMailbox, migrateAuth, recordSignInResult, sendLocalMail } from './auth.mjs';
+import { auth, clearLockout, consumeEmailVerificationToken, hashPassword, isLockedOut, localMailbox, migrateAuth, recordSignInResult, sendMail, settleMailForAccountDeletion } from './auth.mjs';
 import { audit, database, ensureAuthSchema } from './database.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,7 +63,7 @@ function limitSensitiveRequest(request, response, next) {
   next();
 }
 
-app.post('/api/auth/request-password-reset', limitSensitiveRequest, async (request, response) => {
+app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, response) => {
   const email = typeof request.body?.email === 'string' ? request.body.email.trim().toLowerCase() : '';
   const user = database.prepare('SELECT id FROM user WHERE lower(email) = ?').get(email);
   if (user) {
@@ -74,9 +74,9 @@ app.post('/api/auth/request-password-reset', limitSensitiveRequest, async (reque
     const baseURL = process.env.BETTER_AUTH_URL || (process.env.NODE_ENV === 'production' ? 'http://127.0.0.1:4174' : 'http://127.0.0.1:5173');
     const resetURL = new URL('/', baseURL);
     resetURL.searchParams.set('token', token);
-    await sendLocalMail({ to: email, subject: 'Reset your GetYourFit password', text: `Use this single-use link within 15 minutes to reset your password:\n\n${resetURL}\n\nIf you did not request this, ignore this message.` }).catch(() => audit('mail-delivery-failed'));
+    void sendMail({ to: email, subject: 'Reset your GetYourFit password', text: `Use this single-use link within 15 minutes to reset your password:\n\n${resetURL}\n\nIf you did not request this, ignore this message.` }).catch(() => audit('mail-delivery-failed'));
   }
-  response.json({ status: true, message: 'If this email has an account, a reset message was queued locally.' });
+  response.json({ status: true, message: 'If this email has an account, a reset message will be sent.' });
 });
 
 app.post('/api/auth/reset-password', limitSensitiveRequest, async (request, response) => {
@@ -107,6 +107,7 @@ app.get('/api/session', async (request, response) => {
 });
 
 app.get('/__mail', (request, response) => {
+  if (process.env.GYF_MAIL_TRANSPORT !== 'local' || process.env.NODE_ENV === 'production') return response.status(404).end();
   const expected = process.env.GYF_MAILBOX_RUNNER_TOKEN;
   const authorization = request.get('authorization') ?? '';
   const prefix = 'Bearer ';
@@ -149,7 +150,7 @@ app.delete('/api/data', requireUser, async (request, response) => {
   const { id, email } = request.user;
   database.prepare('DELETE FROM user WHERE id = ?').run(id);
   clearLockout(email);
-  await clearLocalMailbox(email);
+  await settleMailForAccountDeletion(email);
   database.pragma('wal_checkpoint(TRUNCATE)');
   database.exec('VACUUM');
   audit('account-deleted');
@@ -194,7 +195,7 @@ app.use((error, _request, response, next) => {
   response.status(500).json({ error: 'The local service hit a problem. Try again.' });
 });
 
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
   const staticRoot = path.join(root, 'dist');
   app.use(express.static(staticRoot, { etag: true, maxAge: '1h' }));
   app.use((request, response) => {

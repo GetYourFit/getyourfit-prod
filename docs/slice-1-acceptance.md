@@ -1,13 +1,13 @@
 # Slice 1 acceptance matrix
 
-This checklist is the production-equivalent acceptance contract for the narrow first-user path. The foundation PR delivered the app shell; this increment covers local accounts and account-level data controls. Passed rows below are local-runtime evidence and do not establish deployment. Wardrobe, garment, outfit, and deployment outcomes remain pending. Run from a fresh browser against isolated local data. Record each result and evidence path in the task evidence ledger. A final page screenshot alone is not proof.
+This checklist is the production-equivalent acceptance contract for the narrow first-user path. The foundation PR delivered the app shell; this increment covers local accounts and account-level data controls. The account verifier uses an isolated in-memory mail catcher, and its SMTP regression uses a controlled local relay. Neither proves delivery through a real provider. No provider is configured in this worktree, so first-real-user email setup remains pending. Wardrobe, garment, outfit, and deployment outcomes also remain pending. Run from a fresh browser against isolated local data. Record each result and evidence path in the task evidence ledger. A final page screenshot alone is not proof.
 
 | ID | User action | Passing observation | Result |
 | --- | --- | --- | --- |
 | A01 | Open the app as a new wearer | Purpose and one primary action are clear; layout works at desktop and 390px mobile width. | Pending |
-| A02 | Create an account | Valid email, password, and explicit 18+ confirmation create an unverified account; under-18 or weak-password attempts do not. | Passed locally in `npm run verify:auth` |
-| A03 | Verify email, replay link, and sign in | A current local email link verifies once; reuse reports invalid/used; an unverified sign-in gives a safe response and a fresh link. | Passed locally in `npm run verify:auth` |
-| A04 | Request and use password recovery | Known and unknown addresses have the same public response; reset expires, works once, updates password, and revokes sessions. | Passed locally in `npm run verify:auth` |
+| A02 | Create an account | Valid email, password, and explicit 18+ confirmation create an unverified account; under-18 or weak-password attempts do not. | Tested in the isolated local verifier; SMTP delivery is not shown |
+| A03 | Verify email, replay link, and sign in | A current email link verifies once; reuse reports invalid/used; an unverified sign-in gives a safe response and a fresh link. | Local catcher flow tested; real-provider delivery pending |
+| A04 | Request and use password recovery | Known and unknown addresses have the same public response; reset expires, works once, updates password, and revokes sessions. | Local flow and controlled SMTP delivery tested; real-provider delivery pending |
 | A05 | Probe origin and rate controls | Cross-origin and missing-origin mutations fail; reset and sign-in rate limits trigger; a successful sign-in clears the user's failure count. | Passed locally in `npm run verify:auth` |
 | A06 | Configure TOTP, use an invalid code, then sign in with a valid code | Invalid codes fail; enrollment and a valid code work; setup data is not exposed during sign-in. | Passed locally in `npm run verify:auth` |
 | A07 | Sign out locally and everywhere | Local sign-out ends this session. Revoke-all deletes every account session and clears the configured secure cookie. | Passed locally in `npm run verify:auth` |

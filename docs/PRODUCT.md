@@ -26,7 +26,7 @@ Wearer-first fashion decisions grounded in the wearer's real wardrobe and contex
 
 Help a first wearer decide what to wear for one stated occasion, with a complete explained outfit assembled from their own available clothes. Make “you already own it” a useful answer. The wearer can correct every suggestion and their correction wins.
 
-The local account path supports email and password, email verification, expiring single-use password recovery, optional TOTP, session controls, and account export or deletion. Verification mail stays in process memory and is readable only by the explicitly enabled local verification runner. Garment photos, the wardrobe, outfit decisions, and export or deletion of garment data remain for later PRs.
+The account path supports email and password, email verification, expiring single-use password recovery, optional TOTP, session controls, and account export or deletion. Real verification and recovery messages use SMTP settings supplied through the server environment. The in-memory catcher is restricted to automated test runs, and the browser-facing mailbox route is unavailable in SMTP mode. No real provider is configured in this worktree. Garment photos, the wardrobe, outfit decisions, and export or deletion of garment data remain for later PRs.
 
 ## Capabilities and Constraints
 

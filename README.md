@@ -2,11 +2,13 @@
 
 GetYourFit aims to be a private, local-first wardrobe companion: add a real garment photo, correct what the device recognizes, and get one complete explained outfit for a stated occasion from clothes you own. “You already own it” is a useful result. The foundation PR delivered the buildable app shell; this follow-on account-and-data increment implements local accounts and account data controls. The wardrobe and outfit decision arrive in later changes.
 
-Create an account with email and password, then manage account security and account data from the private account page. Garment photos and outfit decisions are not available yet. Verification and reset messages stay in process memory; only the isolated verification runner can read them and open their links in its browser sessions.
+Create an account with email and password, then manage account security and account data from the private account page. Configure outbound SMTP before starting the app so people can receive verification and reset links. Garment photos and outfit decisions are not available yet.
 
 ## Run locally
 
 Requirements: Node.js 22.12 or later.
+
+Set `SMTP_HOST` and `SMTP_FROM` in the server environment before starting the app. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Set both `SMTP_USER` and `SMTP_PASS` when the server requires authentication. The project has no provider credentials. Keep them in your local environment, not in source files.
 
 ```sh
 npm install
@@ -15,7 +17,7 @@ npm run dev
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-Run `npm run verify:auth` to drive the account journey in isolated browser sessions. Its runner alone can read the process-local verification mailbox; normal browser requests cannot read those messages.
+Run `npm run verify:auth` to drive the account journey in isolated browser sessions and check SMTP delivery behavior. The browser verifier uses a private in-memory catcher, and the delivery check uses a controlled local SMTP server. Neither sends real email or proves delivery through a configured provider. The browser-facing mailbox route remains unavailable in SMTP mode.
 
 ## Check
 
