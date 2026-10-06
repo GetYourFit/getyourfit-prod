@@ -28,7 +28,7 @@ const detections = [];
 run({}).then(async code => {
   if (code !== 0) throw new Error('good stub failed');
   const report = JSON.parse(await readFile(path.join(root, 'results/report.json'), 'utf8'));
-  if (report.summary.failed !== 0) throw new Error('good stub report has failures');
+  if (report.summary.failed !== 0 || report.summary.not_yet_applicable !== 0) throw new Error('good stub report is incomplete or has failures');
 }).then(async () => {
   for (const [mutation, caseName] of mutations) {
     const code = await run({ MUTATION: mutation });
@@ -46,8 +46,8 @@ run({}).then(async code => {
 
 function run(extra) {
   return new Promise(resolve => {
-    const child = spawn(process.execPath, [path.join(here, 'run.mjs')], { cwd: root, env: { ...process.env, ...extra } });
+    const child = spawn(process.execPath, [path.join(here, 'run.mjs')], { cwd: root, env: { ...process.env, ACCEPTANCE_STUB: '1', ...extra } });
     child.stdout.pipe(process.stdout); child.stderr.pipe(process.stderr);
-    child.on('close', code => resolve(code || 0));
+    child.on('close', code => resolve(code === null ? 1 : code));
   });
 }

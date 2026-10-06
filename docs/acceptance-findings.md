@@ -1,8 +1,11 @@
 # Acceptance findings
 
-## AF-001: No product target is available for production-equivalent acceptance
+## AF-001: App shell paragraph fails WCAG AA color contrast
 
-- Requirements: R26, A-1
-- Reproduction: inspect the task worktree at `fm/gyf-acceptance`; the application foundation is absent: there is no app source, root `package.json`, or `docs/PRODUCT.md`.
-- Expected: the production-mode app and its written contract are available so the black-box suite can exercise real authentication and product journeys.
-- Actual: only the independent contract stub can run. The suite must be pointed at `ACCEPTANCE_BASE_URL` after the product foundation lands; real-app results are not yet available.
+- Requirement: A-1 (accessibility pass, WCAG AA at least)
+- Reproduction: run `npm run acceptance` against the production build. The `A-1 page passes automated WCAG accessibility checks` case reports `color-contrast` on `p`.
+- Expected: visible text meets WCAG AA contrast requirements.
+- Actual: the paragraph using `--muted-ink` fails the automated contrast check.
+- Evidence: `tests/acceptance/results/report.json` (generated locally; not committed).
+
+Journeys without a corresponding user flow are reported as `not_yet_applicable` until the feature lands.

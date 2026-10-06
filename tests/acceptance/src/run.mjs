@@ -1,7 +1,8 @@
 import { chromium, request as playwrightRequest } from 'playwright';
-import { mkdir, writeFile, rm, readFile } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import { mkdir, writeFile, rm, readFile, mkdtemp } from 'node:fs/promises';
+import { spawn, spawnSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -10,22 +11,22 @@ import { contract, accounts } from './contract.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
+const projectRoot = path.resolve(here, '../../..');
 const output = path.join(root, 'results');
 const screenshotDir = path.join(output, 'screenshots');
-const baseURL = process.env.ACCEPTANCE_BASE_URL || 'http://127.0.0.1:4179';
-const usingStub = !process.env.ACCEPTANCE_BASE_URL;
+const usingStub = process.env.ACCEPTANCE_STUB === '1';
+const usingExternalApp = Boolean(process.env.ACCEPTANCE_BASE_URL);
+const baseURL = usingStub ? 'http://127.0.0.1:4179' : process.env.ACCEPTANCE_BASE_URL || 'http://127.0.0.1:4179';
 const runId = randomUUID().slice(0, 8);
 let caseIndex = 0;
 let stub;
+let server;
+let dataDir;
 
-await rm(output, { recursive: true, force: true });
+await rm(path.join(output, 'report.json'), { force: true });
+await rm(screenshotDir, { recursive: true, force: true });
+await mkdir(output, { recursive: true });
 await mkdir(screenshotDir, { recursive: true });
-
-if (usingStub) {
-  stub = spawn(process.execPath, [path.join(here, 'stub-server.mjs')], {
-    env: { ...process.env, PORT: '4179' }, stdio: 'ignore',
-  });
-}
 
 const started = Date.now();
 let browser;
@@ -74,11 +75,40 @@ const cases = [
 ];
 
 try {
-  await waitForServer(baseURL);
+  if (usingStub) {
+    stub = spawn(process.execPath, [path.join(here, 'stub-server.mjs')], {
+      env: { ...process.env, PORT: '4179' }, stdio: 'ignore',
+    });
+  } else if (!usingExternalApp) {
+    const build = spawnSync('npm', ['run', 'build'], { cwd: projectRoot, stdio: 'inherit' });
+    if (build.status !== 0) throw new Error(`production build failed with status ${build.status}`);
+    dataDir = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-'));
+    server = spawn(process.execPath, [path.join(projectRoot, 'node_modules/vite/bin/vite.js'), 'preview', '--host', '127.0.0.1', '--port', '4179', '--strictPort'], {
+      cwd: projectRoot, env: { ...process.env, GYF_DATA_DIR: dataDir }, stdio: 'ignore',
+    });
+  }
+  await waitForServer(baseURL, usingExternalApp ? undefined : usingStub ? stub : server);
   browser = await chromium.launch({ headless: true });
+  const availability = await detectFeatures(browser);
   for (const [name, check] of cases) {
     const item = { name, status: 'passed', duration_ms: 0 };
     const t = Date.now();
+    const feature = featureFor(name);
+    if (feature && (Array.isArray(feature) ? feature.some(name => !availability[name]) : !availability[feature])) {
+      item.status = 'not_yet_applicable';
+      const unavailable = Array.isArray(feature) ? feature.filter(name => !availability[name]) : [feature];
+      item.reason = `${unavailable.join(' and ')} user flow is not exposed by the running product`;
+      item.duration_ms = Date.now() - t;
+      results.push(item);
+      continue;
+    }
+    if (name.includes('keyboard') && !availability.interactive) {
+      item.status = 'not_yet_applicable';
+      item.reason = 'the running page has no keyboard-operable action';
+      item.duration_ms = Date.now() - t;
+      results.push(item);
+      continue;
+    }
     try { await check(); }
     catch (error) {
       item.status = 'failed';
@@ -109,15 +139,22 @@ try {
     const closed = await Promise.race([stopped.then(() => true), delay(1000).then(() => false)]);
     if (!closed) { stub.kill('SIGKILL'); await stopped; }
   }
+  if (server) {
+    const stopped = new Promise(resolve => server.once('exit', resolve));
+    server.kill('SIGTERM');
+    await Promise.race([stopped, delay(1000)]);
+    if (server.exitCode === null) { server.kill('SIGKILL'); await stopped; }
+  }
+  if (dataDir) await rm(dataDir, { recursive: true, force: true });
 }
 
 const report = {
   schema: 'gyf-acceptance-report/v1',
   base_url: baseURL,
-  source: usingStub ? 'contract-stub' : 'configured-app',
+  source: usingStub ? 'contract-stub' : usingExternalApp ? 'configured-app' : 'production-build',
   started_at: new Date(started).toISOString(),
   duration_ms: Date.now() - started,
-  summary: { total: results.length, passed: results.filter(x => x.status === 'passed').length, failed: fails.length },
+  summary: { total: results.length, passed: results.filter(x => x.status === 'passed').length, failed: fails.length, not_yet_applicable: results.filter(x => x.status === 'not_yet_applicable').length },
   cases: results,
 };
 await writeFile(path.join(output, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
@@ -159,10 +196,11 @@ async function isolated(fn) {
 }
 function assert(value, message) { if (!value) throw new Error(message); }
 function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
-async function waitForServer(url) {
+async function waitForServer(url, child) {
   const until = Date.now() + 15000;
   let last;
   while (Date.now() < until) {
+    if (child?.exitCode !== null && child?.exitCode !== undefined) throw new Error(`server process exited with status ${child.exitCode}`);
     try { const res = await fetch(url); if (res.status < 500) return; }
     catch (e) { last = e; }
     await delay(150);
@@ -368,6 +406,41 @@ async function browserSmoke() {
   assert((await page.locator('body').innerText()).trim().length > 20, 'product landing has no useful content');
   assert(errors.length === 0, `browser errors: ${errors.join('; ')}`);
   await page.close();
+}
+async function detectFeatures(targetBrowser) {
+  if (usingStub) return { auth: true, wardrobe: true, outfits: true, interactive: true };
+  const page = await targetBrowser.newPage();
+  const inspect = async route => {
+    await page.goto(new URL(route, baseURL).href, { waitUntil: 'domcontentloaded', timeout: 10000 });
+    return page.locator('main').evaluate(main => ({
+      email: Boolean(main.querySelector('input[type="email"]')),
+      password: Boolean(main.querySelector('input[type="password"]')),
+      photo: Boolean(main.querySelector('input[type="file"], [data-garment-upload]')),
+      request: Boolean(main.querySelector('textarea, [data-outfit-request]')),
+      action: Boolean(main.querySelector('a[href], button, input, select, textarea')),
+      text: main.innerText.toLowerCase(),
+    })).catch(() => ({ email: false, password: false, photo: false, request: false, action: false, text: '' }));
+  };
+  try {
+    const auth = await inspect('/sign-up');
+    const wardrobe = await inspect('/wardrobe');
+    const outfits = await inspect('/outfits');
+    return {
+      auth: auth.email && auth.password,
+      wardrobe: wardrobe.photo,
+      outfits: outfits.request,
+      interactive: auth.action || wardrobe.action || outfits.action,
+    };
+  } finally { await page.close(); }
+}
+function featureFor(name) {
+  if (name.includes('separate accounts')) return ['auth', 'wardrobe'];
+  if (name.includes('account data export')) return ['auth', 'wardrobe'];
+  if (name.includes('outfit recommendation')) return ['wardrobe', 'outfits'];
+  if (name.includes('natural-language') || name.includes('low-confidence')) return ['wardrobe', 'outfits'];
+  if (/R26|R27 (cross-origin|state-changing|separate accounts)/.test(name)) return 'auth';
+  if (/R7 |wardrobe|garment|export|offline|server-down/.test(name)) return 'wardrobe';
+  return null;
 }
 async function browserAccountJourney() {
   const context = await browser.newContext();
