@@ -1,8 +1,8 @@
 # GetYourFit
 
-A private, local-first wardrobe companion. Add a real garment photo, correct what the device recognizes, and get one complete explained outfit for a stated occasion from clothes you own. “You already own it” is a useful result.
+GetYourFit aims to be a private, local-first wardrobe companion: add a real garment photo, correct what the device recognizes, and get one complete explained outfit for a stated occasion from clothes you own. “You already own it” is a useful result.
 
-This repository currently contains the app shell. Sign-in, garment photos, the wardrobe, and outfit decisions land in later changes, each with its own scripts and verification.
+This repository currently contains only the app shell. Sign-in, garment photos, the wardrobe, and outfit decisions land in later changes, each with its own scripts and verification.
 
 ## Run locally
 

@@ -44,8 +44,8 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 
 | ID | Status | Slice 1 treatment |
 | --- | --- | --- |
-| R24 | next | Current SQLite records have provenance and deletion behavior; a versioned event model waits for real outcomes and access patterns. |
-| R25 | next | No model ranker exists to trace. Current explanations derive from the exact outfit decision state. |
+| R24 | next | Planned SQLite records will carry provenance and deletion behavior; a versioned event model waits for real outcomes and access patterns. |
+| R25 | next | No model ranker is planned for slice 1. Explanations will derive from the exact outfit decision state. |
 | R26 | slice1-pending | Local-only data, explicit photo permission, secure sessions, export and deletion; no ethnicity inference, desirability ranking, body data, or data sale. Accounts require an 18+ confirmation. |
 | R27 | slice1-pending | Bound local image size and types, decode before use, resize client-side, isolate temporary classifier files, enforce local origin and account ownership, and audit without raw personal data. |
 | R28 | next | Do not report fashion-decision metrics without wear or keep outcomes. This slice records no fake success metric. |

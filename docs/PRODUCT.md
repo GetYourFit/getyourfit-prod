@@ -26,7 +26,7 @@ Wearer-first fashion decisions grounded in the wearer's real wardrobe and contex
 
 Help a first wearer decide what to wear for one stated occasion, with a complete explained outfit assembled from their own available clothes. Make “you already own it” a useful answer. The wearer can correct every suggestion and their correction wins.
 
-The local browser flow is account creation with email and password, email verification, one real garment photo with explicit permission, a small wardrobe, one occasion decision, one clarifying question when required facts are unknown, and data export or deletion. Recovery links are single-use and expire. Optional TOTP adds a second sign-in step.
+The planned local browser flow is account creation with email and password, email verification, one real garment photo with explicit permission, a small wardrobe, one occasion decision, one clarifying question when required facts are unknown, and data export or deletion. Recovery links will be single-use and expire. Optional TOTP will add a second sign-in step. None of this flow is implemented yet; the repository contains only the app shell.
 
 ## Capabilities and Constraints
 

@@ -18,14 +18,14 @@ Date: 2026-10-05
 
 ## Stack
 
-React, TypeScript, and Vite serve the browser UI. A same-device Node.js service uses Express and SQLite. Better Auth provides email/password authentication, Argon2id password hashing, email verification, reset tokens, and optional TOTP. Apple Vision performs local garment classification on macOS; no external image or inference service receives the photo. Dependencies have no per-user or API charge.
+Planned: React, TypeScript, and Vite serve the browser UI. A same-device Node.js service will use Express and SQLite. Better Auth will provide email/password authentication, Argon2id password hashing, email verification, reset tokens, and optional TOTP. Apple Vision will perform local garment classification on macOS; no external image or inference service will receive the photo. The planned dependencies have no per-user or API charge. Only the React, TypeScript, and Vite shell exists so far.
 
 ## Account and privacy decisions
 
-The captain replaced the earlier passkey decision with email/password authentication, verified email, short-lived single-use password-reset links stored as hashes, optional TOTP, secure cookies, origin checks, rate limits, safe logs, sign-out everywhere, export, deletion, a local mail catcher, and an explicit 18+ gate. Optional Google sign-in is deferred unless a free configuration becomes available. The local mail catcher keeps verification and reset messages in process memory and sends nothing externally.
+The captain replaced the earlier passkey decision with email/password authentication, verified email, short-lived single-use password-reset links stored as hashes, optional TOTP, secure cookies, origin checks, rate limits, safe logs, sign-out everywhere, export, deletion, a local mail catcher, and an explicit 18+ gate. Optional Google sign-in is deferred unless a free configuration becomes available. The planned local mail catcher will keep verification and reset messages in process memory and send nothing externally.
 
-Photo permission covers local processing and storage of the garment photo. It does not grant publication, sharing, or model-training rights. Photo resizing occurs in the browser before the local service receives the image. Temporary image files are removed after classification.
+Photo permission will cover local processing and storage of the garment photo. It will not grant publication, sharing, or model-training rights. Photo resizing is planned in the browser before the local service receives the image. Temporary image files will be removed after classification.
 
 ## Limits
 
-This slice does not provide fit or size advice, a style model, commerce, creator content, or remote sync. Apple Vision labels are fallible object classification, not style judgment. Confidence and model provenance are shown; the wearer can correct every fact. Outfit decisions abstain when exact requirements cannot be met.
+This slice will not provide fit or size advice, a style model, commerce, creator content, or remote sync. Apple Vision labels are fallible object classification, not style judgment. Confidence and model provenance will be shown, and the wearer will be able to correct every fact. Outfit decisions will abstain when exact requirements cannot be met.
