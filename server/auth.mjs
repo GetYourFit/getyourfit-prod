@@ -55,8 +55,17 @@ const mailServer = new SMTPServer({
 await new Promise((resolve, reject) => mailServer.listen(1025, '127.0.0.1', (error) => error ? reject(error) : resolve()));
 
 const mailer = nodemailer.createTransport({ host: '127.0.0.1', port: 1025, secure: false, ignoreTLS: true });
-export async function sendLocalMail({ to, subject, text }) {
-  await mailer.sendMail({ from: 'GetYourFit <wardrobe@localhost>', to, subject, text });
+const pendingMail = new Map();
+export function sendLocalMail({ to, subject, text }) {
+  const recipient = String(to).trim().toLowerCase();
+  const delivery = mailer.sendMail({ from: 'GetYourFit <wardrobe@localhost>', to, subject, text });
+  const deliveries = pendingMail.get(recipient) ?? new Set();
+  deliveries.add(delivery);
+  pendingMail.set(recipient, deliveries);
+  return delivery.finally(() => {
+    deliveries.delete(delivery);
+    if (deliveries.size === 0) pendingMail.delete(recipient);
+  });
 }
 
 const argon2id = { memoryCost: 65536, timeCost: 3, parallelism: 2, outputLen: 32, algorithm: 2 };
@@ -151,8 +160,9 @@ export async function migrateAuth() {
 }
 
 export const localMailbox = () => messages;
-export function clearLocalMailbox(email) {
+export async function clearLocalMailbox(email) {
   const normalized = String(email).trim().toLowerCase();
+  while (pendingMail.has(normalized)) await Promise.allSettled([...pendingMail.get(normalized)]);
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     if (messages[index].recipients.includes(normalized)) messages.splice(index, 1);
   }

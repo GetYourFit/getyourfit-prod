@@ -428,6 +428,37 @@ async function main() {
   await reusedSecondLink.arrayBuffer();
   assert.match(reusedSecondLink.headers.get('location') ?? '', /error=INVALID_TOKEN/, `A second user verification link was reusable or not consumed: status=${reusedSecondLink.status}, location=${reusedSecondLink.headers.get('location')}.`);
 
+  currentStage = 'concurrent password reset delivery and account deletion';
+  const resetDeleteRace = evalResult(evalInBrowser(sessionB, `async () => {
+    const reset = fetch('/api/auth/request-password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: ${JSON.stringify(secondEmail)} }),
+    });
+    const deletion = fetch('/api/data', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'delete my account' }),
+    });
+    const [resetResponse, deletionResponse] = await Promise.all([reset, deletion]);
+    return {
+      resetStatus: resetResponse.status,
+      deletionStatus: deletionResponse.status,
+      deletion: await deletionResponse.json(),
+    };
+  }`));
+  assert.equal(resetDeleteRace.resetStatus, 200, 'Concurrent password reset request failed.');
+  assert.equal(resetDeleteRace.deletionStatus, 200, 'Concurrent account deletion failed.');
+  assert.equal(resetDeleteRace.deletion.deleted, true, 'Concurrent account deletion did not erase the account.');
+  chrome(sessionB, ['open', origin]);
+  await waitForPage(sessionB, 'Welcome back.');
+  const delayedMailDeadline = Date.now() + 1_000;
+  while (Date.now() < delayedMailDeadline) {
+    const remainingMail = (await mailboxMessages()).filter((message) => message.recipients.includes(secondEmail.toLowerCase()));
+    assert.equal(remainingMail.length, 0, 'A reset email was stored after account deletion returned.');
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
   const resetRequested = await requestPasswordReset(email);
   assert.equal(resetRequested.status, 200, 'Password reset request failed');
   const unknownReset = await requestPasswordReset(`unknown-reset-${Date.now()}@example.test`);
@@ -442,13 +473,11 @@ async function main() {
   const reusedReset = await api('/api/auth/reset-password', { token: resetToken, newPassword: `${updatedPassword}A` });
   assert.ok(!reusedReset.ok, 'A reset token was accepted twice.');
 
-  const expiredRequest = await requestPasswordReset(email);
-  assert.equal(expiredRequest.status, 200, 'Expired reset test could not request a token');
-  const expiredLink = await mailLink(email, 'Reset your GetYourFit password');
-  const expiredToken = new URL(expiredLink).searchParams.get('token');
+  const expiredToken = randomBytes(32).toString('base64url');
   const db = new Database(databasePath);
   const expiredHash = createHash('sha256').update(expiredToken).digest('hex');
-  db.prepare('UPDATE password_reset_tokens SET expires_at = 0 WHERE token_hash = ?').run(expiredHash);
+  const accountId = db.prepare('SELECT id FROM user WHERE email = ?').get(email).id;
+  db.prepare('INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(expiredHash, accountId, Date.now() - 1);
   const rejectedExpiredReset = await api('/api/auth/reset-password', { token: expiredToken, newPassword: `${updatedPassword}B` });
   assert.ok(!rejectedExpiredReset.ok, 'An expired reset token was accepted.');
   db.close();
@@ -481,7 +510,6 @@ async function main() {
 
   currentStage = 'concurrent sessions, TOTP, export, deletion, and offline UI';
   await browserSignout(sessionA);
-  await browserSignout(sessionB);
   await browserSignin(sessionA, email, updatedPassword);
   await waitForPage(sessionA, 'Your account, in your hands.');
   await browserSignin(sessionB, email, updatedPassword);

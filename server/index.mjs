@@ -63,7 +63,7 @@ function limitSensitiveRequest(request, response, next) {
   next();
 }
 
-app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, response) => {
+app.post('/api/auth/request-password-reset', limitSensitiveRequest, async (request, response) => {
   const email = typeof request.body?.email === 'string' ? request.body.email.trim().toLowerCase() : '';
   const user = database.prepare('SELECT id FROM user WHERE lower(email) = ?').get(email);
   if (user) {
@@ -74,7 +74,7 @@ app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, re
     const baseURL = process.env.BETTER_AUTH_URL || (process.env.NODE_ENV === 'production' ? 'http://127.0.0.1:4174' : 'http://127.0.0.1:5173');
     const resetURL = new URL('/', baseURL);
     resetURL.searchParams.set('token', token);
-    void sendLocalMail({ to: email, subject: 'Reset your GetYourFit password', text: `Use this single-use link within 15 minutes to reset your password:\n\n${resetURL}\n\nIf you did not request this, ignore this message.` }).catch(() => audit('mail-delivery-failed'));
+    await sendLocalMail({ to: email, subject: 'Reset your GetYourFit password', text: `Use this single-use link within 15 minutes to reset your password:\n\n${resetURL}\n\nIf you did not request this, ignore this message.` }).catch(() => audit('mail-delivery-failed'));
   }
   response.json({ status: true, message: 'If this email has an account, a reset message was queued locally.' });
 });
@@ -144,12 +144,12 @@ app.get('/api/data/export', requireUser, (request, response) => {
   response.json(exported);
 });
 
-app.delete('/api/data', requireUser, (request, response) => {
+app.delete('/api/data', requireUser, async (request, response) => {
   if (request.body?.confirm !== 'delete my account') return response.status(400).json({ error: 'Confirm deletion to erase your local account.' });
   const { id, email } = request.user;
   database.prepare('DELETE FROM user WHERE id = ?').run(id);
   clearLockout(email);
-  clearLocalMailbox(email);
+  await clearLocalMailbox(email);
   database.pragma('wal_checkpoint(TRUNCATE)');
   database.exec('VACUUM');
   audit('account-deleted');
