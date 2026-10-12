@@ -1,6 +1,6 @@
 # Requirement status
 
-This file tracks every requirement ID in the captain's GYF requirements (R1-R37 and acceptance A-1). `slice1-pending` means the requirement is in scope for slice 1 at the narrow scope stated here and is not yet implemented. `next` and `later` retain contracted work for later vertical slices. `deferred-with-reason` records a capability excluded from the product until evidence and safety gates are met.
+This file tracks every requirement ID in the captain's GYF requirements (R1-R37 and acceptance A-1). `slice1-pending` means the requirement is in scope for slice 1 at the narrow scope stated here and has not yet passed its complete acceptance, including implemented capabilities awaiting verification. `next` and `later` retain contracted work for later vertical slices. `deferred-with-reason` records a capability excluded from the product until evidence and safety gates are met.
 
 ## Mission and consumer journey
 

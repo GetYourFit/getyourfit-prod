@@ -35,4 +35,3 @@ Preconditions:
 - Default mode sends no mail, keeps emailVerified=false, and cannot recover a forgotten password. Real mail delivery is v0.2.
 - Retain the authentication key with the database. A missing key refuses startup; changing it breaks encrypted authenticator state and sessions.
 - Opt-in SMTP requires STARTTLS unless implicit TLS is selected. Test mode requires a private runner token. Browser users cannot read its mailbox.
-- Photo upload and outfit decisions remain pending in this account increment.

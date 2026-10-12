@@ -1,6 +1,6 @@
 # Slice 1 acceptance matrix
 
-The 2026-10-12 version ladder targets v0.1: email/password signup without mail, one real licensed garment photo upload, and one outfit suggestion in a real browser. This account increment completes only signup and account data controls; photo and outfit work remain pending. Verification and password recovery delivery are sequenced for v0.2. The preserved email verifiers use a restricted test mailbox and controlled SMTP relay, not a real provider. Deployment is separate. Run from a fresh browser against isolated local data and record each result against its actual version and head.
+The 2026-10-12 version ladder targets v0.1: email/password signup without mail, real licensed garment photo upload, and one outfit suggestion in a real browser. The photo/outfit increment now implements the remaining local path, including correction and garment data controls; complete browser acceptance is still pending. Verification and password recovery delivery are sequenced for v0.2. The preserved email verifiers use a restricted test mailbox and controlled SMTP relay, not a real provider. Deployment is separate. Run from a fresh browser against isolated local data and record each result against its actual version and head.
 
 | ID | User action | Passing observation | Result |
 | --- | --- | --- | --- |
@@ -29,4 +29,8 @@ Keep the database, browser state, and photos isolated. Capture action and result
 
 ## Photo decode regression
 
-Select a five-byte file containing `00 01 02 03 04`, named `damaged.jpg` with MIME type `image/jpeg`. Confirm photo permission and choose **Review photo on this device**. The page must announce `This file could not be opened as an image. Choose a different JPEG, PNG, or WebP photo.`, keep Save disabled, and send no request to `/api/vision/classify`. Then select a valid local JPEG or PNG and confirm that review reaches the on-device classifier. Keep screenshots and network evidence outside the repository.
+Select `tests/fixtures/damaged.jpg`, the five-byte sequence `00 01 02 03 04`, through **Review photo on this device** after confirming photo permission. The page must announce `This file could not be opened as an image. Choose a different JPEG, PNG, or WebP photo.`, keep Save disabled, and send no request to `/api/wardrobe/review`. Then select a valid licensed photograph and confirm that review reaches the local classifier. Keep screenshots and network evidence outside the repository.
+
+## R13 contract
+
+The authoritative [workflow regression case](https://github.com/rvzaku/workflow/blob/cb7a7bb98e0ac34d1e983b229bd2e372df29a59e/docs/regression-cases.md) requires end-to-end acceptance of images, sign-in and every designed feature. Its named `tests/test_reference_slice.py` test is still planned and absent at that revision. Do not claim that workflow test was run. The product's `verify:wardrobe` adds executable known-bad checks: a broken real-image URL, a disabled outfit action, and a signed-out session must each fail acceptance. The valid journey exercises all new controls; existing account verifiers exercise the retained account controls. The complete combined evidence remains pending until those commands pass against the final code.

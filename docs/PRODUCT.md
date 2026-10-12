@@ -26,7 +26,7 @@ Wearer-first fashion decisions grounded in the wearer's real wardrobe and contex
 
 Help a first wearer decide what to wear for one stated occasion, with a complete explained outfit assembled from their own available clothes. Make “you already own it” a useful answer. The wearer can correct every suggestion and their correction wins.
 
-The current account increment supports email/password signup without mail, optional TOTP, session controls, and account export or deletion. New accounts sign in immediately and retain an unverified email status. The v0.1 target also requires one real licensed garment photo upload and one outfit suggestion in a real browser; those features remain pending in this account increment. Verification and password recovery delivery move to v0.2. Their preserved opt-in SMTP implementation requires operator configuration; the in-memory catcher is restricted to automated test runs. Deployment follows separately after the acceptance suite becomes a required check.
+The v0.1 local path supports email/password signup without mail, optional TOTP, consented real photo upload, local garment review, a compact wardrobe, one factual outfit suggestion, wearer correction, and full data export or deletion. New accounts sign in immediately and retain an unverified email status. Verification and password recovery delivery move to v0.2. Their preserved opt-in SMTP implementation requires operator configuration; the in-memory catcher is restricted to automated test runs. Deployment follows separately after the acceptance suite becomes a required check.
 
 ## Capabilities and Constraints
 
@@ -34,7 +34,7 @@ The current account increment supports email/password signup without mail, optio
 - Ask for explicit photo consent and allow the wearer to correct garment facts.
 - Make one complete outfit decision from available owned items. Enforce only ownership, availability, size, weather, dress code, and budget facts.
 - Ask a clarifying question when a required fact is unknown. Never represent an incomplete set as a complete outfit.
-- Every inferred fact records its source, model version, and confidence. Use on-device Apple Vision classification for garment photos and show its label, category, model revision, and confidence for correction. This classifier does not make fashion judgments.
+- Every inferred fact records its source, model version, and confidence. macOS-local Apple Vision supplies a fallible clothing label with model revision and confidence. Only clothing labels are returned; no person attributes are exposed or stored. No classification result supplies an outfit fact automatically. The wearer confirms category, color, labelled size, current fit, ownership, availability, weather, and dress code. Those facts record wearer source, model version null, and confidence 1 as explicit confirmation, not a model score. Unsupported devices or failed classification ask for manual confirmation without invented confidence.
 - Keep user data private by default. Do not infer ethnicity, rank desirability, sell personal data, or collect body data in this slice. Require explicit 18+ confirmation before account creation.
 - Provide data export and deletion.
 - Defer creator, retailer, planner, subscription, body-preview, and merchant features.
