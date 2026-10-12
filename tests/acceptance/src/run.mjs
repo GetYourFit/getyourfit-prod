@@ -345,6 +345,8 @@ async function browserJourney(context, page) {
   const cookies = await context.cookies();
   assert(cookies.some(cookie => cookie.httpOnly && ['Lax', 'Strict'].includes(cookie.sameSite)), 'Browser signup did not create a private session');
   const input = page.getByLabel(/garment photo/i);
+  const entry = page.getByRole('button', { name: /^\+?\s*add garment$/i });
+  if (!(await input.isVisible()) && await entry.count()) await entry.first().click();
   await input.waitFor();
   const consent = page.getByRole('checkbox', { name: /photo|process/i });
   assert.equal(await consent.isChecked(), false, 'Photo consent was preselected');
@@ -354,7 +356,7 @@ async function browserJourney(context, page) {
   if (await review.count()) await review.click();
   const [uploaded] = await Promise.all([
     page.waitForResponse(response => new URL(response.url()).pathname === contract.wardrobe && response.request().method() === 'POST'),
-    page.getByRole('button', { name: /save garment|add garment|upload photo/i }).click(),
+    page.locator('form').filter({ has: input }).getByRole('button', { name: /save garment|add garment|upload photo/i }).click(),
   ]);
   const item = await jsonOK(uploaded, 'Browser garment upload');
   await page.getByLabel(/occasion/i).fill(facts.occasion);

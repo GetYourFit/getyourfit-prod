@@ -31,13 +31,17 @@ These entries are checker-owned handoff material for firstmate to incorporate in
 - Actual: the service returns HTTP 404 at this route, re-confirmed on `d09e2fb`. All five API cases fail at signup. Browser signup uses a different public auth route and succeeds. Session continuity, credential refusal, photo persistence, outfit creation and privacy isolation remain unverified over the projected API; these are prerequisite failures, not independently confirmed defects in downstream routes. Reconcile the written transport boundary with the integration owner.
 - Evidence: five API errors in the fresh production report at checker HEAD `1311310`. The run reports 6 failures, 0 passes and 0 skips. An inherited `ACCEPTANCE_STUB=1` and `MUTATION=empty-name` did not redirect the normal production command to a stub. The earlier static-shell report under `production/` is historical.
 
-## AF-V01-004: Browser journey stops before the garment photo control
+## AF-V01-004: Add garment opens no photo control
 
 - Requirements: R4, R5, R7, A-1.
-- Reproduce: run `npm run acceptance` against `d09e2fb`; the browser submits its Name empty, observes refusal, supplies a synthetic Name, valid email/password and age confirmation, and completes signup.
+- Reproduce: run `npm run acceptance` against `d09e2fb`; the browser submits its Name empty, observes refusal, supplies a synthetic Name, valid email/password and age confirmation, and completes signup. It then activates the visible "Add garment" button and waits for a labeled garment photo input.
 - Expected: a signed-in wearer can add one consented real garment photo and continue to an outfit suggestion.
-- Actual (fresh production run, checker HEAD `1311310`, clean worktree): signup returns 2xx, creates a private session and closes the signup form, so the prerequisite holds. The signed-in screen now shows the wardrobe, an "Add garment" button, the outfit form and account controls; the superseded "unavailable" notice is gone. The case fails waiting for a visible control labeled "garment photo" (6s timeout, run.mjs browserJourney). The checker does not open "Add garment" first, so whether the labeled input appears behind it is not yet established; the garment upload, outfit and refresh steps are unreached.
-- Evidence: fresh production report and screenshot from the run above (6 failed, 0 passed, 0 skipped; secrets masked in screenshots). The earlier `name-fix/production-before-commit/` evidence is historical.
+- Actual (fresh production run, clean-base `d09e2fb`): signup returns 2xx, creates a private session and closes the signup form, so the prerequisite holds. The signed-in screen shows the wardrobe, an "Add garment" button, the outfit form and account controls. The checker clicks "Add garment" (a prior checker navigation gap, now fixed as CF-V01-002); afterwards, even 2 seconds later, the page has no file input, no dialog and no console or page errors, and the case fails waiting for the labeled photo control. Garment upload, consent, outfit and refresh steps are unreached and unverified.
+- Evidence: fresh production report and screenshot; old `c3577aa` evidence is historical only.
+
+## CF-V01-002: Checker did not open the Add garment entry point
+
+- Status: repaired. The browser now activates a visible "Add garment" button when no photo control is visible, and the contract stub hides its photo form behind the same public button so the navigation is exercised. The case still fails meaningfully when neither entry nor input exists.
 
 ## CF-V01-001: Checker omitted the required signup Name
 
