@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.18"
   },
   "scripts": {
     "dev": "concurrently -k \"node server/index.mjs\" \"vite --host 127.0.0.1 --port 5173\"",
@@ -29,7 +29,9 @@
     "nodemailer": "^10.0.15",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "smtp-server": "^3.19.17"
+    "sharp": "^0.35.5",
+    "smtp-server": "^3.19.17",
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

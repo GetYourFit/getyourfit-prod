@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, consumeEmailVerificationToken, emailDeliveryMode, hashPassword, isLockedOut, localMailbox, migrateAuth, recordSignInResult, sendMail, settleMailForAccountDeletion } from './auth.mjs';
 import { audit, database, ensureAuthSchema } from './database.mjs';
+import { ensureWardrobeSchema, exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const allowedHosts = new Set(['localhost:4174', '127.0.0.1:4174']);
@@ -25,7 +26,6 @@ app.use(helmet({
   referrerPolicy: { policy: 'no-referrer' },
   crossOriginEmbedderPolicy: false,
 }));
-app.use(express.json({ limit: '32kb' }));
 app.use((request, response, next) => {
   response.setHeader('Cache-Control', 'no-store');
   if (!allowedHosts.has(request.headers.host)) return response.status(403).json({ error: 'This local service only accepts local requests.' });
@@ -50,6 +50,9 @@ async function requireUser(request, response, next) {
     response.status(401).json({ error: 'Sign in to continue.' });
   }
 }
+
+app.use('/api/wardrobe', wardrobeRouter(requireUser));
+app.use(express.json({ limit: '32kb' }));
 
 const requestLimits = new Map();
 function limitSensitiveRequest(request, response, next) {
@@ -142,6 +145,7 @@ app.get('/api/data/export', requireUser, (request, response) => {
       createdAt: request.user.createdAt,
       adultConfirmed: request.user.adultConfirmed,
     },
+    ...exportWardrobe(request.user.id),
   };
   response.setHeader('Content-Disposition', 'attachment; filename="getyourfit-account-export.json"');
   response.json(exported);
@@ -209,6 +213,7 @@ if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
 
 await migrateAuth();
 ensureAuthSchema();
+ensureWardrobeSchema();
 const port = Number(process.env.GYF_PORT || 4174);
 const server = http.createServer(app);
 server.keepAliveTimeout = 65_000;
