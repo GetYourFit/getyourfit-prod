@@ -60,7 +60,7 @@ function evaluate(expression) {
 
 async function shown(text) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    if (chrome(['snapshot', '--full']).includes(text)) return;
+    if (evaluate(`() => document.body.innerText.includes(${JSON.stringify(text)})`)) return;
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   assert.fail(`Browser did not show: ${text}`);
@@ -182,6 +182,8 @@ try {
   assert.equal(evaluate('() => document.querySelectorAll(".outfit-item").length'), 0);
   chrome(['open', origin]); await shown('White T-shirt'); fill('Occasion', '  LUNCH WITH A FRIEND  '); select('Weather', 'mild'); select('Dress code', 'casual');
   click('Find an outfit'); await shown('1 item stays excluded'); capture('wardrobe-correction');
+  const corrected = browserApi('/api/wardrobe/outfit', { occasion: '  LUNCH WITH A FRIEND  ', weather: 'mild', dressCode: 'casual' }).body;
+  assert.equal(corrected.kind, 'incomplete'); assert.equal(corrected.excludedCount, 1);
   click('Allow excluded items again'); await shown('A complete set for');
   chrome(['click', element('button', 'Edit details', 2)]); await shown('Edit Black trainers');
   check('Available to wear now'); click('Save correction'); await shown('Add garment'); click('Find an outfit'); await shown('No complete outfit meets');
