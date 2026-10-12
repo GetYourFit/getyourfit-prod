@@ -15,20 +15,28 @@ const suiteRoot = path.resolve(here, '..');
 const projectRoot = path.resolve(suiteRoot, '../..');
 const stubMode = process.argv.includes('--stub');
 const appPort = stubMode ? await freePort() : 4174;
-const mailPort = await freePort();
+let mailPort;
 const baseURL = `http://127.0.0.1:${appPort}`;
 const onlyIndex = process.argv.indexOf('--only');
 const only = onlyIndex < 0 ? undefined : process.argv[onlyIndex + 1];
 const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-report-'));
-const photo = await readFile(path.join(suiteRoot, 'fixtures/garment-photo.jpg'));
-const facts = { occasion: 'dinner', weather: 'mild and dry', dress_code: 'smart casual' };
+const samples = [
+  { filename: 'garment-photo.jpg', name: 'Acceptance beige shirt', category: 'top', color: 'beige', size: 'M', fit: 'fits', available: true, weather: ['mild'], dress_codes: ['smart-casual'] },
+  { filename: 'bottom.jpg', name: 'Acceptance cargo pants', category: 'bottom', color: 'olive', size: 'M', fit: 'fits', available: true, weather: ['mild'], dress_codes: ['smart-casual'] },
+  { filename: 'footwear.jpg', name: 'Acceptance black trainers', category: 'footwear', color: 'black', size: '9', fit: 'fits', available: true, weather: ['mild'], dress_codes: ['smart-casual'] },
+];
+const garments = await Promise.all(samples.map(async sample => ({ ...sample, photo: await readFile(path.join(suiteRoot, 'fixtures', sample.filename)) })));
+const shirt = garments[0];
+const facts = { occasion: 'dinner', weather: 'mild', dress_code: 'smart-casual' };
 const secrets = new Set();
 const cases = [
   [caseNames.browser, ['R4', 'R5', 'R7', 'R26', 'A-1'], browserJourney],
   [caseNames.signup, ['R4', 'R26', 'R27', 'A-1'], signupJourney],
   [caseNames.authentication, ['R26', 'R27'], authenticationFailures],
   [caseNames.photo, ['R7', 'R26', 'R27'], photoJourney],
-  [caseNames.outfit, ['R4', 'R5', 'R14', 'R19', 'A-1'], outfitJourney],
+  [caseNames.outfit, ['R4', 'R5', 'R9', 'R10', 'R11', 'R19', 'A-1'], outfitJourney],
+  [caseNames.singleShirt, ['R5', 'R9', 'R11', 'R19', 'A-1'], singleShirtJourney],
+  [caseNames.missingFacts, ['R5', 'R11', 'R19', 'A-1'], missingFactsJourney],
   [caseNames.isolation, ['R26', 'R27'], isolation],
 ];
 const started = Date.now();
@@ -67,70 +75,70 @@ try {
   const worktree = spawnSync('git', ['status', '--porcelain'], { cwd: projectRoot, encoding: 'utf8' });
   assert.equal(worktree.status, 0, 'Cannot establish worktree state');
   worktreeClean = worktree.stdout.trim() === '';
-  if (!stubMode) await freePortCheck(appPort);
-  mailCatcher = tcpServer(socket => {
-    smtpSockets.add(socket); socket.on('close', () => smtpSockets.delete(socket));
-    socket.on('error', () => {});
-    socket.write('220 localhost acceptance mail sink\r\n');
-    let pending = '', inData = false;
-    socket.on('data', chunk => {
-      pending += chunk.toString();
-      let end;
-      while ((end = pending.indexOf('\r\n')) >= 0) {
-        const line = pending.slice(0, end); pending = pending.slice(end + 2);
-        if (inData) { if (line === '.') { inData = false; mailCount++; socket.write('250 accepted locally\r\n'); } continue; }
-        if (/^DATA$/i.test(line)) { inData = true; socket.write('354 End with dot\r\n'); }
-        else if (/^QUIT$/i.test(line)) socket.end('221 bye\r\n');
-        else if (/^(EHLO|HELO)/i.test(line)) socket.write('250 localhost\r\n');
-        else socket.write('250 ok\r\n');
-      }
-      if (pending.length > 1024 * 1024) socket.destroy();
-    });
-  });
-  await new Promise((resolve, reject) => { mailCatcher.once('error', reject); mailCatcher.listen(mailPort, '127.0.0.1', resolve); });
-  dataDir = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-data-'));
-  const authSecret = randomBytes(32).toString('hex');
-  secrets.add(authSecret);
-  const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, GYF_MAIL_TRANSPORT: 'disabled', HOST: '127.0.0.1', PORT: String(appPort), GYF_PORT: String(appPort), GYF_DATA_DIR: dataDir, DATABASE_URL: `file:${path.join(dataDir, 'acceptance.sqlite')}`, APP_URL: baseURL, GYF_MAIL_MODE: 'disabled', SMTP_HOST: '127.0.0.1', SMTP_PORT: String(mailPort), SMTP_URL: `smtp://127.0.0.1:${mailPort}` };
-  if (stubMode) {
-    server = spawn(process.execPath, [path.join(here, 'stub-server.mjs')], { env: { ...env, MUTATION: process.env.MUTATION || '' }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
-    runtime = 'contract-stub';
+  const manifest = stubMode ? null : JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'));
+  if (!stubMode && !manifest.scripts?.start) {
+    runtime = 'production-start-missing';
+    results.push({ name: 'V01 production API service', requirement_ids: ['R4', 'A-1'], status: 'failed', error: 'package.json has no npm start production service contract.' });
   } else {
-    const build = spawnSync('npm', ['run', 'build'], { cwd: projectRoot, env: { ...safeEnv(), NODE_ENV: 'production' }, encoding: 'utf8', timeout: 120000 });
-    assert.equal(build.status, 0, `Production build failed: ${redact(build.stderr || build.stdout)}`);
-    const manifest = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'));
-    if (manifest.scripts?.start) {
-      server = spawn('npm', ['start'], { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+    if (!stubMode) await freePortCheck(appPort);
+    mailPort = await freePort();
+    mailCatcher = tcpServer(socket => {
+      smtpSockets.add(socket); socket.on('close', () => smtpSockets.delete(socket));
+      socket.on('error', () => {});
+      socket.write('220 localhost acceptance mail sink\r\n');
+      let pending = '', inData = false;
+      socket.on('data', chunk => {
+        pending += chunk.toString();
+        let end;
+        while ((end = pending.indexOf('\r\n')) >= 0) {
+          const line = pending.slice(0, end); pending = pending.slice(end + 2);
+          if (inData) { if (line === '.') { inData = false; mailCount++; socket.write('250 accepted locally\r\n'); } continue; }
+          if (/^DATA$/i.test(line)) { inData = true; socket.write('354 End with dot\r\n'); }
+          else if (/^QUIT$/i.test(line)) socket.end('221 bye\r\n');
+          else if (/^(EHLO|HELO)/i.test(line)) socket.write('250 localhost\r\n');
+          else socket.write('250 ok\r\n');
+        }
+        if (pending.length > 1024 * 1024) socket.destroy();
+      });
+    });
+    await new Promise((resolve, reject) => { mailCatcher.once('error', reject); mailCatcher.listen(mailPort, '127.0.0.1', resolve); });
+    dataDir = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-data-'));
+    const authSecret = randomBytes(32).toString('hex');
+    secrets.add(authSecret);
+    const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, GYF_MAIL_TRANSPORT: 'disabled', HOST: '127.0.0.1', PORT: String(appPort), GYF_PORT: String(appPort), GYF_DATA_DIR: dataDir, DATABASE_URL: `file:${path.join(dataDir, 'acceptance.sqlite')}`, APP_URL: baseURL, GYF_MAIL_MODE: 'disabled', SMTP_HOST: '127.0.0.1', SMTP_PORT: String(mailPort), SMTP_URL: `smtp://127.0.0.1:${mailPort}` };
+    if (stubMode) {
+      server = spawn(process.execPath, [path.join(here, 'stub-server.mjs')], { env: { ...env, MUTATION: process.env.MUTATION || '' }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+      runtime = 'contract-stub';
     } else {
-      runtime = 'production-static-only';
-      results.push({ name: 'V01 production API service', requirement_ids: ['R4', 'A-1'], status: 'failed', error: 'package.json has no npm start production service contract. Static preview is used only to collect browser and API findings.' });
-      server = spawn(process.execPath, [path.join(projectRoot, 'node_modules/vite/bin/vite.js'), 'preview', '--host', '127.0.0.1', '--port', String(appPort), '--strictPort'], { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+      const build = spawnSync('npm', ['run', 'build'], { cwd: projectRoot, env: { ...safeEnv(), NODE_ENV: 'production' }, encoding: 'utf8', timeout: 120000 });
+      assert.equal(build.status, 0, `Production build failed: ${redact(build.stderr || build.stdout)}`);
+      server = spawn('npm', ['start'], { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     }
-  }
-  for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { logs += chunk.toString(); if (logs.length > 4 * 1024 * 1024) { logOverflow = true; logs = logs.slice(-4 * 1024 * 1024); } });
-  await waitForServer();
-  browser = await chromium.launch({ headless: true });
-  for (const [name, ids, check] of cases) {
-    if (only && name !== only) continue;
-    const item = { name, requirement_ids: ids, status: 'passed' };
-    const caseStart = Date.now();
-    const context = await browser.newContext({ baseURL });
-    context.setDefaultTimeout(6000);
-    activePage = await context.newPage();
-    try {
-      await check(context, activePage);
-      await delay(50);
-      assert.equal(mailCount, 0, 'v0.1 emitted mail to the local catcher; account use must not depend on mail');
-      assert(!logOverflow, 'Service log capture overflowed; private-data absence cannot be established');
-      for (const secret of secrets) assert(!logs.includes(secret), 'Service logs exposed generated credentials or personal email');
-    } catch (error) {
-      item.status = 'failed'; item.error = redact(error.stack || error);
-      item.screenshot = `screenshots/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
-      if (activePage.url() === 'about:blank') await activePage.goto(baseURL).catch(() => {});
-      await activePage.screenshot({ path: path.join(output, item.screenshot), fullPage: true, mask: [activePage.locator('input[type=email], input[type=password]'), ...[...secrets].map(secret => activePage.getByText(secret, { exact: false }))] }).catch(() => { delete item.screenshot; });
-    } finally { await context.close(); activePage = undefined; }
-    item.duration_ms = Date.now() - caseStart;
-    results.push(item);
+    for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { logs += chunk.toString(); if (logs.length > 4 * 1024 * 1024) { logOverflow = true; logs = logs.slice(-4 * 1024 * 1024); } });
+    await waitForServer();
+    browser = await chromium.launch({ headless: true });
+    for (const [name, ids, check] of cases) {
+      if (only && name !== only) continue;
+      const item = { name, requirement_ids: ids, status: 'passed' };
+      const caseStart = Date.now();
+      const context = await browser.newContext({ baseURL });
+      context.setDefaultTimeout(6000);
+      activePage = await context.newPage();
+      try {
+        await check(context, activePage);
+        await delay(50);
+        assert.equal(mailCount, 0, 'v0.1 emitted mail to the local catcher; account use must not depend on mail');
+        assert(!logOverflow, 'Service log capture overflowed; private-data absence cannot be established');
+        for (const secret of secrets) assert(!logs.includes(secret), 'Service logs exposed generated credentials or personal email');
+      } catch (error) {
+        item.status = 'failed'; item.error = redact(error.stack || error);
+        item.screenshot = `screenshots/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+        if (activePage.url() === 'about:blank') await activePage.goto(baseURL).catch(() => {});
+        await activePage.screenshot({ path: path.join(output, item.screenshot), fullPage: true, mask: [activePage.locator('input[type=email], input[type=password]'), ...[...secrets].map(secret => activePage.getByText(secret, { exact: false }))] }).catch(() => { delete item.screenshot; });
+      } finally { await context.close(); activePage = undefined; }
+      item.duration_ms = Date.now() - caseStart;
+      results.push(item);
+    }
   }
 } catch (error) {
   results.push({ name: 'runner setup', requirement_ids: ['A-1'], status: 'failed', error: redact(error.stack || error) });
@@ -142,7 +150,8 @@ try {
   if (dataDir) await rm(dataDir, { recursive: true, force: true });
 }
 
-const report = { schema: 'gyf-acceptance-report/v2', release: 'v0.1', head_sha: head, worktree_clean: worktreeClean, source: stubMode ? 'contract-stub' : 'production-build', runtime, base_url: baseURL, started_at: new Date(started).toISOString(), duration_ms: Date.now() - started, summary: { total: results.length, passed: results.filter(x => x.status === 'passed').length, failed: results.filter(x => x.status === 'failed').length, skipped: 0 }, cases: results };
+const source = stubMode ? 'contract-stub' : runtime === 'production-start-missing' ? 'missing-production-service' : 'production-build';
+const report = { schema: 'gyf-acceptance-report/v2', release: 'v0.1', head_sha: head, worktree_clean: worktreeClean, source, runtime, base_url: baseURL, started_at: new Date(started).toISOString(), duration_ms: Date.now() - started, summary: { total: results.length, passed: results.filter(x => x.status === 'passed').length, failed: results.filter(x => x.status === 'failed').length, skipped: 0 }, cases: results };
 await writeFile(path.join(output, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify({ ...report.summary, report: path.join(output, 'report.json') }));
 process.exitCode = report.summary.failed ? 1 : 0;
@@ -195,30 +204,52 @@ async function session(context, email) {
   const body = await jsonOK(await api(context, 'GET', contract.session), 'Session');
   assert.equal(body.email, email, 'Session belongs to a different user or is missing');
 }
-async function upload(context, consent = true, bytes = photo, mimeType = 'image/jpeg') {
-  return context.request.post(contract.wardrobe, { headers: { origin: baseURL }, multipart: { photo: { name: 'garment-photo.jpg', mimeType, buffer: bytes }, photo_consent: String(consent), ownership: 'owned' }, timeout: 10000 });
+async function upload(context, sample = shirt, consent = true, bytes = sample.photo, mimeType = 'image/jpeg') {
+  return context.request.post(contract.wardrobe, { headers: { origin: baseURL }, multipart: { photo: { name: sample.filename, mimeType, buffer: bytes }, photo_consent: String(consent), name: sample.name, category: sample.category, color: sample.color, size: sample.size, fit: sample.fit, available: String(sample.available), weather: sample.weather.join(','), dress_code: sample.dress_codes.join(','), ownership: 'owned' }, timeout: 10000 });
 }
-async function garment(context) {
-  const item = await jsonOK(await upload(context), 'Garment upload');
+async function garment(context, sample = shirt) {
+  const item = await jsonOK(await upload(context, sample), 'Garment upload');
   assert(item.id && item.photo_url, 'Saved garment has no stable ID or retrievable photo URL');
-  assert.equal(item.ownership, 'owned', 'Explicit ownership was lost');
+  assertGarmentFacts(item, sample, 'Saved garment');
   return item;
+}
+function assertGarmentFacts(item, sample, label) {
+  assert.equal(item.ownership, 'owned', `${label} lost ownership confirmation`);
+  for (const key of ['name', 'category', 'color', 'size', 'fit', 'available']) assert.equal(item[key], sample[key], `${label} lost confirmed ${key}`);
+  assert.deepEqual(item.weather, sample.weather, `${label} lost confirmed weather`);
+  assert.deepEqual(item.dress_codes, sample.dress_codes, `${label} lost confirmed dress code`);
 }
 function localPhotoURL(item) {
   const url = new URL(item.photo_url, baseURL);
   assert.equal(url.origin, baseURL, 'Photo URL sends private media outside the local service');
   return url.href;
 }
-function completeOutfit(body, garmentId) {
-  assert(Array.isArray(body.outfits) && body.outfits.length > 0, 'No outfit suggestion returned');
+function completeOutfit(body, wardrobe, shirtId, requestFacts) {
+  assert(Array.isArray(body.outfits) && body.outfits.length === 1, 'Expected one complete outfit');
   for (const outfit of body.outfits) {
     assert(typeof outfit.explanation === 'string' && outfit.explanation.trim().length > 10, 'Outfit lacks a meaningful explanation');
     assert(Array.isArray(outfit.items), 'Outfit has no garment set');
     const categories = new Set(outfit.items.map(item => item.category));
     assert(['top', 'bottom', 'footwear'].every(category => categories.has(category)), 'Suggestion omits top, bottom or footwear');
-    assert(outfit.items.some(item => item.id === garmentId), 'Suggestion ignored the uploaded shirt');
-    assert(outfit.items.filter(item => item.id !== garmentId).every(item => item.ownership !== 'owned'), 'Suggestion invented additional owned clothes');
+    assert(outfit.items.some(item => item.id === shirtId), 'Suggestion ignored the uploaded shirt');
+    for (const item of outfit.items) {
+      const garment = wardrobe.get(item.id);
+      assert(garment, "Outfit includes a garment outside the wearer's wardrobe");
+      assert.equal(item.category, garment.category, 'Outfit changed a garment category');
+      assert.equal(garment.ownership, 'owned', 'Outfit includes a garment the wearer does not own');
+      assert.equal(garment.available, true, 'Outfit includes an unavailable garment');
+      assert.equal(garment.fit, 'fits', 'Outfit includes a garment without confirmed fit');
+      assert(garment.weather.includes(requestFacts.weather), 'Outfit includes a garment that does not match known weather');
+      assert(garment.dress_codes.includes(requestFacts.dress_code), 'Outfit includes a garment that does not match known dress code');
+    }
   }
+}
+function requireQuestionOrAbstention(body, label) {
+  assert(Array.isArray(body.outfits) && body.outfits.length === 0, `${label} returned an outfit`);
+  const hasQuestion = typeof body.question === 'string' && Boolean(body.question.trim());
+  const hasAbstention = typeof body.abstention === 'string' && Boolean(body.abstention.trim());
+  assert.notEqual(hasQuestion, hasAbstention, `${label} must return one question or one abstention`);
+  return hasQuestion ? body.question : body.abstention;
 }
 async function signupJourney(context) {
   const user = credentials();
@@ -271,9 +302,9 @@ async function photoJourney(context, page) {
     });
     const difference = pixels[0].reduce((sum, value, i) => sum + Math.abs(value - pixels[1][i]), 0) / (pixels[0].length * 255);
     return { width: images[0].width, height: images[0].height, difference };
-  }, [bytes.toString('base64'), photo.toString('base64')]);
+  }, [bytes.toString('base64'), shirt.photo.toString('base64')]);
   assert(match.width >= 100 && match.height >= 100 && match.difference < 0.08, 'Stored photo is a placeholder, damaged or different from the real upload');
-  for (const rejected of [await upload(context, false), await upload(context, true, Buffer.from('damaged photo')), await upload(context, true, Buffer.from('plain text'), 'text/plain')]) {
+  for (const rejected of [await upload(context, shirt, false), await upload(context, shirt, true, Buffer.from('damaged photo')), await upload(context, shirt, true, Buffer.from('plain text'), 'text/plain')]) {
     assert([400, 415, 422].includes(rejected.status()), 'Invalid or non-consented upload accepted');
   }
   const list = await jsonOK(await api(context, 'GET', contract.wardrobe), 'Wardrobe');
@@ -281,9 +312,24 @@ async function photoJourney(context, page) {
 }
 async function outfitJourney(context) {
   await signup(context);
-  const item = await garment(context);
+  const items = [];
+  for (const sample of garments) items.push(await garment(context, sample));
   const body = await jsonOK(await api(context, 'POST', contract.outfits, facts), 'Outfit request');
-  completeOutfit(body, item.id);
+  completeOutfit(body, new Map(items.map(item => [item.id, item])), items[0].id, facts);
+}
+async function singleShirtJourney(context) {
+  await signup(context);
+  await garment(context, shirt);
+  const body = await jsonOK(await api(context, 'POST', contract.outfits, facts), 'Single-shirt outfit request');
+  requireQuestionOrAbstention(body, 'Single-shirt wardrobe');
+}
+async function missingFactsJourney(context) {
+  await signup(context);
+  for (const sample of garments) await garment(context, sample);
+  const unknownWeather = await jsonOK(await api(context, 'POST', contract.outfits, { ...facts, weather: 'unknown' }), 'Unknown-weather outfit request');
+  requireQuestionOrAbstention(unknownWeather, 'Unknown weather');
+  const unknownDressCode = await jsonOK(await api(context, 'POST', contract.outfits, { ...facts, dress_code: 'unknown' }), 'Unknown-dress-code outfit request');
+  requireQuestionOrAbstention(unknownDressCode, 'Unknown dress code');
 }
 async function isolation(context) {
   await signup(context);
@@ -352,24 +398,37 @@ async function browserJourney(context, page) {
   const consent = page.getByRole('checkbox', { name: /photo|process/i });
   assert.equal(await consent.isChecked(), false, 'Photo consent was preselected');
   await consent.check();
-  await input.setInputFiles(path.join(suiteRoot, 'fixtures/garment-photo.jpg'));
+  await input.setInputFiles(path.join(suiteRoot, 'fixtures', shirt.filename));
   const review = page.getByRole('button', { name: /review photo/i });
   if (await review.count()) await review.click();
+  const factsForm = page.locator('form').filter({ hasText: /confirm your garment facts/i });
+  await factsForm.waitFor();
+  await factsForm.getByLabel(/^name$/i).fill(shirt.name);
+  await factsForm.getByLabel(/^category/i).selectOption({ label: 'Top' });
+  await factsForm.getByLabel(/^color$/i).fill(shirt.color);
+  await factsForm.getByLabel(/size on label/i).fill(shirt.size);
+  await factsForm.getByLabel(/does it fit you now/i).selectOption({ label: 'Fits' });
+  await factsForm.getByLabel(/^mild$/i).check();
+  await factsForm.getByLabel(/^smart-casual$/i).check();
+  await factsForm.getByLabel(/available to wear now/i).check();
+  await factsForm.getByLabel(/confirm this garment is mine/i).check();
   const [uploaded] = await Promise.all([
     page.waitForResponse(response => new URL(response.url()).pathname === contract.wardrobe && response.request().method() === 'POST'),
     page.locator('form').filter({ has: input }).getByRole('button', { name: /save garment|add garment|upload photo/i }).click(),
   ]);
   const item = await jsonOK(uploaded, 'Browser garment upload');
-  await page.getByLabel(/occasion/i).fill(facts.occasion);
-  await page.getByLabel(/weather/i).fill(facts.weather);
-  await page.getByLabel(/dress.?code/i).fill(facts.dress_code);
+  assertGarmentFacts(item, shirt, 'Browser upload');
+  const outfitForm = page.locator('form').filter({ has: page.getByLabel(/occasion/i) });
+  await outfitForm.getByLabel(/occasion/i).fill(facts.occasion);
+  await outfitForm.getByLabel(/weather/i).selectOption({ label: 'Mild' });
+  await outfitForm.getByLabel(/dress.?code/i).selectOption({ label: 'Smart casual' });
   const [suggested] = await Promise.all([
     page.waitForResponse(response => new URL(response.url()).pathname === contract.outfits && response.request().method() === 'POST'),
     page.getByRole('button', { name: /suggest.*outfit|what.*wear|find.*outfit/i }).click(),
   ]);
   const body = await jsonOK(suggested, 'Browser outfit request');
-  completeOutfit(body, item.id);
-  for (const outfit of body.outfits) await page.getByText(outfit.explanation, { exact: true }).waitFor();
+  const answer = requireQuestionOrAbstention(body, 'Single-shirt browser wardrobe');
+  await page.getByText(answer, { exact: true }).waitFor();
   const image = page.getByRole('img', { name: /garment|shirt/i }).first();
   await image.waitFor();
   assert(await image.evaluate(img => img.complete && img.naturalWidth >= 100), 'Uploaded garment is not visible');

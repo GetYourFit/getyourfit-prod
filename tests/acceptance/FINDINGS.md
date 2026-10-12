@@ -6,12 +6,12 @@ These entries are checker-owned handoff material for firstmate to incorporate in
 
 ## AF-V01-001: No production API service
 
-- Status: historical, superseded by the account increment. Current production runs use `npm start` and reach the account service.
+- Status: the earlier static-preview fallback is removed. Current production service availability is not established by this evidence.
 - Requirements: R4, A-1.
-- Reproduce: install the app and checker dependencies; run `npm run acceptance` from the repository root with `ACCEPTANCE_OUTPUT` pointing to a scratch directory.
+- Reproduce: at the earlier checker revision, install the app and checker dependencies and run `npm run acceptance` from the repository root with `ACCEPTANCE_OUTPUT` pointing to a scratch directory.
 - Expected: `npm start` serves the production application and its API against the supplied disposable database.
-- Actual: the production manifest has no start command. The runner records a mandatory failure and serves the built static shell only to collect further evidence.
-- Evidence: `production/report.json`, case `V01 production API service`.
+- Actual: that runner reported a missing production start command, then served a static preview to collect shell evidence. The current runner records the missing service as a mandatory failure and stops without running browser or API cases against a preview.
+- Evidence: historical `production/report.json`, case `V01 production API service`; it does not establish current service availability.
 
 ## AF-V01-002: New user cannot begin signup
 
@@ -33,22 +33,23 @@ These entries are checker-owned handoff material for firstmate to incorporate in
 
 ## CF-V01-003: Checker does not complete the garment facts confirmation
 
-- Status: open checker defect, not a product finding. Product acceptance of the browser photo-to-outfit journey is unverified. The earlier AF-V01-004 claim that "Add garment" opens no photo control is retired; it was wrong.
+- Status: checker repair is in place; production acceptance remains unverified. The earlier AF-V01-004 claim that "Add garment" opens no photo control is retired; it was wrong.
 - Requirements: R4, R5, R7, A-1.
-- Observed (fresh production run on `d09e2fb`; report head `4946ad1`, worktree dirty because this round's edits were uncommitted): browser signup with Name succeeds and the signed-in wardrobe is reached. The checker waits for either the "Add garment" entry or the photo input, clicks the entry because the input is not yet visible, and the labeled photo control appears. The photo is attached, consent is checked and a photo preview appears, followed by a "Confirm your garment facts" form (Name, Category, Color, size, fit, weather, dress codes, ownership confirmation). The checker then clicks "Save garment" without completing those fields and waits 6s for a POST to the contract wardrobe route; none arrives and the case fails there.
-- Not established: whether a completed form saves a garment, and which route it uses. Outfit request, refresh persistence and photo visibility are unreached and unverified. Next step is a checker change that fills the visible facts form from the written requirements.
-- Evidence: `/Users/rvzaku/firstmate/data/gyf-acceptance/v0.1/name-fix/production-round3/report.json` and `screenshots/v01-browser-signup-real-photo-outfit-and-refresh.png` (inspected; email and password masked). Earlier `c3577aa` and prior-round evidence is historical only.
+- Observed (production run on `d09e2fb`; report head `4946ad1`): signup succeeds, the delayed Add garment entry opens the photo control, and the photo preview leads to a visible garment facts form. The earlier checker clicked Save without filling its required fields and observed no upload request at the projected wardrobe route.
+- Repair: the browser now confirms synthetic shirt facts (name, top category, beige color, size M, fit, mild weather, smart-casual dress code, available status and ownership) before Save. The single-shirt request must ask one question or abstain. The API contract and stub separately exercise a complete owned set and unknown-weather/dress-code alternatives.
+- Not established by the historical report: whether the completed current browser form saves a garment, which route it uses, or whether the following question is displayed. Outfit, refresh persistence and the complete production journey remain unverified.
+- Evidence: `/Users/rvzaku/firstmate/data/gyf-acceptance/v0.1/name-fix/production-round3/report.json` and `screenshots/v01-browser-signup-real-photo-outfit-and-refresh.png` (inspected; email and password masked). These artifacts predate the repair. Earlier `c3577aa` and prior-round evidence is historical only.
 
 ## CF-V01-002: Checker raced the Add garment entry point
 
-- Status: repaired. The browser waits for either the "Add garment" button or the photo input, clicks the button only when the input is not visible, then waits for the input. The contract stub mounts its button after a delay so the race is exercised. All six good cases pass and all seventeen mutations are detected with the stub.
+- Status: repaired. The browser waits for a visible "Add garment" button or photo input, clicks the button only when the input is not visible, then waits for the input. The contract stub delays the button and places its hidden photo input first in document order. The verifier covers eight good cases and twenty-one targeted mutations.
 
 ## CF-V01-001: Checker omitted the required signup Name
 
 - Requirements: R4, R26, A-1.
 - Status: repaired; independent pipeline validation follows the local good-stub and mutation proof.
 - Reproduce before repair: run the prior checker and inspect its browser failure screenshot. Native validation says "Please fill out this field" on the empty Name input; waiting for garment controls then misidentifies a signup prerequisite failure.
-- Repair: the browser tests empty-Name refusal, fills a synthetic Name, and observes a successful response, closed signup form and private session before checking garments. The `empty-name` stub removes that refusal and accepts the empty Name. Its intended assertion fails; all six good cases pass and all seventeen targeted mutations are detected.
+- Repair: the browser tests empty-Name refusal, fills a synthetic Name, and observes a successful response, closed signup form and private session before checking garments. The `empty-name` stub removes that refusal and accepts the empty Name. Its intended assertion failed at the original repair round; the current verifier also covers the later outfit alternatives.
 - Evidence: `name-fix/proof/stub-mutations.json` and the before/after browser screenshots. The old misleading screenshot is retained under `fresh/final-evidence/production/`; it does not prove signup completed or a garment control was missing.
 
 ## Integration follow-up

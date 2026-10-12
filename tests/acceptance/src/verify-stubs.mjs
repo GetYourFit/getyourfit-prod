@@ -27,6 +27,10 @@ const mutations = [
   ['delete-isolation', caseNames.isolation, /accessible to another session/],
   ['photo-isolation', caseNames.isolation, /accessible to another session/],
   ['list-isolation', caseNames.isolation, /leaked private garment/],
+  ['unowned-outfit', caseNames.outfit, /outside the wearer's wardrobe/],
+  ['single-shirt', caseNames.singleShirt, /Single-shirt wardrobe returned an outfit/],
+  ['missing-weather', caseNames.missingFacts, /Unknown weather returned an outfit/],
+  ['missing-dress-code', caseNames.missingFacts, /Unknown dress code returned an outfit/],
 ];
 const detections = [];
 await mkdir(output, { recursive: true });
