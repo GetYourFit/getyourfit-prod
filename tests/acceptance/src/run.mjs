@@ -148,14 +148,14 @@ process.exitCode = report.summary.failed ? 1 : 0;
 
 async function assertFreePort(port) {
   const probe = tcpServer();
-  await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(port, resolve); });
+  await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(port, '127.0.0.1', resolve); });
   await new Promise(resolve => probe.close(resolve));
 }
 async function waitForServer() {
   const deadline = Date.now() + 20000;
   while (Date.now() < deadline) {
     assert(server.exitCode === null && server.signalCode === null, `Owned service exited: ${redact(logs)}`);
-    try { const response = await fetch(baseURL, { signal: AbortSignal.timeout(1000) }); if (response.status < 500) return; } catch {}
+    try { const response = await fetch(baseURL, { signal: AbortSignal.timeout(1000) }); if (response.status < 500) { await delay(200); assert(server.exitCode === null && server.signalCode === null, `Owned service exited: ${redact(logs)}`); return; } } catch {}
     await delay(100);
   }
   throw new Error(`Owned service did not become ready: ${redact(logs)}`);

@@ -10,22 +10,22 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-mutations-'));
 const scratch = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-verifier-'));
 const mutations = [
-  ['browser', caseNames.browser],
-  ['signup', caseNames.signup],
-  ['session', caseNames.signup],
-  ['duplicate', caseNames.signup],
-  ['authentication', caseNames.authentication],
-  ['enumeration', caseNames.authentication],
-  ['photo', caseNames.photo],
-  ['consent', caseNames.photo],
-  ['invalid-photo', caseNames.photo],
-  ['outfit', caseNames.outfit],
-  ['photo-reuse', caseNames.outfit],
-  ['read-isolation', caseNames.isolation],
-  ['update-isolation', caseNames.isolation],
-  ['delete-isolation', caseNames.isolation],
-  ['photo-isolation', caseNames.isolation],
-  ['list-isolation', caseNames.isolation],
+  ['browser', caseNames.browser, /Timeout|Unavailable|create.*account/i],
+  ['signup', caseNames.signup, /Signup returned HTTP 503/],
+  ['session', caseNames.signup, /Session returned HTTP 401/],
+  ['duplicate', caseNames.signup, /Login after duplicate signup returned HTTP 401/],
+  ['authentication', caseNames.authentication, /Wrong password accepted/],
+  ['enumeration', caseNames.authentication, /different refusal body/],
+  ['photo', caseNames.photo, /placeholder, damaged or different|decode/i],
+  ['consent', caseNames.photo, /Invalid or non-consented upload accepted/],
+  ['invalid-photo', caseNames.photo, /Invalid or non-consented upload accepted/],
+  ['outfit', caseNames.outfit, /omits top, bottom or footwear/],
+  ['photo-reuse', caseNames.outfit, /ignored the uploaded shirt/],
+  ['read-isolation', caseNames.isolation, /accessible to another session/],
+  ['update-isolation', caseNames.isolation, /accessible to another session/],
+  ['delete-isolation', caseNames.isolation, /accessible to another session/],
+  ['photo-isolation', caseNames.isolation, /accessible to another session/],
+  ['list-isolation', caseNames.isolation, /leaked private garment/],
 ];
 const detections = [];
 await mkdir(output, { recursive: true });
@@ -35,12 +35,13 @@ try {
   assert.equal(good.report.summary.passed, Object.keys(caseNames).length);
   assert.equal(good.report.summary.skipped, 0);
   assert.deepEqual(new Set(mutations.map(([, name]) => name)), new Set(good.report.cases.map(item => item.name)), 'Every case needs a known-bad variant');
-  for (const [mutation, name] of mutations) {
+  for (const [mutation, name, intended] of mutations) {
     const result = await run(mutation, name);
     assert.equal(result.exitCode, 1, `Mutation ${mutation} did not fail the process`);
     assert.equal(result.report.cases.length, 1, `Mutation ${mutation} failed setup instead of its case`);
     assert.equal(result.report.cases[0].name, name);
     assert.equal(result.report.cases[0].status, 'failed', `Mutation ${mutation} escaped`);
+    assert.match(result.report.cases[0].error, intended, `Mutation ${mutation} failed for a different reason than intended`);
     detections.push({ mutation, name, detected: true, evidence: result.report.cases[0].error });
     console.log(`detected ${mutation}`);
   }
