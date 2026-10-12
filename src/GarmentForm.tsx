@@ -32,10 +32,18 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
         if (!context) throw new Error('canvas-unavailable');
         context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
         context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        image = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-        if (image.length > 1_333_336) throw new Error('too-large');
+        image = '';
+        for (const quality of [0.85, 0.7, 0.55, 0.4]) {
+          image = canvas.toDataURL('image/jpeg', quality).split(',')[1];
+          if (image.length <= 1_333_332) break;
+        }
+        if (image.length > 1_333_332) throw new Error('too-large');
       } finally { bitmap.close(); }
-    } catch {
+    } catch (cause) {
+      if (cause instanceof Error && cause.message === 'too-large') {
+        setError('This photo is too detailed to send. Choose a smaller or simpler photo.');
+        setPhoto({ kind: 'empty' }); return;
+      }
       setError('This file could not be opened as an image. Choose a different JPEG, PNG, or WebP photo.');
       setPhoto({ kind: 'empty' }); return;
     }

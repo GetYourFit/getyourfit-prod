@@ -91,7 +91,7 @@ export function wardrobeRouter(requireUser) {
     if (!facts.success || request.body?.consent !== true) return response.status(400).json({ error: 'Confirm ownership, photo permission, and all garment facts.' });
     if (listRows(request.user.id).length >= 50) return response.status(409).json({ error: 'This local wardrobe holds up to 50 garments. Remove an item before adding another.' });
     const photo = await decodePhoto({ consent: request.body.consent, image: request.body.image });
-    if (!photo) return response.status(400).json({ error: 'The photo could not be opened. Choose a valid photo under 1 MB after resizing.' });
+    if (!photo) return response.status(400).json({ error: 'The photo could not be opened. Choose a valid, smaller photo.' });
     const interpretation = await classify(photo);
     // Recheck after asynchronous decoding and classification, before insertion.
     if (listRows(request.user.id).length >= 50) return response.status(409).json({ error: 'The wardrobe is full.' });
