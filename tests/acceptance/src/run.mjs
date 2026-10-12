@@ -18,7 +18,7 @@ const onlyIndex = process.argv.indexOf('--only');
 const only = onlyIndex < 0 ? undefined : process.argv[onlyIndex + 1];
 const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-report-'));
 const photo = await readFile(path.join(suiteRoot, 'fixtures/garment-photo.jpg'));
-const intent = 'Dinner tonight, smart casual, mild and dry weather. Suggest one complete outfit with my shirt. Budget at most 6000 INR.';
+const facts = { occasion: 'dinner', weather: 'mild and dry', dress_code: 'smart casual' };
 const secrets = new Set();
 const cases = [
   [caseNames.browser, ['R4', 'R5', 'R7', 'R26', 'A-1'], browserJourney],
@@ -269,7 +269,7 @@ async function photoJourney(context, page) {
 async function outfitJourney(context) {
   await signup(context);
   const item = await garment(context);
-  const body = await jsonOK(await api(context, 'POST', contract.outfits, { request: intent }), 'Outfit request');
+  const body = await jsonOK(await api(context, 'POST', contract.outfits, facts), 'Outfit request');
   completeOutfit(body, item.id);
 }
 async function isolation(context) {
@@ -321,7 +321,9 @@ async function browserJourney(context, page) {
     page.getByRole('button', { name: /save garment|add garment|upload photo/i }).click(),
   ]);
   const item = await jsonOK(uploaded, 'Browser garment upload');
-  await page.getByLabel(/occasion|what.*wear|request/i).fill(intent);
+  await page.getByLabel(/occasion/i).fill(facts.occasion);
+  await page.getByLabel(/weather/i).fill(facts.weather);
+  await page.getByLabel(/dress.?code/i).fill(facts.dress_code);
   const [suggested] = await Promise.all([
     page.waitForResponse(response => new URL(response.url()).pathname === contract.outfits && response.request().method() === 'POST'),
     page.getByRole('button', { name: /suggest.*outfit|what.*wear|find.*outfit/i }).click(),
