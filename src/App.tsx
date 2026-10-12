@@ -110,7 +110,7 @@ export default function App() {
       </section>
       <AccountSecurity enabled={session.twoFactorEnabled === true} />
       <section className="delete-card">
-        <div><p className="eyebrow">ACCOUNT CONTROL</p><h2>Delete your account</h2><p>This permanently removes your account, credentials, sessions, wardrobe photos, facts, and outfit corrections from this device.</p></div>
+        <div><p className="eyebrow">ACCOUNT CONTROL</p><h2>Delete your account</h2><p>This permanently removes your account, credentials, sessions, wardrobe photos, facts, and outfit corrections from the local app.</p></div>
         {!confirmDelete ? <button className="button button-danger-outline" onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Delete my data</button> : <div className="delete-confirm"><span>Delete this account and its data?</span><button className="button button-danger" onClick={() => void deleteAccount()} disabled={busy !== ''}>{busy === 'delete' ? 'Deleting…' : 'Erase permanently'}</button><button className="text-button" onClick={() => setConfirmDelete(false)}>Cancel</button></div>}
       </section>
     </section>

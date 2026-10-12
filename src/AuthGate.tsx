@@ -133,7 +133,7 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
       <span className="brand-mark">g.</span>
       <div className="auth-main">
         <h1>GetYourFit</h1>
-        <p className="auth-description">Account access for your local GetYourFit setup.</p>
+        <p className="auth-description">Decide what to wear from the clothes you already own. Add real photos, confirm the facts, and keep your wardrobe private on this device.</p>
       </div>
     </section>
     <section className="auth-action">

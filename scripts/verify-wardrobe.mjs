@@ -133,9 +133,17 @@ async function addGarment(category, name, color, fit, testBadPhoto = false) {
 try {
   run('npm', ['run', 'build']);
   await startServer(); chrome(['open', origin]); chrome(['emulate', '--viewport', '1440x1000x1']);
-  await shown('Welcome back.'); click('Create an account'); fill('YOUR NAME', 'Wardrobe wearer'); fill('EMAIL ADDRESS', email); fill('PASSWORD', password);
+  await shown('Welcome back.'); capture('wardrobe-signin-desktop');
+  chrome(['emulate', '--viewport', '390x844x1,mobile,touch']);
+  assert.equal(evaluate('() => window.innerWidth'), 390);
+  assert.equal(evaluate('() => document.documentElement.scrollWidth <= window.innerWidth'), true);
+  capture('wardrobe-signin-mobile'); chrome(['emulate', '--viewport', '1440x1000x1']);
+  click('Create an account'); fill('YOUR NAME', 'Wardrobe wearer'); fill('EMAIL ADDRESS', email); fill('PASSWORD', password);
   check('I confirm I am at least 18 years old. GetYourFit does not create an account for minors.'); click('Create account');
   await shown('A wardrobe worth knowing.'); capture('wardrobe-before');
+  for (const [name, hash] of [['Outfit', '#outfit'], ['Privacy', '#account-title'], ['Wardrobe', '#wardrobe-title']]) {
+    chrome(['click', element('link', name)]); assert.equal(evaluate('() => location.hash'), hash);
+  }
   assert.equal(browserApi('/api/wardrobe/review', { consent: false, image: 'AAECAwQ=' }).status, 400);
   assert.equal(browserApi('/api/wardrobe/review', { consent: true, image: 'AAECAwQ=' }).status, 400);
   await addGarment('top', 'White T-shirt', 'White', 'unknown', true);
@@ -223,6 +231,11 @@ try {
   }
   stored.close();
   fs.writeFileSync(path.join(dataDir, 'export.json'), JSON.stringify(exported));
+  chrome(['click', element('button', 'Remove', 2)]); click('Keep');
+  assert.equal(browserApi('/api/wardrobe', undefined, 'GET').body.length, 3);
+  chrome(['click', element('button', 'Remove', 2)]); click('Confirm remove'); await shown('2 garments');
+  assert.equal(browserApi('/api/wardrobe', undefined, 'GET').body.length, 2);
+  assert.equal(evaluate(`async () => (await fetch(${JSON.stringify(items[2].photoUrl)})).status`), 404);
   const other = await fetch(`${origin}/api/auth/sign-up/email`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Other wearer', email: `other-${randomBytes(8).toString('hex')}@example.test`, password: randomBytes(32).toString('base64url'), adultConfirmed: true }) });
   assert.equal(other.status, 200);
@@ -240,6 +253,7 @@ try {
   assert.throws(() => assertAcceptance(signedOutState), /R13: sign-in/);
   fill('EMAIL ADDRESS', email); fill('PASSWORD', password); click('Sign in'); await shown('White T-shirt');
   await stopServer(); await startServer(); chrome(['open', origin]); await shown('White T-shirt');
+  assert.equal(evaluate('() => document.querySelectorAll(".garment-card img").length'), 2);
   assert.equal(evaluate('() => [...document.querySelectorAll(".garment-card img")].every(img => img.complete && img.naturalWidth > 0)'), true);
   click('Download export'); click('Delete my data'); click('Erase permanently'); await shown('Welcome back.');
   const db = new Database(path.join(dataDir, 'getyourfit.sqlite'), { readonly: true });
