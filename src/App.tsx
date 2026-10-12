@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowDownToLine, LogOut, ShieldCheck, Trash2 } from 'lucide-react';
 import { AuthGate } from './AuthGate';
 import { AccountSecurity } from './AccountSecurity';
+import { Wardrobe } from './Wardrobe';
 import { request, type EmailDeliveryMode } from './api';
 
 type SessionState =
@@ -88,18 +89,19 @@ export default function App() {
   if (!session.signedIn) return <AuthGate onSignedIn={refresh} deliveryMode={session.emailDeliveryMode} initialError={error} />;
 
   return <main className="account-shell">
-    <header className="account-topbar"><a className="brand-lockup" href="/" aria-label="GetYourFit home"><span className="brand-mark">g.</span><span>GETYOURFIT</span></a><span className="account-email">{session.email}</span><button className="text-button" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>Privacy</button></header>
+    <header className="account-topbar"><a className="brand-lockup" href="/" aria-label="GetYourFit home"><span className="brand-mark">g.</span><span>GETYOURFIT</span></a><span className="account-email">{session.email}</span><nav aria-label="Your app"><a href="#wardrobe-title">Wardrobe</a><a href="#outfit">Outfit</a><a href="#account-title">Privacy</a></nav></header>
+    <Wardrobe />
     <section className="account-content" aria-labelledby="account-title">
       <p className="eyebrow">YOUR ACCOUNT</p>
       <h1 id="account-title">Your account, in your hands.</h1>
-      <p className="lede">This build covers account access and account data. Garment photos, wardrobe, and outfit decisions are not available here.</p>
+      <p className="lede">Your account, wardrobe photos, confirmed facts, and outfit corrections stay in the local app. Take a copy or erase them whenever you choose.</p>
       {error && <p className="inline-error" role="alert">{error}</p>}
       <section className="privacy-card" aria-labelledby="privacy-title">
         <div className="privacy-card-title"><span className="privacy-icon"><ShieldCheck size={18} /></span><div><h2 id="privacy-title">Stored on this device</h2><p>{session.email} · Account details stay in the local app database.</p></div></div>
         <div className="privacy-list"><p><ShieldCheck size={14} /> {session.emailDeliveryMode === 'disabled' ? 'Email is unverified. Email verification and recovery arrive in v0.2.' : session.emailDeliveryMode === 'smtp' ? 'Email delivery uses the configured SMTP service.' : session.emailDeliveryMode === 'local-test' ? 'Automated test messages are available only to the verification runner.' : 'Email delivery mode is unknown.'}</p><p><ShieldCheck size={14} /> Personal data is never sold.</p><p><ShieldCheck size={14} /> Your password is stored as a one-way hash.</p><p><ShieldCheck size={14} /> Sign out here or revoke every active session.</p></div>
       </section>
       <section className="data-action-card">
-        <span className="data-action-icon"><ArrowDownToLine size={18} /></span><div className="data-action-copy"><h2>Export account data</h2><p>Download your account details as a JSON file.</p></div>
+        <span className="data-action-icon"><ArrowDownToLine size={18} /></span><div className="data-action-copy"><h2>Export account data</h2><p>Download your account, garment facts, photos, and outfit corrections as a JSON file.</p></div>
         <button className="button button-secondary" onClick={() => void exportData()} disabled={busy !== ''}>{busy === 'export' ? 'Preparing…' : 'Download export'}</button>
       </section>
       <section className="data-action-card">
@@ -108,7 +110,7 @@ export default function App() {
       </section>
       <AccountSecurity enabled={session.twoFactorEnabled === true} />
       <section className="delete-card">
-        <div><p className="eyebrow">ACCOUNT CONTROL</p><h2>Delete your account</h2><p>This permanently removes your account, credentials, and active sessions from this device.</p></div>
+        <div><p className="eyebrow">ACCOUNT CONTROL</p><h2>Delete your account</h2><p>This permanently removes your account, credentials, sessions, wardrobe photos, facts, and outfit corrections from this device.</p></div>
         {!confirmDelete ? <button className="button button-danger-outline" onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Delete my data</button> : <div className="delete-confirm"><span>Delete this account and its data?</span><button className="button button-danger" onClick={() => void deleteAccount()} disabled={busy !== ''}>{busy === 'delete' ? 'Deleting…' : 'Erase permanently'}</button><button className="text-button" onClick={() => setConfirmDelete(false)}>Cancel</button></div>}
       </section>
     </section>
