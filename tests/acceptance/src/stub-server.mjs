@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-const origin = 'http://127.0.0.1:4174';
+const port = Number(process.env.PORT);
+const origin = `http://127.0.0.1:${port}`;
 const mutation = process.env.MUTATION || '';
 const photo = await readFile(fileURLToPath(new URL('../fixtures/garment-photo.jpg', import.meta.url)));
 const users = new Map(), sessions = new Map(), garments = new Map();
@@ -87,4 +88,5 @@ const server = http.createServer(async (req, res) => {
   }
   json(res, 404, { error: 'not found' });
 });
-server.listen(4174, '127.0.0.1');
+server.once('error', error => { console.error(error); process.exit(1); });
+server.listen(port, '127.0.0.1', () => console.log(`stub listening ${port}`));

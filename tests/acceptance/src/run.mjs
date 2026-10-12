@@ -13,8 +13,10 @@ import { account, caseNames, contract } from './contract.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const suiteRoot = path.resolve(here, '..');
 const projectRoot = path.resolve(suiteRoot, '../..');
-const baseURL = 'http://127.0.0.1:4174';
 const stubMode = process.argv.includes('--stub');
+const appPort = stubMode ? await freePort() : 4174;
+const mailPort = await freePort();
+const baseURL = `http://127.0.0.1:${appPort}`;
 const onlyIndex = process.argv.indexOf('--only');
 const only = onlyIndex < 0 ? undefined : process.argv[onlyIndex + 1];
 const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-report-'));
@@ -65,8 +67,7 @@ try {
   const worktree = spawnSync('git', ['status', '--porcelain'], { cwd: projectRoot, encoding: 'utf8' });
   assert.equal(worktree.status, 0, 'Cannot establish worktree state');
   worktreeClean = worktree.stdout.trim() === '';
-  await assertFreePort(4174);
-  await assertFreePort(4180);
+  if (!stubMode) await freePortCheck(appPort);
   mailCatcher = tcpServer(socket => {
     smtpSockets.add(socket); socket.on('close', () => smtpSockets.delete(socket));
     socket.on('error', () => {});
@@ -86,11 +87,11 @@ try {
       if (pending.length > 1024 * 1024) socket.destroy();
     });
   });
-  await new Promise((resolve, reject) => { mailCatcher.once('error', reject); mailCatcher.listen(4180, '127.0.0.1', resolve); });
+  await new Promise((resolve, reject) => { mailCatcher.once('error', reject); mailCatcher.listen(mailPort, '127.0.0.1', resolve); });
   dataDir = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-data-'));
   const authSecret = randomBytes(32).toString('hex');
   secrets.add(authSecret);
-  const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, GYF_MAIL_TRANSPORT: 'disabled', HOST: '127.0.0.1', PORT: '4174', GYF_DATA_DIR: dataDir, DATABASE_URL: `file:${path.join(dataDir, 'acceptance.sqlite')}`, APP_URL: baseURL, GYF_MAIL_MODE: 'disabled', SMTP_HOST: '127.0.0.1', SMTP_PORT: '4180', SMTP_URL: 'smtp://127.0.0.1:4180' };
+  const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, GYF_MAIL_TRANSPORT: 'disabled', HOST: '127.0.0.1', PORT: String(appPort), GYF_PORT: String(appPort), GYF_DATA_DIR: dataDir, DATABASE_URL: `file:${path.join(dataDir, 'acceptance.sqlite')}`, APP_URL: baseURL, GYF_MAIL_MODE: 'disabled', SMTP_HOST: '127.0.0.1', SMTP_PORT: String(mailPort), SMTP_URL: `smtp://127.0.0.1:${mailPort}` };
   if (stubMode) {
     server = spawn(process.execPath, [path.join(here, 'stub-server.mjs')], { env: { ...env, MUTATION: process.env.MUTATION || '' }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     runtime = 'contract-stub';
@@ -103,7 +104,7 @@ try {
     } else {
       runtime = 'production-static-only';
       results.push({ name: 'V01 production API service', requirement_ids: ['R4', 'A-1'], status: 'failed', error: 'package.json has no npm start production service contract. Static preview is used only to collect browser and API findings.' });
-      server = spawn(process.execPath, [path.join(projectRoot, 'node_modules/vite/bin/vite.js'), 'preview', '--host', '127.0.0.1', '--port', '4174', '--strictPort'], { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+      server = spawn(process.execPath, [path.join(projectRoot, 'node_modules/vite/bin/vite.js'), 'preview', '--host', '127.0.0.1', '--port', String(appPort), '--strictPort'], { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     }
   }
   for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { logs += chunk.toString(); if (logs.length > 4 * 1024 * 1024) { logOverflow = true; logs = logs.slice(-4 * 1024 * 1024); } });
@@ -146,16 +147,23 @@ await writeFile(path.join(output, 'report.json'), `${JSON.stringify(report, null
 console.log(JSON.stringify({ ...report.summary, report: path.join(output, 'report.json') }));
 process.exitCode = report.summary.failed ? 1 : 0;
 
-async function assertFreePort(port) {
+async function freePortCheck(port) {
   const probe = tcpServer();
   await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(port, '127.0.0.1', resolve); });
   await new Promise(resolve => probe.close(resolve));
+}
+async function freePort() {
+  const probe = tcpServer();
+  await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(0, '127.0.0.1', resolve); });
+  const { port } = probe.address();
+  await new Promise(resolve => probe.close(resolve));
+  return port;
 }
 async function waitForServer() {
   const deadline = Date.now() + 20000;
   while (Date.now() < deadline) {
     assert(server.exitCode === null && server.signalCode === null, `Owned service exited: ${redact(logs)}`);
-    try { const response = await fetch(baseURL, { signal: AbortSignal.timeout(1000) }); if (response.status < 500) { await delay(200); assert(server.exitCode === null && server.signalCode === null, `Owned service exited: ${redact(logs)}`); return; } } catch {}
+    try { if (stubMode && !logs.includes(`stub listening ${appPort}`)) throw new Error('not bound'); const response = await fetch(baseURL, { signal: AbortSignal.timeout(1000) }); if (response.status < 500) { await delay(200); assert(server.exitCode === null && server.signalCode === null, `Owned service exited: ${redact(logs)}`); return; } } catch {}
     await delay(100);
   }
   throw new Error(`Owned service did not become ready: ${redact(logs)}`);
