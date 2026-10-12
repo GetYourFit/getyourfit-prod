@@ -7,12 +7,13 @@ import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { account, caseNames, contract } from './contract.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const suiteRoot = path.resolve(here, '..');
 const projectRoot = path.resolve(suiteRoot, '../..');
-const baseURL = 'http://localhost:4179';
+const baseURL = 'http://127.0.0.1:4174';
 const stubMode = process.argv.includes('--stub');
 const onlyIndex = process.argv.indexOf('--only');
 const only = onlyIndex < 0 ? undefined : process.argv[onlyIndex + 1];
@@ -64,7 +65,7 @@ try {
   const worktree = spawnSync('git', ['status', '--porcelain'], { cwd: projectRoot, encoding: 'utf8' });
   assert.equal(worktree.status, 0, 'Cannot establish worktree state');
   worktreeClean = worktree.stdout.trim() === '';
-  await assertFreePort(4179);
+  await assertFreePort(4174);
   await assertFreePort(4180);
   mailCatcher = tcpServer(socket => {
     smtpSockets.add(socket); socket.on('close', () => smtpSockets.delete(socket));
@@ -87,7 +88,9 @@ try {
   });
   await new Promise((resolve, reject) => { mailCatcher.once('error', reject); mailCatcher.listen(4180, '127.0.0.1', resolve); });
   dataDir = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-data-'));
-  const env = { ...safeEnv(), NODE_ENV: 'production', HOST: '127.0.0.1', PORT: '4179', GYF_DATA_DIR: dataDir, DATABASE_URL: `file:${path.join(dataDir, 'acceptance.sqlite')}`, APP_URL: baseURL, GYF_MAIL_MODE: 'disabled', SMTP_HOST: '127.0.0.1', SMTP_PORT: '4180', SMTP_URL: 'smtp://127.0.0.1:4180' };
+  const authSecret = randomBytes(32).toString('hex');
+  secrets.add(authSecret);
+  const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, GYF_MAIL_TRANSPORT: 'disabled', HOST: '127.0.0.1', PORT: '4174', GYF_DATA_DIR: dataDir, DATABASE_URL: `file:${path.join(dataDir, 'acceptance.sqlite')}`, APP_URL: baseURL, GYF_MAIL_MODE: 'disabled', SMTP_HOST: '127.0.0.1', SMTP_PORT: '4180', SMTP_URL: 'smtp://127.0.0.1:4180' };
   if (stubMode) {
     server = spawn(process.execPath, [path.join(here, 'stub-server.mjs')], { env: { ...env, MUTATION: process.env.MUTATION || '' }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     runtime = 'contract-stub';
@@ -100,7 +103,7 @@ try {
     } else {
       runtime = 'production-static-only';
       results.push({ name: 'V01 production API service', requirement_ids: ['R4', 'A-1'], status: 'failed', error: 'package.json has no npm start production service contract. Static preview is used only to collect browser and API findings.' });
-      server = spawn(process.execPath, [path.join(projectRoot, 'node_modules/vite/bin/vite.js'), 'preview', '--host', '127.0.0.1', '--port', '4179', '--strictPort'], { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+      server = spawn(process.execPath, [path.join(projectRoot, 'node_modules/vite/bin/vite.js'), 'preview', '--host', '127.0.0.1', '--port', '4174', '--strictPort'], { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     }
   }
   for (const stream of [server.stdout, server.stderr]) stream.on('data', chunk => { logs += chunk.toString(); if (logs.length > 4 * 1024 * 1024) { logOverflow = true; logs = logs.slice(-4 * 1024 * 1024); } });
