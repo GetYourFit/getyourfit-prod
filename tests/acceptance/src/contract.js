@@ -2,29 +2,25 @@ import { randomBytes, randomUUID } from 'node:crypto';
 
 export const contract = {
   register: '/api/auth/register',
-  verify: '/api/auth/verify',
   login: '/api/auth/login',
-  logout: '/api/auth/logout',
-  logoutEverywhere: '/api/auth/logout-everywhere',
-  forgot: '/api/auth/password/forgot',
-  reset: '/api/auth/password/reset',
-  twoFactor: '/api/auth/2fa/verify',
-  export: '/api/auth/export',
-  account: '/api/auth/account',
+  session: '/api/auth/session',
   wardrobe: '/api/wardrobe/items',
   outfits: '/api/outfits',
 };
 
-const email = label => `acceptance-${label}-${randomUUID()}@example.test`;
-const password = () => `Aa1!${randomBytes(24).toString('base64url')}`;
-
-export const accounts = {
-  valid: { email: email('valid'), password: password(), age_confirmed: true },
-  other: { email: email('other'), password: password(), age_confirmed: true },
-  weak: { email: email('weak'), password: randomBytes(5).toString('hex'), age_confirmed: true },
-  unknown: { email: email('unknown') },
-  invalidPassword: password(),
-  resetPassword: password(),
-  reusedResetPassword: password(),
-  takeoverPassword: password(),
+export const caseNames = {
+  browser: 'V01 browser signup, real photo, outfit and refresh',
+  signup: 'V01 API signup creates a usable private session without mail',
+  authentication: 'V01 wrong and unknown credentials are refused without enumeration',
+  photo: 'V01 API real photo persists and invalid uploads are refused',
+  outfit: 'V01 API natural request returns a complete explained outfit using the photo',
+  isolation: 'V01 two users cannot read, modify or delete each other garments or photos',
 };
+
+export function account() {
+  return {
+    email: `acceptance-${randomUUID()}@example.test`,
+    password: `Aa1!${randomBytes(24).toString('base64url')}`,
+    age_confirmed: true,
+  };
+}
