@@ -521,7 +521,7 @@ async function main() {
     const invalidReset = await api('/api/auth/reset-password', { token: `invalid-reset-${i}`, newPassword: updatedPassword });
     assert.equal(invalidReset.status, 400, 'Password reset rate limit triggered before its configured threshold.');
   }
-  const limitedPasswordReset = await api('/api/auth/reset-password', { token: 'invalid-reset-limit', newPassword: updatedPassword });
+  const limitedPasswordReset = await api('/api/auth/reset-password', { token: randomBytes(32).toString('base64url'), newPassword: updatedPassword });
   assert.equal(limitedPasswordReset.status, 429, 'Password reset endpoint rate limit did not trigger.');
 
   const thirdReset = await api('/api/auth/request-password-reset', { email: `third-reset-${Date.now()}@example.test` });

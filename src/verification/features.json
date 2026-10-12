@@ -1,12 +1,13 @@
 {
   "application": "GetYourFit",
-  "surface": "Local responsive browser app, loopback Node service, and SQLite account data",
+  "surface": "Local responsive browser app, loopback Node service, and private SQLite account and wardrobe data",
   "baseline": [
     "Set a retained BETTER_AUTH_SECRET of at least 32 random characters, run npm run dev with a disposable GYF_DATA_DIR, and open http://127.0.0.1:5173.",
     "Run npm run verify to check the browser app and data service readiness.",
     "Use chrome-devtools-axi and a named browser session for user-visible checks.",
     "npm run verify:auth starts an isolated service and database, creates an ephemeral mailbox token for its Node runner, and drives named browser sessions.",
-    "npm run verify:local-account proves signup without mail in the production build, restart continuity, sign-in failure, export, and deletion."
+    "npm run verify:local-account proves signup without mail in the production build, restart continuity, sign-in failure, export, and deletion.",
+    "npm run verify:wardrobe builds a production app and drives licensed real photos, fact review, outfit correction, export, ownership isolation, restart, and deletion. Use GYF_PROOF_DIR outside the repository to retain evidence."
   ],
   "features": [
     {
@@ -31,29 +32,79 @@
       "gotchas": [
         "Default mode sends no mail, keeps emailVerified=false, and cannot recover a forgotten password. Real mail delivery is v0.2.",
         "Retain the authentication key with the database. A missing key refuses startup; changing it breaks encrypted authenticator state and sessions.",
-        "Opt-in SMTP requires STARTTLS unless implicit TLS is selected. Test mode requires a private runner token. Browser users cannot read its mailbox.",
-        "Photo upload and outfit decisions remain pending in this account increment."
+        "Opt-in SMTP requires STARTTLS unless implicit TLS is selected. Test mode requires a private runner token. Browser users cannot read its mailbox."
+      ]
+    },
+    {
+      "id": "wardrobe",
+      "title": "Add and correct real garments",
+      "route": "Wardrobe at / after sign-in",
+      "harness": "chrome-devtools-axi",
+      "summary": "Give photo permission, resize in the browser, review a local clothing label, confirm facts and keep a private owned wardrobe.",
+      "entrypoints": [
+        "Sign in and choose Add garment.",
+        "Confirm ownership and photo permission before selecting a real JPEG, PNG or WebP.",
+        "Review the photo, complete the garment facts, and choose Save garment. Use Edit details to correct any fact."
+      ],
+      "subfeatures": [
+        "photo-consent disables image selection until local processing and storage are authorized.",
+        "photo-review resizes to 1200 pixels, strips metadata and rejects malformed image bytes before contacting the loopback classifier.",
+        "photo-classification uses macOS-local Apple Vision with an honest clothing label, revision and confidence; unavailable classification asks for manual confirmation.",
+        "wardrobe-create stores confirmed category, color, size, fit, availability, weather and dress code privately with the photo.",
+        "wardrobe-correction preserves source and records changed facts as wearer-correction.",
+        "wardrobe-remove erases one garment photo and facts and cascades its outfit exclusions."
+      ],
+      "driving": "Preconditions:\n\n- Sign in to an adult account. Use tests/fixtures photographs only in an isolated verification account; never seed a real wearer wardrobe.\n\n- **Permission.** Choose Add garment. Confirm Garment photo is disabled until photo consent is checked.\n- **Known bad.** Upload tests/fixtures/damaged.jpg. The browser announces the decode failure, Save remains disabled, and no /api/wardrobe/review request is sent.\n- **Valid photo.** Upload a licensed real fixture. The preview loads. On macOS, the photo label includes Apple Vision, its revision, and its actual score. Confirm the category yourself, plus name, color, labelled size, current fit (or unknown), availability, weather and dress code. Confirm ownership and save.\n- **Correction.** Edit a detail and save. Refresh: the photo and corrected detail remain. The export records source wearer-correction, modelVersion null, confidence 1 for that changed fact.\n- **Remove.** Choose Remove, then Confirm remove. The garment and photo disappear; it cannot appear in an outfit.\n- **Proof.** npm run verify:wardrobe drives these production controls and probes private image ownership using a second account.",
+      "gotchas": [
+        "A photo cannot establish ownership, fit, weather or dress code. No classifier score becomes an outfit fact automatically.",
+        "Apple Vision requires macOS and Swift. Failed or unsupported classification has no invented label or confidence. Only clothing labels leave the classifier.",
+        "A wardrobe holds up to 50 photos, with bounded decode size and stored JPEG images. Photos never use an external image or recognition service."
+      ]
+    },
+    {
+      "id": "outfit",
+      "title": "Choose one complete owned outfit",
+      "route": "Outfit at /#outfit after sign-in",
+      "harness": "chrome-devtools-axi",
+      "summary": "State an occasion, weather and dress code, then check owned garments against your facts. Missing facts get one question; an impossible set gets an abstention.",
+      "entrypoints": [
+        "Add a top and bottom (or one-piece) and footwear to your owned wardrobe.",
+        "Use Outfit navigation, enter the occasion, weather and dress code, then choose Find an outfit.",
+        "Answer a fit question or update one missing context fact. Reject an item to exclude it for this context."
+      ],
+      "subfeatures": [
+        "outfit-context requires explicit occasion, weather and dress code, asking one missing fact at a time.",
+        "outfit-fit asks about one necessary unknown fit and stores the one-tap answer as a wearer correction.",
+        "outfit-complete shows top plus bottom plus footwear, or one-piece plus footwear, only when every fact meets the request.",
+        "outfit-abstain shows no partial recommendation when owned, available, fitting, context-compatible items cannot form a set.",
+        "outfit-correction excludes rejected items for normalized occasion plus weather and dress code, persists across reload, and allows explicit undo."
+      ],
+      "driving": "Preconditions:\n\n- Save compatible real garment photos in an isolated account. Confirm all facts yourself.\n\n- **Clarification.** Request with no occasion, then unknown weather, then unknown dress code. Each result asks exactly one focused question without outfit images. With all context known but one needed item fit unknown, answer Yes, it fits; the garment fact and source update.\n- **Complete.** Find an outfit. The result has two or three actual wardrobe photos, explains confirmed ownership, availability, fit, weather and dress code, and says nothing to buy. It makes no style or size prediction.\n- **Known bad.** Omit footwear, or mark it unavailable, not fitting or incompatible. Find an outfit must abstain with zero outfit items.\n- **Correction.** Choose Don’t use this for this occasion. The item stays excluded after reload and the same request, including case and surrounding-space differences in occasion. Choose Allow excluded items again only to undo your correction.\n- **Proof.** npm test checks constraint branches and complete-set shape. npm run verify:wardrobe exercises clarification, complete and invalid sets, actual images and persisted corrections through browser controls.",
+      "gotchas": [
+        "A complete set is a factual starting point, without taste ranking, inferred fit or fashion superiority claims.",
+        "The wearer marks weather and dress-code suitability. The service does not invent suitability from colors, size labels or image labels.",
+        "Changing the request clears the visible decision so a prior outfit is never shown for a new context."
       ]
     },
     {
       "id": "data-control",
-      "title": "Export or delete account data",
+      "title": "Export or delete your data",
       "route": "Account page at / after sign-in",
       "harness": "chrome-devtools-axi",
-      "summary": "Download the current account record or delete the account and its credentials, sessions, tokens, and exact-recipient test mail.",
+      "summary": "Download the account, garment photos, confirmed facts, classification provenance and saved outfit corrections, or erase them with the account.",
       "entrypoints": [
         "Sign in to open the account page.",
         "Choose Download export to save the account JSON.",
         "Choose Delete my data and confirm to remove the account."
       ],
       "subfeatures": [
-        "account-export downloads email, name, verification status, adult confirmation, and account creation time without password hashes or session secrets.",
-        "account-delete removes the account and related credentials, sessions, tokens, lockout record, and in-memory test mail."
+        "account-export downloads profile fields, garment facts and per-fact provenance, stored JPEG photos as base64, original classification provenance, consent timestamps, and context-specific outfit corrections without credentials or session secrets.",
+        "account-delete cascades across credentials, sessions, tokens, wardrobe photo blobs, facts and outfit corrections; SQLite secure deletion and checkpoint/VACUUM remove retired blobs."
       ],
-      "driving": "Preconditions:\n\n- Sign in to a local account using the account-access guide.\n\n- **Export.** Choose `Download export`. Inspect the saved JSON. It must identify `getyourfit-account-export-v1`, include the account profile fields, and omit password hashes and session secrets.\n- **Delete.** Choose `Delete my data`, then `Erase permanently`. The app returns to sign-in. The verifier confirms that the deleted account cannot sign in, its exact-recipient messages are removed, and a message to a similar address remains.\n- **Boundary.** This increment exports and deletes account records only. The final wardrobe acceptance remains pending until garment records and photos are included.\n- **Proof.** `npm run verify:auth` checks export, deletion, session cleanup, exact-recipient mailbox cleanup, and rejected sign-in after deletion.",
+      "driving": "Preconditions:\n\n- Sign in and add real garments through the wardrobe guide.\n\n- **Export.** Choose Download export. Inspect the JSON: getyourfit-account-export-v1 includes the account, wardrobe photos in JPEG/base64, facts, consent and provenance, and outfitCorrections. Password hashes and session secrets must be absent.\n- **Delete.** Choose Delete my data, then Erase permanently. Sign-in returns; old photo requests fail and the account cannot sign in again.\n- **Proof.** npm run verify:wardrobe checks photo metadata removal, wardrobe export and correction records, cross-account access, restart continuity, and database cascade deletion. Existing account verifiers cover credentials, sessions, tokens and exact-recipient test mail cleanup.",
       "gotchas": [
-        "The account export intentionally excludes credentials and session tokens.",
-        "Garment facts, photos, and outfit corrections are not implemented yet and are not included."
+        "Exports contain private garment photos. Keep the downloaded copy under your control; deleting app data cannot delete copies you downloaded.",
+        "Classification and wearer provenance remain distinct; wearer confidence 1 records explicit confirmation rather than a statistical model score."
       ]
     }
   ]

@@ -7,10 +7,12 @@ import helmet from 'helmet';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, consumeEmailVerificationToken, emailDeliveryMode, hashPassword, isLockedOut, localMailbox, migrateAuth, recordSignInResult, sendMail, settleMailForAccountDeletion } from './auth.mjs';
 import { audit, database, ensureAuthSchema } from './database.mjs';
+import { ensureWardrobeSchema, exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
+import { apiOrigin, apiPort } from './config.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const allowedHosts = new Set(['localhost:4174', '127.0.0.1:4174']);
-const allowedOrigins = new Set(['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4174', 'http://127.0.0.1:4174']);
+const allowedHosts = new Set([`localhost:${apiPort}`, `127.0.0.1:${apiPort}`]);
+const allowedOrigins = new Set(['http://localhost:5173', 'http://127.0.0.1:5173', `http://localhost:${apiPort}`, apiOrigin]);
 const app = express();
 
 app.disable('x-powered-by');
@@ -25,7 +27,6 @@ app.use(helmet({
   referrerPolicy: { policy: 'no-referrer' },
   crossOriginEmbedderPolicy: false,
 }));
-app.use(express.json({ limit: '32kb' }));
 app.use((request, response, next) => {
   response.setHeader('Cache-Control', 'no-store');
   if (!allowedHosts.has(request.headers.host)) return response.status(403).json({ error: 'This local service only accepts local requests.' });
@@ -51,6 +52,9 @@ async function requireUser(request, response, next) {
   }
 }
 
+app.use('/api/wardrobe', wardrobeRouter(requireUser));
+app.use(express.json({ limit: '32kb' }));
+
 const requestLimits = new Map();
 function limitSensitiveRequest(request, response, next) {
   const now = Date.now();
@@ -72,7 +76,7 @@ app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, re
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     database.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(user.id);
     database.prepare('INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(tokenHash, user.id, Date.now() + 15 * 60_000);
-    const baseURL = process.env.BETTER_AUTH_URL || (process.env.NODE_ENV === 'production' ? 'http://127.0.0.1:4174' : 'http://127.0.0.1:5173');
+    const baseURL = process.env.BETTER_AUTH_URL || (process.env.NODE_ENV === 'production' ? apiOrigin : 'http://127.0.0.1:5173');
     const resetURL = new URL('/', baseURL);
     resetURL.searchParams.set('token', token);
     void sendMail({ to: email, subject: 'Reset your GetYourFit password', text: `Use this single-use link within 15 minutes to reset your password:\n\n${resetURL}\n\nIf you did not request this, ignore this message.` }).catch(() => audit('mail-delivery-failed'));
@@ -142,6 +146,7 @@ app.get('/api/data/export', requireUser, (request, response) => {
       createdAt: request.user.createdAt,
       adultConfirmed: request.user.adultConfirmed,
     },
+    ...exportWardrobe(request.user.id),
   };
   response.setHeader('Content-Disposition', 'attachment; filename="getyourfit-account-export.json"');
   response.json(exported);
@@ -174,7 +179,7 @@ app.use('/api/auth', (request, response, next) => {
     response.once('finish', () => {
       if (process.env.GYF_TRACE_AUTH_REDIRECTS === '1') {
         const location = response.getHeader('Location') ?? null;
-        const error = typeof location === 'string' ? new URL(location, 'http://127.0.0.1:4174').searchParams.get('error') : null;
+        const error = typeof location === 'string' ? new URL(location, apiOrigin).searchParams.get('error') : null;
         process.stdout.write(`${JSON.stringify({ event: 'email-verification', status: response.statusCode, location, error })}\n`);
       }
     });
@@ -209,8 +214,8 @@ if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
 
 await migrateAuth();
 ensureAuthSchema();
-const port = Number(process.env.GYF_PORT || 4174);
+ensureWardrobeSchema();
 const server = http.createServer(app);
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 66_000;
-server.listen(port, '127.0.0.1', () => {});
+server.listen(apiPort, '127.0.0.1', () => {});

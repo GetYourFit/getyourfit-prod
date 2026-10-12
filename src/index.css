@@ -130,3 +130,87 @@ h1, h2, h3, p { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+select, summary { font: inherit; }
+select:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.account-topbar nav { display: flex; flex: 0 0 auto; gap: 20px; font-size: 12px; }
+.account-topbar nav a { text-decoration: none; padding: 8px 0; }
+.account-topbar nav a:hover { color: var(--accent); }
+.wardrobe-content { width: min(1080px, calc(100% - 48px)); margin: 0 auto; padding: 64px 0 40px; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.wardrobe-heading { align-items: flex-start; }
+.wardrobe-heading h1 { max-width: 670px; margin-bottom: 16px; font-family: var(--serif); font-size: clamp(38px, 5.5vw, 64px); font-weight: 400; letter-spacing: -.035em; line-height: 1.05; }
+.wardrobe-heading > .button { margin-top: 30px; flex: 0 0 auto; }
+.wardrobe-content .lede { max-width: 560px; font-size: 14px; line-height: 1.7; }
+.wardrobe-content .button { font-size: 12px; min-height: 44px; }
+.wardrobe-content .text-button { font-size: 12px; min-height: 44px; }
+.wardrobe-empty { display: flex; align-items: flex-start; gap: 28px; padding: 32px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.empty-number { color: var(--accent); font-family: var(--serif); font-size: 48px; line-height: 1; }
+.wardrobe-empty h2, .section-heading h2 { margin-bottom: 10px; font-family: var(--serif); font-size: 30px; font-weight: 400; letter-spacing: -.02em; }
+.wardrobe-empty p { max-width: 480px; margin-bottom: 0; color: #626158; font-size: 14px; line-height: 1.7; }
+.wardrobe-count { color: #626158; font-size: 12px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.garment-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.garment-card > img, .outfit-item > img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; background: var(--surface); }
+.garment-card-copy { padding: 18px 0; border-bottom: 1px solid var(--rule); }
+.garment-card h2 { font-family: var(--serif); font-size: 24px; font-weight: 400; overflow-wrap: anywhere; margin-bottom: 8px; }
+.garment-card-copy > p:not(.eyebrow), .garment-card details, .outfit-item > p { color: #626158; font-size: 12px; line-height: 1.6; }
+.garment-card details summary { cursor: pointer; min-height: 32px; }
+.garment-card details > p { margin: 10px 0; }
+.garment-actions { display: flex; justify-content: space-between; gap: 12px; }
+.remove-confirm { color: #99533f; }
+.garment-editor { margin: 24px 0 32px; border: 1px solid var(--rule); background: var(--surface); padding: 28px; }
+.garment-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.garment-form > fieldset > legend { margin: 20px 0; font-family: var(--serif); font-size: 24px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.form-grid > label, .context-form > label { display: grid; gap: 8px; font-size: 13px; }
+.wardrobe-content .text-input { font-size: 14px; }
+.photo-step .consent-check, .garment-form .consent-check { font-size: 13px; }
+.photo-step .consent-check { max-width: 650px; }
+.photo-upload { display: block; margin: 20px 0 12px; font-size: 13px; }
+.photo-upload span { display: block; margin-bottom: 10px; font-weight: 600; }
+.photo-upload input { width: 100%; font-size: 13px; }
+.photo-upload input::file-selector-button { min-height: 44px; margin-right: 12px; border: 1px solid var(--rule); border-radius: 5px; padding: 0 16px; background: var(--canvas); font: inherit; cursor: pointer; }
+.form-note { color: #626158; font-size: 12px; line-height: 1.7; }
+.photo-review { display: grid; grid-template-columns: minmax(100px, 200px) 1fr; gap: 16px 24px; margin: 20px 0; align-items: start; }
+.photo-review img { grid-row: span 2; width: 100%; max-height: 220px; object-fit: contain; }
+.photo-review > p { font-size: 13px; line-height: 1.7; }
+.garment-form .fact-options { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 22px 0; }
+.fact-options legend { margin-bottom: 10px; font-size: 13px; }
+.fact-options label { display: flex; align-items: center; gap: 8px; font-size: 13px; min-height: 32px; }
+.fact-options input, .photo-step input[type=checkbox], .garment-form input[type=checkbox] { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--positive); }
+.garment-form .consent-check { margin: 16px 0; }
+.garment-form .form-note { margin-top: 20px; }
+.outfit-section { margin-top: 64px; border-top: 1px solid var(--rule); padding-top: 32px; }
+.context-form { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 18px; align-items: end; }
+.context-form > button { grid-column: 1 / -1; justify-self: start; }
+.decision-note, .outfit-result { margin-top: 28px; padding: 24px 0; border-top: 1px solid var(--rule); }
+.decision-note h3, .outfit-result h3 { font-family: var(--serif); font-size: 30px; font-weight: 400; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.decision-note > p:not(.eyebrow), .decision-explanation { max-width: 720px; color: #626158; font-size: 14px; line-height: 1.7; }
+.outfit-result .garment-grid { margin-top: 24px; }
+.outfit-item h4 { margin: 16px 0 8px; font-family: var(--serif); font-size: 24px; font-weight: 400; overflow-wrap: anywhere; }
+.outfit-item .button { width: 100%; }
+.correction-note { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 0; border-top: 1px solid var(--rule); font-size: 13px; color: #626158; }
+.correction-note p { margin: 0; }
+.correction-note button { flex: 0 0 auto; }
+.account-content { border-top: 1px solid var(--rule); padding-top: 48px; }
+@media (max-width: 760px) {
+  .wardrobe-content { padding-top: 40px; }
+  .wardrobe-heading { flex-direction: column; gap: 0; }
+  .wardrobe-heading > .button { margin-top: 0; }
+  .garment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .context-form { grid-template-columns: 1fr 1fr; }
+  .context-form > label:first-child { grid-column: 1 / -1; }
+  .garment-editor { padding: 20px; }
+  .correction-note { align-items: flex-start; flex-direction: column; gap: 8px; }
+}
+@media (max-width: 600px) {
+  .account-topbar { height: auto; min-height: 68px; flex-wrap: wrap; padding-top: 16px; padding-bottom: 12px; }
+  .account-email { flex: 1; text-align: right; }
+  .account-topbar nav { width: 100%; justify-content: space-between; margin-top: 12px; border-top: 1px solid var(--rule); padding-top: 8px; }
+  .section-heading { gap: 16px; }
+  .form-grid, .photo-review { grid-template-columns: 1fr; }
+  .photo-review img { max-height: 240px; grid-row: auto; }
+  .garment-grid { grid-template-columns: 1fr; }
+  .garment-card > img, .outfit-item > img { aspect-ratio: 4 / 3; }
+  .wardrobe-empty { gap: 20px; }
+}

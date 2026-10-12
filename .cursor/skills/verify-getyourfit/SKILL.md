@@ -1,6 +1,6 @@
 ---
 name: verify-getyourfit
-description: Use when verifying GetYourFit in a real browser, changing a user path, or diagnosing account and data-control behavior.
+description: Use when verifying GetYourFit in a real browser, changing a user path, or diagnosing accounts, wardrobe photos, outfits, corrections, or data controls.
 ---
 
 # Verify GetYourFit
@@ -13,6 +13,8 @@ Run `npm install` once. Set a stable random `BETTER_AUTH_SECRET` of at least 32 
 
 For v0.1 account coverage, `npm run verify:local-account` builds and starts a production service, isolated database, and named Chrome session. It proves signup without mail, consent, restart continuity, sign-in failure, export, and deletion. The preserved v0.2 path uses `npm run verify:auth` with a restricted test mailbox and controlled SMTP relay. Both verifiers stop only their own processes and remove their temporary databases.
 
+For the wardrobe-to-outfit path, run `npm run verify:wardrobe`. It uses the real licensed photographs in `tests/fixtures`, never remote assets or a seeded wardrobe. It drives photo consent, known-bad decode, local interpretation, facts, one-question clarification, complete outfit and abstention, persisted rejection, export, cross-account isolation, restart, and deletion. Set `GYF_PROOF_DIR` outside the repository to retain screenshots and snapshots. macOS with Swift proves actual Apple Vision; other platforms must expose the manual-confirmation state honestly.
+
 ## Drive
 
 Use `chrome-devtools-axi` and follow the selected guide:
@@ -22,7 +24,7 @@ Use `chrome-devtools-axi` and follow the selected guide:
 3. Capture both the action and resulting state. Inspect network requests when privacy or locality matters.
 4. Confirm persisted effects through a second user view or the isolated SQLite database.
 
-Default v0.1 mode sends no email, signs new accounts in immediately, and retains an unverified email status. Recovery is unavailable. Opt-in SMTP sends through the configured service; only test mode keeps mail in memory. Its Node runner alone receives the ephemeral mailbox token and opens links in named browser sessions. Browser requests to `/__mail` return no messages. This account increment still requires photo and outfit work.
+Default v0.1 mode sends no email, signs new accounts in immediately, and retains an unverified email status. Recovery is unavailable. Opt-in SMTP sends through the configured service; only test mode keeps mail in memory. Its Node runner alone receives the ephemeral mailbox token and opens links in named browser sessions. Browser requests to `/__mail` return no messages.
 
 ## Evidence
 
@@ -36,3 +38,4 @@ The isolated verification scripts generate disposable random test passwords for 
 - `npm run feature-map` regenerates `FEATURE_MAP.md` and the browser recipes.
 - `npm run verify:auth` drives the account journey in isolated browser sessions.
 - `npm run verify:local-account` proves the default account journey in a production build.
+- `npm run verify:wardrobe` proves the real photo, fact, outfit, correction, export, and deletion journey in a production build.
