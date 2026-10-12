@@ -26,7 +26,7 @@ Wearer-first fashion decisions grounded in the wearer's real wardrobe and contex
 
 Help a first wearer decide what to wear for one stated occasion, with a complete explained outfit assembled from their own available clothes. Make “you already own it” a useful answer. The wearer can correct every suggestion and their correction wins.
 
-The current intermediate increment supports email and password, email verification, expiring single-use password recovery, optional TOTP, session controls, and account export or deletion. It is not product-ready and does not complete the first slice. Real verification and recovery messages use SMTP settings supplied through the server environment. The in-memory catcher is restricted to automated test runs, and the browser-facing mailbox route is unavailable in SMTP mode. No real provider is configured in this worktree. Real garment photo capture, wearer correction, the wardrobe, complete outfit decisions, and garment-data export or deletion remain required first-slice work and are not implemented here.
+The current account increment supports email/password signup without mail, optional TOTP, session controls, and account export or deletion. New accounts sign in immediately and retain an unverified email status. The v0.1 target also requires one real licensed garment photo upload and one outfit suggestion in a real browser; those features remain pending in this account increment. Verification and password recovery delivery move to v0.2. Their preserved opt-in SMTP implementation requires operator configuration; the in-memory catcher is restricted to automated test runs. Deployment follows separately after the acceptance suite becomes a required check.
 
 ## Capabilities and Constraints
 

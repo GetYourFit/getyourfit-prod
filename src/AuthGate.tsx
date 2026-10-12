@@ -4,9 +4,13 @@ import type { EmailDeliveryMode } from './api';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot' | 'reset' | 'sent';
 const deliveryCopy: Record<EmailDeliveryMode, { sent: string; privacy: string }> = {
+  disabled: {
+    sent: 'Email delivery is disabled in this local version.',
+    privacy: 'Email is not verified in v0.1. Password recovery arrives in v0.2; keep your password safe.',
+  },
   smtp: {
-    sent: 'Verification and reset links are sent by email to the address you provide.',
-    privacy: 'Verification and reset messages go to the email address you provide.',
+    sent: 'Email delivery uses the configured SMTP service. This response does not confirm delivery.',
+    privacy: 'Email delivery uses the configured SMTP service.',
   },
   'local-test': {
     sent: 'Automated verification and recovery messages are available only to the test runner.',
@@ -49,7 +53,7 @@ async function authRequest(path: string, body: Record<string, string | boolean>)
 }
 
 export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSignedIn: () => Promise<void>; deliveryMode: EmailDeliveryMode; initialError?: string }) {
-  const resetToken = new URLSearchParams(window.location.search).get('token');
+  const resetToken = deliveryMode === 'disabled' ? null : new URLSearchParams(window.location.search).get('token');
   const verificationError = new URLSearchParams(window.location.search).get('error');
   const [mode, setMode] = useState<Mode>(resetToken ? 'reset' : 'sign-in');
   const [email, setEmail] = useState('');
@@ -80,8 +84,11 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
     try {
       if (mode === 'sign-up') {
         if (!adult) throw new Error('Confirm that you are at least 18 before creating an account.');
-        await authRequest('sign-up/email', { name: name.trim(), email: email.trim(), password, adultConfirmed: true, callbackURL: window.location.origin });
-        setMode('sent');
+        const result = await authRequest('sign-up/email', { name: name.trim(), email: email.trim(), password, adultConfirmed: true, callbackURL: window.location.origin });
+        if ('token' in result && typeof result.token === 'string') {
+          await onSignedIn();
+        } else if (deliveryMode === 'disabled') throw new Error('We could not create the account. If you may already have one, try signing in.');
+        else setMode('sent');
       } else if (mode === 'sign-in') {
         const result = await authRequest('sign-in/email', { email: email.trim(), password, rememberMe: true });
         if ('twoFactorRedirect' in result && result.twoFactorRedirect === true) setNeedsCode(true);
@@ -146,7 +153,7 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
           <button className="button button-primary button-wide" disabled={busy}>{busy ? 'Please wait…' : mode === 'sign-up' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : mode === 'reset' ? 'Save new password' : 'Sign in'}<ArrowRight size={16} /></button>
         </form>}
         {mode !== 'sent' && !needsCode && <div className="auth-links">
-          {mode === 'sign-in' && <><button className="text-button" onClick={() => { setMode('forgot'); setError(''); }}>Forgot password?</button><button className="text-button" onClick={() => { setMode('sign-up'); setError(''); }}>Create an account</button></>}
+          {mode === 'sign-in' && <>{deliveryMode !== 'disabled' && deliveryMode !== 'unknown' && <button className="text-button" onClick={() => { setMode('forgot'); setError(''); }}>Forgot password?</button>}<button className="text-button" onClick={() => { setMode('sign-up'); setError(''); }}>Create an account</button></>}
           {mode === 'sign-up' && <button className="text-button" onClick={() => { setMode('sign-in'); setError(''); }}>Already have an account? Sign in</button>}
           {(mode === 'forgot' || mode === 'reset') && <button className="text-button" onClick={() => { setMode('sign-in'); setError(''); }}>Back to sign in</button>}
         </div>}

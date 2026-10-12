@@ -1,11 +1,11 @@
 <!-- Generated from src/verification/features.json. Edit that file, then run npm run feature-map. -->
 # Create and protect an account
 
-Create an adult account, verify email, sign in, recover access, and add optional TOTP protection.
+Create an adult email/password account without mail in v0.1, sign in, and add optional TOTP protection. Verification and recovery delivery are sequenced for v0.2.
 
 ## Sub-features
 
-- account-create accepts an explicit 18+ confirmation and requires a verified email before sign-in.
+- account-create accepts explicit 18+ confirmation and creates a signed-in, email-unverified account in default mode.
 - account-verify consumes a current local verification link once.
 - account-recovery uses a hashed, expiring, single-use token and revokes sessions after reset.
 - account-totp supports authenticator setup, one-time backup codes, and a sign-in challenge.
@@ -14,25 +14,25 @@ Create an adult account, verify email, sign in, recover access, and add optional
 ## How to get to it (user POV)
 
 - Open the local app and choose Create an account or enter credentials to sign in.
-- In normal SMTP mode, receive links at the account email. The isolated verifier uses a private mailbox that only its Node runner can read.
+- The default mode sends no mail. New accounts sign in immediately with an unverified address. The preserved opt-in SMTP mode requires email verification; its isolated verifier uses a private mailbox that only the Node runner can read.
 - After sign-in, use the account page to configure an authenticator app.
 
 ## Driving it with chrome-devtools-axi
 
 Preconditions:
 
-- Install dependencies with `npm install`. Configure `SMTP_HOST` and `SMTP_FROM` before starting a real-user instance.
-- Run `npm run verify:auth`; it builds and starts the local service, reads test mail through its private Node process, and opens links in named browser sessions.
+- Install dependencies with npm install. Set BETTER_AUTH_SECRET once to a random key of at least 32 characters and reuse it with the database.
+- Use default GYF_MAIL_TRANSPORT=disabled for v0.1. Run npm run verify:local-account for isolated production browser coverage.
 
-- **Create.** Choose `Create an account`, enter a name, email, and 12-character-or-longer password, confirm the 18+ statement, and choose `Create account`.
-- **Verify.** Follow the current link sent to the account email, or let the isolated verifier open its test message in the browser. The account page appears. Reopen the link; it must report an invalid token and create no extra session. A browser request to `/__mail` must return no messages.
-- **Sign in.** Sign out, enter the same email and password, and choose `Sign in`. An unverified or invalid account must not start a session.
-- **Recover.** Choose `Forgot password?`, request a link, and use it to set a new password. Reuse and expire the token; both must fail.
-- **TOTP.** On the account page, enter the password and choose `Set up TOTP`. Confirm an invalid code fails, then confirm a current code. Sign out and prove sign-in requests the second code.
-- **Proof.** Run `npm run verify:auth` for isolated browser coverage of registration, recovery, origin and rate controls, concurrent sessions, TOTP, revocation, export, deletion, and offline messaging. SMTP checks use a controlled local relay and do not prove delivery through a real provider.
+- **Create.** Choose Create an account, enter a name, email, and password of at least 12 characters, confirm the 18+ statement, and choose Create account. The account page appears without a mail link. Signup without consent must fail.
+- **Sign in.** Sign out and use the same credentials. An incorrect password fails. Restart the service with the same database and key; the existing session must still work.
+- **Recovery boundary.** Default mode has no Forgot password control. A reset request returns 404 and creates no token. Browser requests to /__mail return 404.
+- **TOTP.** Enter the password and choose Set up TOTP. Confirm an invalid code fails and a current code works. Restart with the retained key, then sign out and prove sign-in requests the second code.
+- **Opt-in email path.** npm run verify:auth exercises verification/replay, recovery expiry/reuse, origin/rate controls, TOTP, revocation, export, deletion, and offline messaging. It uses restricted test mail and controlled SMTP, without contacting a real provider.
 
 ## Gotchas
 
-- Normal mode uses SMTP and requires STARTTLS unless implicit TLS is selected. Automated tests can enable a separate in-memory catcher; only the verifier's Node process has its ephemeral bearer token, and browser users cannot read messages.
-- Verification and recovery links are single-use and expire.
-- This intermediate account-only increment is not product-ready. Real garment photos, wearer corrections, wardrobe management, and complete outfit decisions remain required to complete the first slice.
+- Default mode sends no mail, keeps emailVerified=false, and cannot recover a forgotten password. Real mail delivery is v0.2.
+- Retain the authentication key with the database. A missing key refuses startup; changing it breaks encrypted authenticator state and sessions.
+- Opt-in SMTP requires STARTTLS unless implicit TLS is selected. Test mode requires a private runner token. Browser users cannot read its mailbox.
+- Photo upload and outfit decisions remain pending in this account increment.

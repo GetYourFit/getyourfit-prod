@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { simpleParser } from 'mailparser';
 import { SMTPServer } from 'smtp-server';
+import Database from 'better-sqlite3';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const origin = 'http://127.0.0.1:4174';
@@ -135,7 +136,7 @@ async function startService(smtpPort, serviceDataDir, extraEnv = {}) {
       const response = await fetch(`${origin}/api/session`, { signal: AbortSignal.timeout(500) });
       if (response.ok) return;
       await response.arrayBuffer();
-    } catch {}
+    } catch (error) { if (!(error instanceof Error)) throw error; }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error(`The mail delivery service did not start: ${serverErrorOutput}`);
@@ -236,15 +237,15 @@ function verifyCliDefaultView() {
 }
 
 async function verifySmtpUi() {
-  try { browser(['stop']); } catch {}
+  browser(['stop']);
   browser(['open', origin]);
   await browserWait('Welcome back.');
   const session = browserResult(browser(['eval', 'async () => await (await fetch("/api/session")).json()']));
   assert.deepEqual(session, { signedIn: false, emailDeliveryMode: 'smtp' }, 'The signed-out browser did not receive the safe SMTP delivery mode.');
-  assert.ok(browserSnapshot().includes('Verification and reset messages go to the email address you provide.'), 'The sign-in privacy note did not describe SMTP delivery accurately.');
+  assert.ok(browserSnapshot().includes('Email delivery uses the configured SMTP service.'), 'The sign-in privacy note did not describe SMTP delivery accurately.');
   browserClick('button', 'Create an account');
   await browserWait('Make it yours.');
-  assert.ok(browserSnapshot().includes('Verification and reset messages go to the email address you provide.'), 'The signup page did not describe SMTP delivery accurately.');
+  assert.ok(browserSnapshot().includes('Email delivery uses the configured SMTP service.'), 'The signup page did not describe SMTP delivery accurately.');
   browserClick('button', 'Already have an account? Sign in');
   await browserWait('Welcome back.');
   browserClick('button', 'Forgot password?');
@@ -252,7 +253,7 @@ async function verifySmtpUi() {
   browserFill('EMAIL ADDRESS', `unknown-${Date.now()}@example.test`);
   browserClick('button', 'Send reset link');
   await browserWait('Request received.');
-  assert.ok(browserSnapshot().includes('Verification and reset links are sent by email to the address you provide.'), 'The sent state did not describe SMTP delivery accurately.');
+  assert.ok(browserSnapshot().includes('This response does not confirm delivery.'), 'The sent state overstated SMTP delivery.');
 }
 
 async function signInInBrowser() {
@@ -262,7 +263,7 @@ async function signInInBrowser() {
   browserFill('PASSWORD', password);
   browserClick('button', 'Sign in');
   await browserWait('Your account, in your hands.');
-  assert.ok(browserSnapshot().includes('Verification and reset messages are sent to your email address.'), 'The account page did not describe SMTP delivery accurately.');
+  assert.ok(browserSnapshot().includes('Email delivery uses the configured SMTP service.'), 'The account page did not describe SMTP delivery accurately.');
 }
 
 async function main() {
@@ -281,14 +282,18 @@ async function main() {
       adultConfirmed: true,
       callbackURL: origin,
     }), 10_000, 'The insecure SMTP relay check did not return.');
-    assert.ok(insecureRelay.observations.connections > 0, 'The insecure SMTP relay did not receive a connection attempt.');
+    await waitUntil(() => insecureRelay.observations.connections > 0, 'The insecure SMTP relay did not receive a connection attempt.');
+    const insecureDb = new Database(path.join(dataDir, 'insecure-relay', 'getyourfit.sqlite'));
+    try {
+      await waitUntil(() => insecureDb.prepare("SELECT count(*) AS count FROM auth_audit WHERE action = 'mail-delivery-failed'").get().count > 0, 'The application did not report rejecting the insecure relay.');
+    } finally { insecureDb.close(); }
     assert.equal(insecureRelay.observations.acceptedMessages, 0, 'The app sent account mail through SMTP without STARTTLS.');
   } finally {
     await stopService();
   }
 
   const certificate = createTestCertificate();
-  const { receiver, port: smtpPort } = await startMailReceiver({ certificate });
+  const { port: smtpPort } = await startMailReceiver({ certificate });
   try {
     await startService(smtpPort, path.join(dataDir, 'tls-relay'), { NODE_EXTRA_CA_CERTS: certificate.certificatePath });
     verifyCliDefaultView();
@@ -356,7 +361,7 @@ async function main() {
   } finally {
     releaseHeldDelivery();
     await stopService();
-    try { browser(['stop']); } catch {}
+    browser(['stop']);
   }
 }
 

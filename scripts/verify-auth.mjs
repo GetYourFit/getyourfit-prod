@@ -18,6 +18,7 @@ const updatedPassword = `Verify-${randomBytes(32).toString('base64url')}!`;
 const weakPassword = randomBytes(3).toString('hex');
 const wrongPassword = `Verify-${randomBytes(32).toString('base64url')}!`;
 const mailboxRunnerToken = randomBytes(32).toString('base64url');
+const authSecret = randomBytes(48).toString('base64url');
 const sessionA = 'gyf-auth-verify-a';
 const sessionB = 'gyf-auth-verify-b';
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-auth-'));
@@ -54,7 +55,7 @@ function safeCommand(args) {
       const url = new URL(args[1]);
       if (url.searchParams.has('token')) url.searchParams.set('token', '[redacted]');
       return `${args[0]} ${url}`;
-    } catch {}
+    } catch { return args.join(' '); }
   }
   return args.join(' ');
 }
@@ -311,7 +312,7 @@ async function startServer() {
       GYF_DATA_DIR: dataDir,
       GYF_PORT: '4174',
       BETTER_AUTH_URL: origin,
-      BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
+      BETTER_AUTH_SECRET: authSecret,
       GYF_TRACE_AUTH_REDIRECTS: '1',
     },
   });
@@ -556,7 +557,12 @@ async function main() {
   assert.equal(concurrentB.signedIn, true, 'Second concurrent session is missing.');
 
   await enableTotpInBrowser(sessionA, updatedPassword);
+  currentStage = 'restart with the retained authentication key and database';
+  await stopServer();
+  serverWasStopped = false;
+  await startServer();
   const enabledState = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/api/session")).json()'));
+  assert.equal(enabledState.signedIn, true, 'Restart invalidated the existing browser session.');
   assert.equal(enabledState.twoFactorEnabled, true, 'Authenticator setup did not persist.');
   click(sessionA, 'button', 'Privacy');
   click(sessionA, 'button', 'Revoke sessions');
@@ -575,6 +581,7 @@ async function main() {
   assert.equal(initialExport.ok, true, 'Data export failed.');
   assert.equal(initialExport.format, 'getyourfit-account-export-v1', 'Data export format is incorrect.');
   const foreignRecipient = `xx${email}`.toLowerCase();
+  await verificationMailer.sendMail({ from: 'GetYourFit <wardrobe@localhost>', to: email, subject: 'Account deletion cleanup', text: 'This message belongs to the account being deleted.' });
   await verificationMailer.sendMail({ from: 'GetYourFit <wardrobe@localhost>', to: foreignRecipient, subject: 'Recipient deletion isolation', text: 'This message belongs to a different recipient.' });
   assert.ok((await mailboxMessages()).some((message) => message.recipients.includes(foreignRecipient)), 'The recipient-isolation message was not parsed by the local mailbox.');
   const mailboxBeforeDelete = await mailboxMessages();

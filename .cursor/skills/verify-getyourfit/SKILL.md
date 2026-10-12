@@ -9,9 +9,9 @@ Read [the feature map](features/README.md), then read the guide for each user pa
 
 ## Start
 
-Run `npm install` once, then start `npm run dev` with a disposable `GYF_DATA_DIR`. Open `http://127.0.0.1:5173`; the local service listens at `http://127.0.0.1:4174`. Run `npm run verify` and continue when both services report `ready`.
+Run `npm install` once. Set a stable random `BETTER_AUTH_SECRET` of at least 32 characters and retain it with its database. Start `npm run dev` with a disposable `GYF_DATA_DIR`. Open `http://127.0.0.1:5173`; the local service listens at `http://127.0.0.1:4174`. Run `npm run verify` and continue when both services report `ready`.
 
-For authentication coverage, `npm run verify:auth` builds and starts its own production-mode service, isolated SQLite database, local mail catcher, and named Chrome sessions. It stops only processes it starts and removes its temporary database.
+For v0.1 account coverage, `npm run verify:local-account` builds and starts a production service, isolated database, and named Chrome session. It proves signup without mail, consent, restart continuity, sign-in failure, export, and deletion. The preserved v0.2 path uses `npm run verify:auth` with a restricted test mailbox and controlled SMTP relay. Both verifiers stop only their own processes and remove their temporary databases.
 
 ## Drive
 
@@ -22,7 +22,7 @@ Use `chrome-devtools-axi` and follow the selected guide:
 3. Capture both the action and resulting state. Inspect network requests when privacy or locality matters.
 4. Confirm persisted effects through a second user view or the isolated SQLite database.
 
-Verification and reset messages stay in process memory. Only `npm run verify:auth` receives an ephemeral token for mailbox access; its Node runner opens links in named browser sessions. Normal browser requests to `/__mail` return no messages. The current product path covers account access and account data control; wardrobe features are still pending.
+Default v0.1 mode sends no email, signs new accounts in immediately, and retains an unverified email status. Recovery is unavailable. Opt-in SMTP sends through the configured service; only test mode keeps mail in memory. Its Node runner alone receives the ephemeral mailbox token and opens links in named browser sessions. Browser requests to `/__mail` return no messages. This account increment still requires photo and outfit work.
 
 ## Evidence
 
@@ -35,3 +35,4 @@ The isolated verification scripts generate disposable random test passwords for 
 - `npm run verify` refreshes feature guides and checks local readiness.
 - `npm run feature-map` regenerates `FEATURE_MAP.md` and the browser recipes.
 - `npm run verify:auth` drives the account journey in isolated browser sessions.
+- `npm run verify:local-account` proves the default account journey in a production build.

@@ -64,6 +64,7 @@ function limitSensitiveRequest(request, response, next) {
 }
 
 app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, response) => {
+  if (emailDeliveryMode === 'disabled') return response.status(404).json({ message: 'Password recovery is unavailable in this local version.' });
   const email = typeof request.body?.email === 'string' ? request.body.email.trim().toLowerCase() : '';
   const user = database.prepare('SELECT id FROM user WHERE lower(email) = ?').get(email);
   if (user) {
@@ -80,6 +81,7 @@ app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, re
 });
 
 app.post('/api/auth/reset-password', limitSensitiveRequest, async (request, response) => {
+  if (emailDeliveryMode === 'disabled') return response.status(404).json({ message: 'Password recovery is unavailable in this local version.' });
   const token = typeof request.body?.token === 'string' ? request.body.token : '';
   const password = typeof request.body?.newPassword === 'string' ? request.body.newPassword : '';
   if (password.length < 12 || password.length > 1024) return response.status(400).json({ message: 'Use a password between 12 and 1024 characters.' });
@@ -159,6 +161,7 @@ app.delete('/api/data', requireUser, async (request, response) => {
 });
 
 app.use('/api/auth', (request, response, next) => {
+  if (emailDeliveryMode === 'disabled' && ['/verify-email', '/send-verification-email'].includes(request.path)) return response.status(404).json({ message: 'Email verification is unavailable in this local version.' });
   if (request.method === 'GET' && request.path === '/verify-email') {
     const callback = request.query.callbackURL;
     const requestOrigin = `${request.protocol}://${request.get('host')}`;

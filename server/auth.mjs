@@ -5,11 +5,10 @@ import { simpleParser } from 'mailparser';
 import { betterAuth } from 'better-auth';
 import { twoFactor } from 'better-auth/plugins';
 import { hash, verify } from '@node-rs/argon2';
-import { database } from './database.mjs';
+import { authSecret } from './config.mjs';
+import { audit, database } from './database.mjs';
 
 const localOnly = process.env.NODE_ENV !== 'production';
-const secret = process.env.BETTER_AUTH_SECRET || (localOnly ? crypto.randomBytes(32).toString('base64url') : '');
-if (secret.length < 32) throw new Error('BETTER_AUTH_SECRET must come from the vault and contain at least 32 characters.');
 const baseURL = process.env.BETTER_AUTH_URL || (localOnly ? 'http://127.0.0.1:5173' : 'http://127.0.0.1:4174');
 const trustedOrigins = new Set([
   'http://localhost:5173', 'http://127.0.0.1:5173',
@@ -26,10 +25,11 @@ function parsedRecipients(addresses = []) {
   ]);
 }
 
-const mailTransport = process.env.GYF_MAIL_TRANSPORT || 'smtp';
-if (!['local', 'smtp'].includes(mailTransport)) throw new Error('GYF_MAIL_TRANSPORT must be local or smtp.');
+const mailTransport = process.env.GYF_MAIL_TRANSPORT || 'disabled';
+if (!['disabled', 'local', 'smtp'].includes(mailTransport)) throw new Error('GYF_MAIL_TRANSPORT must be disabled, local or smtp.');
+export const emailEnabled = mailTransport !== 'disabled';
 const localMailboxEnabled = mailTransport === 'local';
-export const emailDeliveryMode = localMailboxEnabled ? 'local-test' : 'smtp';
+export const emailDeliveryMode = localMailboxEnabled ? 'local-test' : mailTransport;
 const runnerToken = process.env.GYF_MAILBOX_RUNNER_TOKEN;
 if (localMailboxEnabled && process.env.NODE_ENV === 'production') throw new Error('The local mail catcher is available only in development and test mode.');
 if (localMailboxEnabled && !runnerToken) throw new Error('GYF_MAILBOX_RUNNER_TOKEN is required for the local mail catcher.');
@@ -72,7 +72,7 @@ if (localMailboxEnabled) {
   });
   mailer = nodemailer.createTransport({ host: '127.0.0.1', port: 1025, secure: false, ignoreTLS: true });
   mailFrom = 'GetYourFit <wardrobe@localhost>';
-} else {
+} else if (mailTransport === 'smtp') {
   const host = process.env.SMTP_HOST?.trim();
   mailFrom = process.env.SMTP_FROM?.trim();
   const port = Number(process.env.SMTP_PORT || 587);
@@ -95,6 +95,7 @@ if (localMailboxEnabled) {
 
 const pendingMail = new Map();
 export function sendMail({ to, subject, text }) {
+  if (!mailer) return Promise.reject(new Error('Email delivery is disabled.'));
   const recipient = String(to).trim().toLowerCase();
   const delivery = Promise.resolve().then(() => mailer.sendMail({ from: mailFrom, to, subject, text }));
   const deliveries = pendingMail.get(recipient) ?? new Set();
@@ -129,7 +130,7 @@ export function consumeEmailVerificationToken(token) {
 export const auth = betterAuth({
   appName: 'GetYourFit',
   baseURL,
-  secret,
+  secret: authSecret,
   database,
   trustedOrigins: [...trustedOrigins],
   logger: { disabled: true },
@@ -145,7 +146,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: emailEnabled,
     minPasswordLength: 12,
     maxPasswordLength: 1024,
     password: {
@@ -155,17 +156,17 @@ export const auth = betterAuth({
     onExistingUserSignUp: async () => {},
   },
   emailVerification: {
-    sendOnSignUp: true,
-    sendOnSignIn: true,
+    sendOnSignUp: emailEnabled,
+    sendOnSignIn: emailEnabled,
     autoSignInAfterVerification: true,
     expiresIn: 60 * 60,
     sendVerificationEmail: async ({ user, url, token }) => {
       recordEmailVerificationToken(user.id, token);
-      await sendMail({
+      void sendMail({
         to: user.email,
         subject: 'Verify your GetYourFit email',
         text: `Confirm your email within 60 minutes:\n\n${url}`,
-      });
+      }).catch(() => audit('mail-delivery-failed'));
     },
   },
   user: {
