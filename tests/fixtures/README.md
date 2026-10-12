@@ -11,3 +11,5 @@ All three files are published under [CC0 1.0 Universal](https://creativecommons.
 | footwear.jpg | Alpha's beloved | [Shoes photo.jpg](https://commons.wikimedia.org/wiki/File:Shoes_photo.jpg) |
 
 Downloaded on 2026-10-12. No model, fabricated image, mock garment, or image from the earlier GetYourFit prototypes is reused. The verification account's ownership and garment facts are controlled test inputs, not claims about the photographer's wardrobe.
+
+`damaged.jpg` is the five-byte sequence `00 01 02 03 04`, created for the negative decode regression. It is deliberately not an image or a garment; the browser must reject it before any local classification request.

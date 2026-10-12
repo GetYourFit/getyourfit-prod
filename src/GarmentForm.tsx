@@ -99,5 +99,5 @@ function FactOptions({ name, title, values, selected }: { name: keyof Pick<Facts
 
 export function InterpretationNote({ interpretation }: { interpretation: z.infer<typeof interpretationSchema> }) {
   if (interpretation.kind === 'unavailable') return <p className="form-note">{interpretation.reason === 'no-clothing-label' ? 'No clothing label was recognized.' : 'Local image classification is unavailable.'} Confirm the details yourself; no confidence score has been invented.</p>;
-  return <p className="form-note">Photo label: <strong>{interpretation.label}</strong> · {(interpretation.confidence * 100).toFixed(1)}% classifier score.<br />{interpretation.source} · {interpretation.modelVersion}. This score is uncertain and does not measure fit or style. Confirm or correct the category yourself.</p>;
+  return <p className="form-note">Photo label: <strong>{interpretation.label}</strong> · {(interpretation.confidence * 100).toFixed(1)}% classifier score.<br />{interpretation.source} · {interpretation.modelVersion}. This score is uncertain and does not measure fit or style. Which category is this garment? Confirm it below.</p>;
 }

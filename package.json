@@ -16,6 +16,7 @@
     "verify:auth": "node scripts/verify-auth.mjs && node scripts/verify-mail-delivery.mjs",
     "verify:local-account": "node scripts/verify-local-account.mjs",
     "test": "node --test tests/*.test.mjs",
+    "verify:wardrobe": "node scripts/verify-wardrobe.mjs",
     "verify:mail-delivery": "node scripts/verify-mail-delivery.mjs",
     "feature-map": "node scripts/gyf.mjs map"
   },
