@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -191,14 +191,34 @@ try {
   chrome(['click', element('button', 'Edit details', 2)]); check('Available to wear now'); click('Save correction'); await shown('Add garment');
   click('Find an outfit'); await shown('A complete set for');
   chrome(['click', element('button', 'Don’t use this for this occasion')]); await shown('Your correction wins.');
-  const exported = browserApi('/api/data/export', undefined, 'GET').body;
-  assert.equal(exported.wardrobe.length, 3); assert.equal(exported.outfitCorrections.length, 1);
-  assert.equal(exported.outfitCorrections[0].source, 'wearer-correction');
-  for (const garment of exported.wardrobe) {
-    const metadata = await sharp(Buffer.from(garment.photo.base64, 'base64')).metadata();
+  const exported = evaluate(`async () => {
+    const response = await fetch('/api/data/export'); const data = await response.json();
+    const photos = await Promise.all(data.wardrobe.map(async (garment) => {
+      const bytes = Uint8Array.from(atob(garment.photo.base64), char => char.charCodeAt(0));
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      return { id: garment.id, mediaType: garment.photo.mediaType, bytes: bytes.length,
+        sha256: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join(''),
+        consent: garment.photoConsent.scope, sources: Object.values(garment.provenance).every(fact => fact.modelVersion === null && fact.confidence === 1),
+        classification: garment.interpretation.kind };
+    }));
+    return { status: response.status, format: data.format, email: data.account.email, emailVerified: data.account.emailVerified,
+      hasPassword: 'password' in data.account, photos, corrections: data.outfitCorrections.map(({ garmentId, source }) => ({ garmentId, source })) };
+  }`);
+  assert.equal(exported.status, 200); assert.equal(exported.format, 'getyourfit-account-export-v1');
+  assert.equal(exported.email, email); assert.equal(exported.emailVerified, false); assert.equal(exported.hasPassword, false);
+  assert.equal(exported.photos.length, 3); assert.equal(exported.corrections.length, 1);
+  assert.equal(exported.corrections[0].source, 'wearer-correction');
+  const stored = new Database(path.join(dataDir, 'getyourfit.sqlite'), { readonly: true });
+  for (const photo of exported.photos) {
+    const bytes = stored.prepare('SELECT photo FROM garments WHERE id = ?').get(photo.id).photo;
+    assert.equal(photo.sha256, createHash('sha256').update(bytes).digest('hex'));
+    assert.equal(photo.bytes, bytes.length); assert.equal(photo.mediaType, 'image/jpeg');
+    assert.equal(photo.consent, 'local-processing-and-storage'); assert.equal(photo.sources, true);
+    const metadata = await sharp(bytes).metadata();
     assert.equal(metadata.format, 'jpeg'); assert.ok(Math.max(metadata.width, metadata.height) <= 1200);
     assert.equal(metadata.exif, undefined); assert.equal(metadata.xmp, undefined);
   }
+  stored.close();
   fs.writeFileSync(path.join(dataDir, 'export.json'), JSON.stringify(exported));
   const other = await fetch(`${origin}/api/auth/sign-up/email`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Other wearer', email: `other-${randomBytes(8).toString('hex')}@example.test`, password: randomBytes(32).toString('base64url'), adultConfirmed: true }) });
