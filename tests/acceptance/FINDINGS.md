@@ -1,6 +1,6 @@
 # v0.1 independent acceptance findings
 
-Historical shell findings and current account-build findings are distinguished below. The current product base is `c3577aa84d71fa08ca265482c4c489043d3ba168`. Product code was neither read to shape assertions nor edited. Proof is stored outside the worktree under `/Users/rvzaku/firstmate/data/gyf-acceptance/v0.1/`. Reports record the checker HEAD and whether its worktree was clean; pre-commit evidence is explicitly marked dirty.
+Historical shell findings and current account-build findings are distinguished below. The current product base is `d09e2fbfb19f45704fb36070f9d5955211225b6e` (wardrobe photos and owned-outfit decisions landed). Earlier evidence bound to `c3577aa` is historical only. Product code was neither read to shape assertions nor edited. Proof is stored outside the worktree under `/Users/rvzaku/firstmate/data/gyf-acceptance/v0.1/`. Reports record the checker HEAD and whether its worktree was clean; pre-commit evidence is explicitly marked dirty.
 
 These entries are checker-owned handoff material for firstmate to incorporate into `docs/acceptance-findings.md`. This worker may edit only `tests/acceptance/`.
 
@@ -28,16 +28,16 @@ These entries are checker-owned handoff material for firstmate to incorporate in
 - Requirements: R4, R26, R27, A-1.
 - Reproduce: run `npm run acceptance`. It sends a new synthetic email, a cryptographically generated password and explicit age confirmation to `POST /api/auth/register` with the app Origin.
 - Expected: account creation returns JSON and a private usable session without email.
-- Actual: the account service returns HTTP 404 at this route. All five API cases fail at signup. Browser signup uses a different public auth route and succeeds. Session continuity, credential refusal, photo persistence, outfit creation and privacy isolation remain unverified over the projected API; these are prerequisite failures, not independently confirmed defects in downstream routes. Reconcile the written transport boundary with the integration owner.
-- Evidence: five API errors in `name-fix/production-before-commit/report.json` (dirty checker worktree). The run reports 6 failures, 0 passes and 0 skips. An inherited `ACCEPTANCE_STUB=1` and `MUTATION=empty-name` did not redirect the normal production command to a stub. The earlier static-shell report under `production/` is historical.
+- Actual: the service returns HTTP 404 at this route, re-confirmed on `d09e2fb`. All five API cases fail at signup. Browser signup uses a different public auth route and succeeds. Session continuity, credential refusal, photo persistence, outfit creation and privacy isolation remain unverified over the projected API; these are prerequisite failures, not independently confirmed defects in downstream routes. Reconcile the written transport boundary with the integration owner.
+- Evidence: five API errors in the fresh production report at checker HEAD `1311310`. The run reports 6 failures, 0 passes and 0 skips. An inherited `ACCEPTANCE_STUB=1` and `MUTATION=empty-name` did not redirect the normal production command to a stub. The earlier static-shell report under `production/` is historical.
 
-## AF-V01-004: Signed-in wearer cannot add a garment photo
+## AF-V01-004: Browser journey stops before the garment photo control
 
 - Requirements: R4, R5, R7, A-1.
-- Reproduce: run `npm run acceptance`; the browser submits its Name empty, observes refusal, supplies a synthetic Name, valid email/password and age confirmation, and completes signup.
+- Reproduce: run `npm run acceptance` against `d09e2fb`; the browser submits its Name empty, observes refusal, supplies a synthetic Name, valid email/password and age confirmation, and completes signup.
 - Expected: a signed-in wearer can add one consented real garment photo and continue to an outfit suggestion.
-- Actual: signup returns 2xx, creates a private session and closes the signup form. The account screen states that garment photos, wardrobe and outfit decisions are unavailable. No labeled garment-photo control is present. The outfit journey remains blocked by that prerequisite.
-- Evidence: the browser failure and screenshot in `name-fix/production-before-commit/` (dirty checker worktree). Subsequent clean reports bind the same reproduction to the committed checker HEAD.
+- Actual (fresh production run, checker HEAD `1311310`, clean worktree): signup returns 2xx, creates a private session and closes the signup form, so the prerequisite holds. The signed-in screen now shows the wardrobe, an "Add garment" button, the outfit form and account controls; the superseded "unavailable" notice is gone. The case fails waiting for a visible control labeled "garment photo" (6s timeout, run.mjs browserJourney). The checker does not open "Add garment" first, so whether the labeled input appears behind it is not yet established; the garment upload, outfit and refresh steps are unreached.
+- Evidence: fresh production report and screenshot from the run above (6 failed, 0 passed, 0 skipped; secrets masked in screenshots). The earlier `name-fix/production-before-commit/` evidence is historical.
 
 ## CF-V01-001: Checker omitted the required signup Name
 
