@@ -31,6 +31,10 @@ const mutations = [
   ['single-shirt', caseNames.singleShirt, /Single-shirt wardrobe returned an outfit/],
   ['missing-weather', caseNames.missingFacts, /Unknown weather returned an outfit/],
   ['missing-dress-code', caseNames.missingFacts, /Unknown dress code returned an outfit/],
+  ['unavailable-outfit', caseNames.outfit, /unavailable garment/],
+  ['misfit-outfit', caseNames.outfit, /without confirmed fit/],
+  ['weather-outfit', caseNames.outfit, /does not match known weather/],
+  ['dress-code-outfit', caseNames.outfit, /does not match known dress code/],
 ];
 const detections = [];
 await mkdir(output, { recursive: true });

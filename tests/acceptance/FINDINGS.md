@@ -22,14 +22,14 @@ These entries are checker-owned handoff material for firstmate to incorporate in
 - Actual: the page contains only GetYourFit and "Sign-in and the wardrobe arrive in the next updates." There is no signup action. The browser case fails while locating the primary action.
 - Evidence: `production/report.json`, its browser failure screenshot, and `production/manual-shell.png` from chrome-devtools-axi. Independent browser inspection found no console messages.
 
-## AF-V01-003: Signup API returns 404
+## AF-V01-003: Historical checker route projection returned 404
 
-- Status: current transport mismatch at the checker-projected route; this does not establish that browser signup is broken.
+- Status: the earlier 404 was a checker transport defect. The checker now uses the signup, session, wardrobe, photo, and outfit routes observed through the public browser. A production API acceptance run after this correction has not been performed in this review phase, so no API pass is claimed.
 - Requirements: R4, R26, R27, A-1.
-- Reproduce: run `npm run acceptance`. It sends a new synthetic email, a cryptographically generated password and explicit age confirmation to `POST /api/auth/register` with the app Origin.
+- Reproduce the historical failure: use the earlier checker revision to send a new synthetic account to `POST /api/auth/register` with the app Origin.
 - Expected: account creation returns JSON and a private usable session without email.
-- Actual: the service returns HTTP 404 at this route, re-confirmed on `d09e2fb`. All five API cases fail at signup. Browser signup uses a different public auth route and succeeds. Session continuity, credential refusal, photo persistence, outfit creation and privacy isolation remain unverified over the projected API; these are prerequisite failures, not independently confirmed defects in downstream routes. Reconcile the written transport boundary with the integration owner.
-- Evidence: five API errors in the fresh production report at checker HEAD `1311310`. The run reports 6 failures, 0 passes and 0 skips. An inherited `ACCEPTANCE_STUB=1` and `MUTATION=empty-name` did not redirect the normal production command to a stub. The earlier static-shell report under `production/` is historical.
+- Actual: the old projection returned HTTP 404, while public browser traffic used `POST /api/auth/sign-up/email` and `GET /api/session`. Wardrobe creation and outfit requests also used `/api/wardrobe` and `/api/wardrobe/outfit`. The checker contract has been reconciled to those observed routes and DTOs. The earlier report's API failures were prerequisite failures at the wrong route, not independently confirmed product defects.
+- Evidence: five API errors in the historical production report at checker HEAD `1311310`, which sent requests to the projected route. A live local production browser observation on base `d09e2fb` confirmed the public request paths and response shapes. The earlier static-shell report under `production/` is historical.
 
 ## CF-V01-003: Checker does not complete the garment facts confirmation
 
@@ -42,7 +42,7 @@ These entries are checker-owned handoff material for firstmate to incorporate in
 
 ## CF-V01-002: Checker raced the Add garment entry point
 
-- Status: repaired. The browser waits for a visible "Add garment" button or photo input, clicks the button only when the input is not visible, then waits for the input. The contract stub delays the button and places its hidden photo input first in document order. The verifier covers eight good cases and twenty-one targeted mutations.
+- Status: repaired. The browser waits for a visible "Add garment" button or photo input, clicks the button only when the input is not visible, then waits for the input. The contract stub delays the button and places its hidden photo input first in document order. The verifier covers eight good cases and twenty-five targeted mutations.
 
 ## CF-V01-001: Checker omitted the required signup Name
 

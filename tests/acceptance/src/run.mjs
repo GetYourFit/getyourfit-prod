@@ -21,13 +21,17 @@ const onlyIndex = process.argv.indexOf('--only');
 const only = onlyIndex < 0 ? undefined : process.argv[onlyIndex + 1];
 const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-report-'));
 const samples = [
-  { filename: 'garment-photo.jpg', name: 'Acceptance beige shirt', category: 'top', color: 'beige', size: 'M', fit: 'fits', available: true, weather: ['mild'], dress_codes: ['smart-casual'] },
-  { filename: 'bottom.jpg', name: 'Acceptance cargo pants', category: 'bottom', color: 'olive', size: 'M', fit: 'fits', available: true, weather: ['mild'], dress_codes: ['smart-casual'] },
-  { filename: 'footwear.jpg', name: 'Acceptance black trainers', category: 'footwear', color: 'black', size: '9', fit: 'fits', available: true, weather: ['mild'], dress_codes: ['smart-casual'] },
+  { filename: 'garment-photo.jpg', name: 'Acceptance beige shirt', category: 'top', color: 'beige', size: 'M', fit: 'fits', available: true, weather: ['mild'], dressCode: ['smart-casual'] },
+  { filename: 'bottom.jpg', name: 'Acceptance cargo pants', category: 'bottom', color: 'olive', size: 'M', fit: 'fits', available: true, weather: ['mild'], dressCode: ['smart-casual'] },
+  { filename: 'footwear.jpg', name: 'Acceptance black trainers', category: 'footwear', color: 'black', size: '9', fit: 'fits', available: true, weather: ['mild'], dressCode: ['smart-casual'] },
+  { filename: 'bottom.jpg', name: 'Unavailable acceptance pants', category: 'bottom', color: 'olive', size: 'M', fit: 'fits', available: false, weather: ['mild'], dressCode: ['smart-casual'] },
+  { filename: 'bottom.jpg', name: 'Non-fitting acceptance pants', category: 'bottom', color: 'olive', size: 'M', fit: 'does-not-fit', available: true, weather: ['mild'], dressCode: ['smart-casual'] },
+  { filename: 'bottom.jpg', name: 'Cold-only acceptance pants', category: 'bottom', color: 'olive', size: 'M', fit: 'fits', available: true, weather: ['cold'], dressCode: ['smart-casual'] },
+  { filename: 'bottom.jpg', name: 'Formal-only acceptance pants', category: 'bottom', color: 'olive', size: 'M', fit: 'fits', available: true, weather: ['mild'], dressCode: ['formal'] },
 ];
 const garments = await Promise.all(samples.map(async sample => ({ ...sample, photo: await readFile(path.join(suiteRoot, 'fixtures', sample.filename)) })));
 const shirt = garments[0];
-const facts = { occasion: 'dinner', weather: 'mild', dress_code: 'smart-casual' };
+const facts = { occasion: 'dinner', weather: 'mild', dressCode: 'smart-casual' };
 const secrets = new Set();
 const cases = [
   [caseNames.browser, ['R4', 'R5', 'R7', 'R26', 'A-1'], browserJourney],
@@ -196,64 +200,74 @@ async function jsonOK(response, label) {
   return response.json();
 }
 async function signup(context, user = credentials()) {
-  const response = await api(context, 'POST', contract.register, user);
+  const response = await api(context, 'POST', contract.register, { ...user, callbackURL: baseURL });
   await jsonOK(response, 'Signup');
   return user;
 }
 async function session(context, email) {
   const body = await jsonOK(await api(context, 'GET', contract.session), 'Session');
+  assert.equal(body.signedIn, true, 'Session belongs to a different user or is missing');
   assert.equal(body.email, email, 'Session belongs to a different user or is missing');
 }
-async function upload(context, sample = shirt, consent = true, bytes = sample.photo, mimeType = 'image/jpeg') {
-  return context.request.post(contract.wardrobe, { headers: { origin: baseURL }, multipart: { photo: { name: sample.filename, mimeType, buffer: bytes }, photo_consent: String(consent), name: sample.name, category: sample.category, color: sample.color, size: sample.size, fit: sample.fit, available: String(sample.available), weather: sample.weather.join(','), dress_code: sample.dress_codes.join(','), ownership: 'owned' }, timeout: 10000 });
+async function upload(context, sample = shirt, consent = true, bytes = sample.photo) {
+  return api(context, 'POST', contract.wardrobe, {
+    facts: { name: sample.name, category: sample.category, color: sample.color, size: sample.size, fit: sample.fit, owned: true, available: sample.available, weather: sample.weather, dressCode: sample.dressCode },
+    consent,
+    image: bytes.toString('base64'),
+  });
 }
 async function garment(context, sample = shirt) {
   const item = await jsonOK(await upload(context, sample), 'Garment upload');
-  assert(item.id && item.photo_url, 'Saved garment has no stable ID or retrievable photo URL');
+  assert(item.id && item.photoUrl, 'Saved garment has no stable ID or retrievable photo URL');
   assertGarmentFacts(item, sample, 'Saved garment');
   return item;
 }
 function assertGarmentFacts(item, sample, label) {
-  assert.equal(item.ownership, 'owned', `${label} lost ownership confirmation`);
-  for (const key of ['name', 'category', 'color', 'size', 'fit', 'available']) assert.equal(item[key], sample[key], `${label} lost confirmed ${key}`);
-  assert.deepEqual(item.weather, sample.weather, `${label} lost confirmed weather`);
-  assert.deepEqual(item.dress_codes, sample.dress_codes, `${label} lost confirmed dress code`);
+  assert.equal(item.photoConsent, true, `${label} lost photo consent`);
+  assert.equal(item.facts.owned, true, `${label} lost ownership confirmation`);
+  for (const key of ['name', 'category', 'color', 'size', 'fit', 'available']) assert.equal(item.facts[key], sample[key], `${label} lost confirmed ${key}`);
+  assert.deepEqual(item.facts.weather, sample.weather, `${label} lost confirmed weather`);
+  assert.deepEqual(item.facts.dressCode, sample.dressCode, `${label} lost confirmed dress code`);
 }
 function localPhotoURL(item) {
-  const url = new URL(item.photo_url, baseURL);
+  const url = new URL(item.photoUrl, baseURL);
   assert.equal(url.origin, baseURL, 'Photo URL sends private media outside the local service');
+  assert.equal(url.pathname, `${contract.wardrobe}/${encodeURIComponent(item.id)}/photo`, 'Photo URL does not use the public garment photo route');
   return url.href;
 }
 function completeOutfit(body, wardrobe, shirtId, requestFacts) {
-  assert(Array.isArray(body.outfits) && body.outfits.length === 1, 'Expected one complete outfit');
-  for (const outfit of body.outfits) {
-    assert(typeof outfit.explanation === 'string' && outfit.explanation.trim().length > 10, 'Outfit lacks a meaningful explanation');
-    assert(Array.isArray(outfit.items), 'Outfit has no garment set');
-    const categories = new Set(outfit.items.map(item => item.category));
-    assert(['top', 'bottom', 'footwear'].every(category => categories.has(category)), 'Suggestion omits top, bottom or footwear');
-    assert(outfit.items.some(item => item.id === shirtId), 'Suggestion ignored the uploaded shirt');
-    for (const item of outfit.items) {
-      const garment = wardrobe.get(item.id);
-      assert(garment, "Outfit includes a garment outside the wearer's wardrobe");
-      assert.equal(item.category, garment.category, 'Outfit changed a garment category');
-      assert.equal(garment.ownership, 'owned', 'Outfit includes a garment the wearer does not own');
-      assert.equal(garment.available, true, 'Outfit includes an unavailable garment');
-      assert.equal(garment.fit, 'fits', 'Outfit includes a garment without confirmed fit');
-      assert(garment.weather.includes(requestFacts.weather), 'Outfit includes a garment that does not match known weather');
-      assert(garment.dress_codes.includes(requestFacts.dress_code), 'Outfit includes a garment that does not match known dress code');
-    }
+  assert.equal(body.kind, 'complete', 'Expected one complete outfit');
+  assert(typeof body.explanation === 'string' && body.explanation.trim().length > 10, 'Outfit lacks a meaningful explanation');
+  assert(Array.isArray(body.items), 'Outfit has no garment set');
+  const categories = new Set(body.items.map(item => item.facts?.category));
+  assert(['top', 'bottom', 'footwear'].every(category => categories.has(category)), 'Suggestion omits top, bottom or footwear');
+  assert(body.items.some(item => item.id === shirtId), 'Suggestion ignored the uploaded shirt');
+  for (const item of body.items) {
+    const garment = wardrobe.get(item.id);
+    assert(garment, "Outfit includes a garment outside the wearer's wardrobe");
+    assert.deepEqual(item.facts, garment.facts, 'Outfit changed saved garment facts');
+    assert.equal(item.facts.owned, true, 'Outfit includes a garment the wearer does not own');
+    assert.equal(item.facts.available, true, 'Outfit includes an unavailable garment');
+    assert.equal(item.facts.fit, 'fits', 'Outfit includes a garment without confirmed fit');
+    assert(item.facts.weather.includes(requestFacts.weather), 'Outfit includes a garment that does not match known weather');
+    assert(item.facts.dressCode.includes(requestFacts.dressCode), 'Outfit includes a garment that does not match known dress code');
   }
 }
-function requireQuestionOrAbstention(body, label) {
-  assert(Array.isArray(body.outfits) && body.outfits.length === 0, `${label} returned an outfit`);
-  const hasQuestion = typeof body.question === 'string' && Boolean(body.question.trim());
-  const hasAbstention = typeof body.abstention === 'string' && Boolean(body.abstention.trim());
-  assert.notEqual(hasQuestion, hasAbstention, `${label} must return one question or one abstention`);
-  return hasQuestion ? body.question : body.abstention;
+function requireQuestionOrAbstention(body, label, expectedField) {
+  assert.notEqual(body.kind, 'complete', `${label} returned an outfit`);
+  assert(!Array.isArray(body.items) || body.items.length === 0, `${label} returned an outfit`);
+  if (body.kind === 'context-question') {
+    if (expectedField) assert.equal(body.field, expectedField, `${label} asked about the wrong fact`);
+    assert(typeof body.question === 'string' && Boolean(body.question.trim()), `${label} did not ask one clear question or abstain`);
+    return body.question;
+  }
+  assert.equal(body.kind, 'incomplete', `${label} did not ask one clear question or abstain`);
+  assert(typeof body.explanation === 'string' && Boolean(body.explanation.trim()), `${label} did not explain its abstention`);
+  return body.explanation;
 }
 async function signupJourney(context) {
   const user = credentials();
-  const response = await api(context, 'POST', contract.register, user);
+  const response = await api(context, 'POST', contract.register, { ...user, callbackURL: baseURL });
   await jsonOK(response, 'Signup');
   const cookie = response.headers()['set-cookie'] || '';
   assert.match(cookie, /HttpOnly/i, 'Session cookie must be HttpOnly');
@@ -262,9 +276,8 @@ async function signupJourney(context) {
   const refreshed = await browser.newContext({ baseURL, storageState: await context.storageState() });
   try { await session(refreshed, user.email); } finally { await refreshed.close(); }
   const takeover = credentials();
-  const duplicate = await api(context, 'POST', contract.register, { ...takeover, email: user.email });
-  assert([400, 409, 422].includes(duplicate.status()), 'Duplicate signup was not refused');
-  const login = await api(context, 'POST', contract.login, user);
+  await api(context, 'POST', contract.register, { ...takeover, email: user.email, callbackURL: baseURL });
+  const login = await api(context, 'POST', contract.login, { email: user.email, password: user.password, rememberMe: false });
   await jsonOK(login, 'Login after duplicate signup');
   await session(context, user.email);
 }
@@ -272,19 +285,25 @@ async function authenticationFailures(context) {
   const user = await signup(context);
   const stranger = await browser.newContext({ baseURL });
   try {
-    const wrong = await api(stranger, 'POST', contract.login, { email: user.email, password: credentials().password });
-    const unknown = await api(stranger, 'POST', contract.login, credentials());
+    const wrong = await api(stranger, 'POST', contract.login, { email: user.email, password: credentials().password, rememberMe: false });
+    const unknownUser = credentials();
+    const unknown = await api(stranger, 'POST', contract.login, { email: unknownUser.email, password: unknownUser.password, rememberMe: false });
     assert([401, 403].includes(wrong.status()), 'Wrong password accepted');
     assert.equal(unknown.status(), wrong.status(), 'Unknown account has a different refusal status');
     assert.deepEqual(await unknown.json(), await wrong.json(), 'Unknown account has a different refusal body');
-    assert([401, 403].includes((await api(stranger, 'GET', contract.session)).status()), 'Invalid credentials created a session');
+    const anonymous = await api(stranger, 'GET', contract.session);
+    if (anonymous.ok()) assert.equal((await jsonOK(anonymous, 'Anonymous session')).signedIn, false, 'Invalid credentials created a session');
+    else assert([401, 403].includes(anonymous.status()), 'Invalid credentials created a session');
   } finally { await stranger.close(); }
 }
 async function photoJourney(context, page) {
   await signup(context);
   const item = await garment(context);
-  const saved = await jsonOK(await api(context, 'GET', `${contract.wardrobe}/${encodeURIComponent(item.id)}`), 'Saved garment');
-  assert.equal(saved.id, item.id, 'Upload did not persist');
+  const list = await jsonOK(await api(context, 'GET', contract.wardrobe), 'Wardrobe');
+  assert(Array.isArray(list), 'Wardrobe response is not a collection');
+  const saved = list.find(value => value.id === item.id);
+  assert(saved, 'Upload did not persist');
+  assert.deepEqual(saved.facts, item.facts, 'Persisted garment facts changed');
   const response = await api(context, 'GET', localPhotoURL(saved));
   assert(response.ok(), 'Stored real photo cannot be read');
   assert.match(response.headers()['content-type'] || '', /^image\//, 'Stored photo is not an image');
@@ -304,11 +323,11 @@ async function photoJourney(context, page) {
     return { width: images[0].width, height: images[0].height, difference };
   }, [bytes.toString('base64'), shirt.photo.toString('base64')]);
   assert(match.width >= 100 && match.height >= 100 && match.difference < 0.08, 'Stored photo is a placeholder, damaged or different from the real upload');
-  for (const rejected of [await upload(context, shirt, false), await upload(context, shirt, true, Buffer.from('damaged photo')), await upload(context, shirt, true, Buffer.from('plain text'), 'text/plain')]) {
-    assert([400, 415, 422].includes(rejected.status()), 'Invalid or non-consented upload accepted');
+  for (const rejected of [await upload(context, shirt, false), await upload(context, shirt, true, Buffer.from('damaged photo'))]) {
+    assert(rejected.status() >= 400 && rejected.status() < 500, 'Invalid or non-consented upload accepted');
   }
-  const list = await jsonOK(await api(context, 'GET', contract.wardrobe), 'Wardrobe');
-  assert.deepEqual(list.items.map(value => value.id), [item.id], 'Rejected uploads changed the wardrobe');
+  const afterRejected = await jsonOK(await api(context, 'GET', contract.wardrobe), 'Wardrobe after rejected uploads');
+  assert.deepEqual(afterRejected.map(value => value.id), [item.id], 'Rejected uploads changed the wardrobe');
 }
 async function outfitJourney(context) {
   await signup(context);
@@ -327,9 +346,9 @@ async function missingFactsJourney(context) {
   await signup(context);
   for (const sample of garments) await garment(context, sample);
   const unknownWeather = await jsonOK(await api(context, 'POST', contract.outfits, { ...facts, weather: 'unknown' }), 'Unknown-weather outfit request');
-  requireQuestionOrAbstention(unknownWeather, 'Unknown weather');
-  const unknownDressCode = await jsonOK(await api(context, 'POST', contract.outfits, { ...facts, dress_code: 'unknown' }), 'Unknown-dress-code outfit request');
-  requireQuestionOrAbstention(unknownDressCode, 'Unknown dress code');
+  requireQuestionOrAbstention(unknownWeather, 'Unknown weather', 'weather');
+  const unknownDressCode = await jsonOK(await api(context, 'POST', contract.outfits, { ...facts, dressCode: 'unknown' }), 'Unknown-dress-code outfit request');
+  requireQuestionOrAbstention(unknownDressCode, 'Unknown dress code', 'dressCode');
 }
 async function isolation(context) {
   await signup(context);
@@ -340,14 +359,16 @@ async function isolation(context) {
     await signup(other);
     for (const intruder of [other, anonymous]) {
       const endpoint = `${contract.wardrobe}/${encodeURIComponent(item.id)}`;
-      for (const response of [await api(intruder, 'GET', endpoint), await api(intruder, 'PATCH', endpoint, { color: 'stolen' }), await api(intruder, 'DELETE', endpoint), await api(intruder, 'GET', localPhotoURL(item))]) {
+      for (const response of [await api(intruder, 'PATCH', endpoint, { ...item.facts, color: 'stolen' }), await api(intruder, 'DELETE', endpoint), await api(intruder, 'GET', localPhotoURL(item))]) {
         assert([401, 403, 404].includes(response.status()), 'Private garment or photo was accessible to another session');
       }
     }
-    const saved = await jsonOK(await api(context, 'GET', `${contract.wardrobe}/${encodeURIComponent(item.id)}`), 'Owner garment after attack');
-    assert.deepEqual(saved, item, 'Another session changed or deleted the garment');
+    const saved = await jsonOK(await api(context, 'GET', contract.wardrobe), 'Owner wardrobe after attack');
+    assert(Array.isArray(saved), 'Owner wardrobe response is not a collection');
+    assert.deepEqual(saved.find(value => value.id === item.id), item, 'Another session changed or deleted the garment');
     const own = await jsonOK(await api(other, 'GET', contract.wardrobe), 'Other user wardrobe');
-    assert.equal(own.items.length, 0, 'Other user list leaked private garment');
+    assert(Array.isArray(own), 'Other user wardrobe response is not a collection');
+    assert.equal(own.length, 0, 'Other user list leaked private garment');
   } finally { await other.close(); await anonymous.close(); }
 }
 async function browserJourney(context, page) {

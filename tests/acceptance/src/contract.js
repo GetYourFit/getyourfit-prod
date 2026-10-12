@@ -1,11 +1,11 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 
 export const contract = {
-  register: '/api/auth/register',
-  login: '/api/auth/login',
-  session: '/api/auth/session',
-  wardrobe: '/api/wardrobe/items',
-  outfits: '/api/outfits',
+  register: '/api/auth/sign-up/email',
+  login: '/api/auth/sign-in/email',
+  session: '/api/session',
+  wardrobe: '/api/wardrobe',
+  outfits: '/api/wardrobe/outfit',
 };
 
 export const caseNames = {
@@ -21,8 +21,9 @@ export const caseNames = {
 
 export function account() {
   return {
+    name: 'Acceptance wearer',
     email: `acceptance-${randomUUID()}@example.test`,
     password: `Aa1!${randomBytes(24).toString('base64url')}`,
-    age_confirmed: true,
+    adultConfirmed: true,
   };
 }
