@@ -31,6 +31,7 @@ npm run build
 npm run verify
 npm run verify:auth
 npm run verify:local-account
+npm run acceptance
 ```
 
 ## Product and design decisions

@@ -163,7 +163,9 @@ async function waitForServer() {
   const deadline = Date.now() + 20000;
   while (Date.now() < deadline) {
     assert(server.exitCode === null && server.signalCode === null, `Owned service exited: ${redact(logs)}`);
-    try { if (stubMode && !logs.includes(`stub listening ${appPort}`)) throw new Error('not bound'); const response = await fetch(baseURL, { signal: AbortSignal.timeout(1000) }); if (response.status < 500) { await delay(200); assert(server.exitCode === null && server.signalCode === null, `Owned service exited: ${redact(logs)}`); return; } } catch {}
+    try { if (stubMode && !logs.includes(`stub listening ${appPort}`)) throw new Error('not bound'); const response = await fetch(baseURL, { signal: AbortSignal.timeout(1000) }); if (response.status < 500) { await delay(200); assert(server.exitCode === null && server.signalCode === null, `Owned service exited: ${redact(logs)}`); return; } } catch {
+      // The service may not be ready until a later probe.
+    }
     await delay(100);
   }
   throw new Error(`Owned service did not become ready: ${redact(logs)}`);
@@ -260,10 +262,10 @@ async function photoJourney(context, page) {
   const match = await page.evaluate(async ([stored, original]) => {
     const images = await Promise.all([stored, original].map(async encoded => {
       const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
-      return createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+      return globalThis.createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
     }));
     const pixels = images.map(image => {
-      const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+      const canvas = globalThis.document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
       const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0, 32, 32);
       return ctx.getImageData(0, 0, 32, 32).data;
     });
@@ -350,7 +352,7 @@ async function browserJourney(context, page) {
   await page.getByRole('img', { name: /garment|shirt/i }).first().waitFor();
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Main journey overflows at ${width}px`);
+    assert(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth + 1), `Main journey overflows at ${width}px`);
   }
   assert.deepEqual(errors, [], 'Main journey has browser errors');
   assert.deepEqual(outsideRequests, [], 'Main journey sends requests outside the isolated service');
