@@ -16,7 +16,8 @@
     "verify:auth": "node scripts/verify-auth.mjs && node scripts/verify-mail-delivery.mjs",
     "verify:local-account": "node scripts/verify-local-account.mjs",
     "verify:mail-delivery": "node scripts/verify-mail-delivery.mjs",
-    "feature-map": "node scripts/gyf.mjs map"
+    "feature-map": "node scripts/gyf.mjs map",
+    "acceptance": "npm --prefix tests/acceptance run acceptance"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
