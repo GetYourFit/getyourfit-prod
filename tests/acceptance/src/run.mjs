@@ -346,7 +346,8 @@ async function browserJourney(context, page) {
   assert(cookies.some(cookie => cookie.httpOnly && ['Lax', 'Strict'].includes(cookie.sameSite)), 'Browser signup did not create a private session');
   const input = page.getByLabel(/garment photo/i);
   const entry = page.getByRole('button', { name: /^\+?\s*add garment$/i });
-  if (!(await input.isVisible()) && await entry.count()) await entry.first().click();
+  await entry.or(input).filter({ visible: true }).first().waitFor();
+  if (!(await input.isVisible())) await entry.first().click();
   await input.waitFor();
   const consent = page.getByRole('checkbox', { name: /photo|process/i });
   assert.equal(await consent.isChecked(), false, 'Photo consent was preselected');
