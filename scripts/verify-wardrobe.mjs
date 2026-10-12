@@ -52,7 +52,9 @@ function evaluate(expression) {
   const output = chrome(['eval', expression]);
   const entry = output.split('\n').find((line) => line.startsWith('result:'));
   assert.ok(entry, 'Browser returned no evaluation result.');
-  const parsed = JSON.parse(entry.slice(7).trim());
+  const value = entry.slice(7).trim();
+  if (value === 'undefined') return undefined;
+  const parsed = JSON.parse(value);
   return typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
 }
 
