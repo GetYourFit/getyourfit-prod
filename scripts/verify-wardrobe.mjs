@@ -10,7 +10,13 @@ import Database from 'better-sqlite3';
 import sharp from 'sharp';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const origin = 'http://127.0.0.1:4174';
+const portProbe = net.createServer();
+await new Promise((resolve, reject) => { portProbe.once('error', reject); portProbe.listen(0, '127.0.0.1', resolve); });
+const address = portProbe.address();
+assert.ok(address && typeof address === 'object');
+const port = address.port;
+await new Promise((resolve, reject) => portProbe.close((error) => error ? reject(error) : resolve()));
+const origin = `http://127.0.0.1:${port}`;
 const session = `gyf-wardrobe-${process.pid}`;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-wardrobe-'));
 const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
@@ -69,7 +75,7 @@ async function startServer() {
   serverError = '';
   server = spawn(process.execPath, ['server/index.mjs'], {
     cwd: root, stdio: ['ignore', 'ignore', 'pipe'],
-    env: { ...process.env, NODE_ENV: 'production', GYF_MAIL_TRANSPORT: 'disabled', GYF_DATA_DIR: dataDir, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: '4174' },
+    env: { ...process.env, NODE_ENV: 'production', GYF_MAIL_TRANSPORT: 'disabled', GYF_DATA_DIR: dataDir, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: String(port) },
   });
   server.stderr.on('data', (chunk) => { serverError += chunk; });
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -123,11 +129,6 @@ async function addGarment(category, name, color, fit, testBadPhoto = false) {
 }
 
 try {
-  const available = await new Promise((resolve) => {
-    const socket = net.createConnection({ host: '127.0.0.1', port: 4174 });
-    socket.once('connect', () => { socket.destroy(); resolve(false); }); socket.once('error', () => resolve(true));
-  });
-  assert.ok(available, 'Port 4174 is occupied; this verifier never stops another service.');
   run('npm', ['run', 'build']);
   await startServer(); chrome(['open', origin]); chrome(['emulate', '--viewport', '1440x1000x1']);
   await shown('Welcome back.'); click('Create an account'); fill('YOUR NAME', 'Wardrobe wearer'); fill('EMAIL ADDRESS', email); fill('PASSWORD', password);

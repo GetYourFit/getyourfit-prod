@@ -5,14 +5,14 @@ import { simpleParser } from 'mailparser';
 import { betterAuth } from 'better-auth';
 import { twoFactor } from 'better-auth/plugins';
 import { hash, verify } from '@node-rs/argon2';
-import { authSecret } from './config.mjs';
+import { apiOrigin, apiPort, authSecret } from './config.mjs';
 import { audit, database } from './database.mjs';
 
 const localOnly = process.env.NODE_ENV !== 'production';
-const baseURL = process.env.BETTER_AUTH_URL || (localOnly ? 'http://127.0.0.1:5173' : 'http://127.0.0.1:4174');
+const baseURL = process.env.BETTER_AUTH_URL || (localOnly ? 'http://127.0.0.1:5173' : apiOrigin);
 const trustedOrigins = new Set([
   'http://localhost:5173', 'http://127.0.0.1:5173',
-  'http://localhost:4174', 'http://127.0.0.1:4174',
+  `http://localhost:${apiPort}`, apiOrigin,
   baseURL,
   ...(process.env.GYF_ALLOWED_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean),
 ]);
