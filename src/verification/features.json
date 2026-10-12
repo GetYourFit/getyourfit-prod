@@ -1,0 +1,60 @@
+{
+  "application": "GetYourFit",
+  "surface": "Local responsive browser app, loopback Node service, and SQLite account data",
+  "baseline": [
+    "Set a retained BETTER_AUTH_SECRET of at least 32 random characters, run npm run dev with a disposable GYF_DATA_DIR, and open http://127.0.0.1:5173.",
+    "Run npm run verify to check the browser app and data service readiness.",
+    "Use chrome-devtools-axi and a named browser session for user-visible checks.",
+    "npm run verify:auth starts an isolated service and database, creates an ephemeral mailbox token for its Node runner, and drives named browser sessions.",
+    "npm run verify:local-account proves signup without mail in the production build, restart continuity, sign-in failure, export, and deletion."
+  ],
+  "features": [
+    {
+      "id": "account-access",
+      "title": "Create and protect an account",
+      "route": "Sign-in page at /",
+      "harness": "chrome-devtools-axi",
+      "summary": "Create an adult email/password account without mail in v0.1, sign in, and add optional TOTP protection. Verification and recovery delivery are sequenced for v0.2.",
+      "entrypoints": [
+        "Open the local app and choose Create an account or enter credentials to sign in.",
+        "The default mode sends no mail. New accounts sign in immediately with an unverified address. The preserved opt-in SMTP mode requires email verification; its isolated verifier uses a private mailbox that only the Node runner can read.",
+        "After sign-in, use the account page to configure an authenticator app."
+      ],
+      "subfeatures": [
+        "account-create accepts explicit 18+ confirmation and creates a signed-in, email-unverified account in default mode.",
+        "account-verify consumes a current local verification link once.",
+        "account-recovery uses a hashed, expiring, single-use token and revokes sessions after reset.",
+        "account-totp supports authenticator setup, one-time backup codes, and a sign-in challenge.",
+        "account-sessions ends the current session or revokes every active session."
+      ],
+      "driving": "Preconditions:\n\n- Install dependencies with npm install. Set BETTER_AUTH_SECRET once to a random key of at least 32 characters and reuse it with the database.\n- Use default GYF_MAIL_TRANSPORT=disabled for v0.1. Run npm run verify:local-account for isolated production browser coverage.\n\n- **Create.** Choose Create an account, enter a name, email, and password of at least 12 characters, confirm the 18+ statement, and choose Create account. The account page appears without a mail link. Signup without consent must fail.\n- **Sign in.** Sign out and use the same credentials. An incorrect password fails. Restart the service with the same database and key; the existing session must still work.\n- **Recovery boundary.** Default mode has no Forgot password control. A reset request returns 404 and creates no token. Browser requests to /__mail return 404.\n- **TOTP.** Enter the password and choose Set up TOTP. Confirm an invalid code fails and a current code works. Restart with the retained key, then sign out and prove sign-in requests the second code.\n- **Opt-in email path.** npm run verify:auth exercises verification/replay, recovery expiry/reuse, origin/rate controls, TOTP, revocation, export, deletion, and offline messaging. It uses restricted test mail and controlled SMTP, without contacting a real provider.",
+      "gotchas": [
+        "Default mode sends no mail, keeps emailVerified=false, and cannot recover a forgotten password. Real mail delivery is v0.2.",
+        "Retain the authentication key with the database. A missing key refuses startup; changing it breaks encrypted authenticator state and sessions.",
+        "Opt-in SMTP requires STARTTLS unless implicit TLS is selected. Test mode requires a private runner token. Browser users cannot read its mailbox.",
+        "Photo upload and outfit decisions remain pending in this account increment."
+      ]
+    },
+    {
+      "id": "data-control",
+      "title": "Export or delete account data",
+      "route": "Account page at / after sign-in",
+      "harness": "chrome-devtools-axi",
+      "summary": "Download the current account record or delete the account and its credentials, sessions, tokens, and exact-recipient test mail.",
+      "entrypoints": [
+        "Sign in to open the account page.",
+        "Choose Download export to save the account JSON.",
+        "Choose Delete my data and confirm to remove the account."
+      ],
+      "subfeatures": [
+        "account-export downloads email, name, verification status, adult confirmation, and account creation time without password hashes or session secrets.",
+        "account-delete removes the account and related credentials, sessions, tokens, lockout record, and in-memory test mail."
+      ],
+      "driving": "Preconditions:\n\n- Sign in to a local account using the account-access guide.\n\n- **Export.** Choose `Download export`. Inspect the saved JSON. It must identify `getyourfit-account-export-v1`, include the account profile fields, and omit password hashes and session secrets.\n- **Delete.** Choose `Delete my data`, then `Erase permanently`. The app returns to sign-in. The verifier confirms that the deleted account cannot sign in, its exact-recipient messages are removed, and a message to a similar address remains.\n- **Boundary.** This increment exports and deletes account records only. The final wardrobe acceptance remains pending until garment records and photos are included.\n- **Proof.** `npm run verify:auth` checks export, deletion, session cleanup, exact-recipient mailbox cleanup, and rejected sign-in after deletion.",
+      "gotchas": [
+        "The account export intentionally excludes credentials and session tokens.",
+        "Garment facts, photos, and outfit corrections are not implemented yet and are not included."
+      ]
+    }
+  ]
+}

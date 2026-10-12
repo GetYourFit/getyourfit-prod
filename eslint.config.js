@@ -18,7 +18,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['*.config.js'],
+    files: ['**/*.{js,mjs}'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },

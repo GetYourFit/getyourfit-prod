@@ -21,4 +21,4 @@ Headings use a system serif. Body text and controls use a system sans serif. Lab
 
 ## Interaction
 
-The primary path is verified email/password sign-in, add one real garment, then request an outfit for an occasion. Keep wardrobe, decision, and privacy reachable from the main navigation. Never use sample garments, external trackers, fake confidence, or a button that suggests unavailable AI.
+The v0.1 path is email/password sign-in without mail, add one real garment, then request an outfit for an occasion. Email verification and recovery delivery follow in v0.2. Keep wardrobe, decision, and privacy reachable from the main navigation. Never use sample garments, external trackers, fake confidence, or a button that suggests unavailable AI.

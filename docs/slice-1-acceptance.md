@@ -1,16 +1,16 @@
 # Slice 1 acceptance matrix
 
-This checklist is the production-equivalent acceptance contract for the narrow first-user path. Run from a fresh browser against isolated local data. Record each result and evidence path in the task evidence ledger. A final page screenshot alone is not proof.
+The 2026-10-12 version ladder targets v0.1: email/password signup without mail, one real licensed garment photo upload, and one outfit suggestion in a real browser. This account increment completes only signup and account data controls; photo and outfit work remain pending. Verification and password recovery delivery are sequenced for v0.2. The preserved email verifiers use a restricted test mailbox and controlled SMTP relay, not a real provider. Deployment is separate. Run from a fresh browser against isolated local data and record each result against its actual version and head.
 
 | ID | User action | Passing observation | Result |
 | --- | --- | --- | --- |
 | A01 | Open the app as a new wearer | Purpose and one primary action are clear; layout works at desktop and 390px mobile width. | Pending |
-| A02 | Create an account | Valid email, password, and explicit 18+ confirmation create an unverified account; under-18 or weak-password attempts do not. | Pending |
-| A03 | Verify email, replay link, and sign in | A current local email link verifies once; reuse reports invalid/used; an unverified sign-in gives a safe response and a fresh link. | Pending |
-| A04 | Request and use password recovery | Known and unknown addresses have the same public response; reset expires, works once, updates password, and revokes sessions. | Pending |
-| A05 | Probe origin and rate controls | Cross-origin and missing-origin mutations fail; reset and sign-in rate limits trigger; a successful sign-in clears the user's failure count. | Pending |
-| A06 | Configure TOTP, use an invalid code, then sign in with a valid code | Invalid codes fail; enrollment and a valid code work; setup data is not exposed during sign-in. | Pending |
-| A07 | Sign out locally and everywhere | Local sign-out ends this session. Revoke-all deletes every account session and clears the configured secure cookie. | Pending |
+| A02 | Create an account | Valid email, password, and explicit 18+ confirmation create an unverified account and immediate session without mail; under-18 or weak-password attempts fail. | Passed locally in production browser via `npm run verify:local-account`; v0.1 |
+| A03 | Verify email, replay link, and sign in | A current email link verifies once; reuse reports invalid/used; an unverified sign-in gives a safe response and a fresh link. | v0.2; controlled tests only, real-provider delivery pending |
+| A04 | Request and use password recovery | Known and unknown addresses have the same public response; reset expires, works once, updates password, and revokes sessions. | v0.2; default v0.1 hides recovery and rejects reset requests |
+| A05 | Probe origin and rate controls | Cross-origin and missing-origin mutations fail; reset and sign-in rate limits trigger; a successful sign-in clears the user's failure count. | Passed locally in `npm run verify:auth` |
+| A06 | Configure TOTP, use an invalid code, then sign in with a valid code | Invalid codes fail; enrollment and a valid code work; setup data is not exposed during sign-in. | Passed locally in `npm run verify:auth` |
+| A07 | Sign out locally and everywhere | Local sign-out ends this session. Revoke-all deletes every account session and clears the configured secure cookie. | Passed locally in `npm run verify:auth` |
 | A08 | Add a real garment photo | Ask permission before local processing; resize in browser; invalid bytes and unsupported types are rejected; no image leaves the device. | Pending |
 | A09 | Review and correct the garment | Show honest classifier source, version, and confidence; wearer correction persists with source `wearer-correction`, model version `null`, and confidence `1`. | Pending |
 | A10 | Reopen the wardrobe | The saved real photo loads from the local service and corrected facts remain visible after refresh. | Pending |
@@ -20,7 +20,7 @@ This checklist is the production-equivalent acceptance contract for the narrow f
 | A14 | Remove footwear or make all candidates unavailable or incompatible | Report no complete outfit and show no partial look as a recommendation. | Pending |
 | A15 | Export data | Export includes garment facts, stored photo, inference provenance, and saved corrections. | Pending |
 | A16 | Delete account data | Confirmed deletion removes account, credentials, sessions, garment photos, facts, corrections, and returns to signed-out state. | Pending |
-| A17 | Stop the local service and submit sign-in | Show the designed local-service error without leaking server detail or losing typed fields unnecessarily. | Pending |
+| A17 | Stop the local service and submit sign-in | Show the designed local-service error without leaking server detail or losing typed fields unnecessarily. | Passed locally in `npm run verify:auth` |
 | A18 | Run regression case R13 from the workflow repository | The known-bad case fails against this app and its corresponding valid flow passes. Do not copy or alter R13 here. | Pending |
 
 ## Manual browser proof
