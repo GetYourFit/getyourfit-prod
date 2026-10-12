@@ -161,13 +161,16 @@ try {
   evaluate('() => document.querySelector(".outfit-result").scrollIntoView({block:"start"})');
   await shown('nothing to buy'); capture('wardrobe-outfit-desktop');
   assert.equal(evaluate('() => [...document.querySelectorAll(".outfit-item img")].every(img => img.complete && img.naturalWidth > 0)'), true);
-  assertAcceptance(acceptanceState());
+  const validState = acceptanceState();
+  assertAcceptance(validState);
   const originalPhoto = evaluate('() => document.querySelector(".outfit-item img").getAttribute("src")');
   evaluate('async () => { const img = document.querySelector(".outfit-item img"); img.src = "/api/wardrobe/00000000-0000-4000-8000-000000000000/photo"; await img.decode().catch(() => {}); }');
-  assert.throws(() => assertAcceptance(acceptanceState()), /R13: real outfit images/);
+  const brokenImageState = acceptanceState();
+  assert.throws(() => assertAcceptance(brokenImageState), /R13: real outfit images/);
   evaluate(`async () => { const img = document.querySelector(".outfit-item img"); img.src = ${JSON.stringify(originalPhoto)}; await img.decode(); }`);
   evaluate('() => { [...document.querySelectorAll("button")].find(button => button.textContent === "Find an outfit").disabled = true; }');
-  assert.throws(() => assertAcceptance(acceptanceState()), /R13: designed outfit action/);
+  const disabledActionState = acceptanceState();
+  assert.throws(() => assertAcceptance(disabledActionState), /R13: designed outfit action/);
   evaluate('() => { [...document.querySelectorAll("button")].find(button => button.textContent === "Find an outfit").disabled = false; }');
   assertAcceptance(acceptanceState());
   chrome(['emulate', '--viewport', '390x844x1,mobile,touch']);
@@ -233,7 +236,8 @@ try {
   const untrusted = await fetch(`${origin}/api/wardrobe/review`, { method: 'POST', headers: { Origin: 'https://example.invalid', 'Content-Type': 'application/json' }, body: '{}' });
   assert.equal(untrusted.status, 403);
   click('Sign out'); await shown('Welcome back.');
-  assert.throws(() => assertAcceptance(acceptanceState()), /R13: sign-in/);
+  const signedOutState = acceptanceState();
+  assert.throws(() => assertAcceptance(signedOutState), /R13: sign-in/);
   fill('EMAIL ADDRESS', email); fill('PASSWORD', password); click('Sign in'); await shown('White T-shirt');
   await stopServer(); await startServer(); chrome(['open', origin]); await shown('White T-shirt');
   assert.equal(evaluate('() => [...document.querySelectorAll(".garment-card img")].every(img => img.complete && img.naturalWidth > 0)'), true);
@@ -244,7 +248,13 @@ try {
   assert.equal(evaluate(`async () => (await fetch(${JSON.stringify(items[0].photoUrl)})).status`), 401);
   assert.equal((await fetch(`${origin}${items[0].photoUrl}`, { headers: otherHeaders })).status, 404);
   await fetch(`${origin}/api/data`, { method: 'DELETE', headers: otherHeaders, body: JSON.stringify({ confirm: 'delete my account' }) });
-  if (proofDir) fs.writeFileSync(path.join(proofDir, 'wardrobe-network.txt'), chrome(['network', '--full']));
+  if (proofDir) {
+    fs.writeFileSync(path.join(proofDir, 'wardrobe-network.txt'), chrome(['network', '--limit', '500']));
+    fs.writeFileSync(path.join(proofDir, 'wardrobe-report.json'), JSON.stringify({
+      head: run('git', ['rev-parse', 'HEAD']).trim(), origin, passedAt: new Date().toISOString(),
+      validState, r13: { brokenImageState, disabledActionState, signedOutState }, exportProof: exported,
+    }, null, 2));
+  }
   process.stdout.write('verify:wardrobe passed: production signup, consent, invalid decode, real local Vision labels, persisted photos and facts, one question, complete outfit, missing footwear, availability, wearer rejection, export, restart, ownership isolation, origin guard and deletion.\n');
 } finally {
   await stopServer();
