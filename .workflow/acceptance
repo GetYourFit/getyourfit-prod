@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
+if [ -z "${REQUIRE_NODE_GUARDED:-}" ]; then
+  REQUIRE_NODE_GUARDED=1 exec .workflow/require-node "$0" "$@"
+fi
 npm ci
 npm ci --prefix tests/acceptance
 (cd tests/acceptance && npm exec -- playwright install --with-deps chromium)
