@@ -37,7 +37,7 @@ Stubs are test oracles for the checker, never product evidence. Normal `npm run 
 
 The [active acceptance workflow](../../.github/workflows/acceptance.yml) installs both locked dependency sets and Chromium on Node.js 24. Its job is named `acceptance` and runs on every pull request and push. It requires the good stub to pass, all known-bad variants to fail as intended, and all production cases to pass through `npm start`. Reports and screenshots are retained as a CI artifact for seven days. [ci/acceptance.yml](ci/acceptance.yml) preserves the original handoff template.
 
-After `acceptance` passes on the integration merge on `main`, require it beside `quality` without loosening existing protection. That settings change follows this CI integration. Let a deploy depend on both checks from the same revision. For a separate deploy workflow, verify successful checks on its exact commit SHA; a green check on an ancestor is insufficient. Do not use path filters, `continue-on-error`, readiness-based skipping or contract-stub output to satisfy that gate.
+`acceptance` passed on the integration merge on `main` and is required beside `quality`; [workflow-kit.md](../../docs/workflow-kit.md) records the verified protection state and exact run. Let a deploy depend on both checks from the same revision. For a separate deploy workflow, verify successful checks on its exact commit SHA; a green check on an ancestor is insufficient. Do not use path filters, `continue-on-error`, readiness-based skipping or contract-stub output to satisfy that gate.
 
 ## Sequenced coverage
 

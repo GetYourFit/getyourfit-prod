@@ -17,4 +17,6 @@ Local Git hooks are explicitly opted out for this adoption. A clone owner with a
 
 The [acceptance workflow](../.github/workflows/acceptance.yml) adds a separate job named `acceptance` on every pull request and push. It proves the checker against the good stub and known-bad variants, then runs the production suite. Application, stub, and local mail ports are chosen from free ephemeral loopback ports per run. CI retains the reports as artifacts. The `workflow-kit` job also runs the production acceptance hook as a step.
 
-Branch protection currently requires `quality` with up-to-date branches and admin enforcement. Requiring `acceptance` beside it is the next step, after `acceptance` passes on the integration merge on `main`. Deployment is a separate step.
+Protection verified on 2026-10-13: `main` requires `quality` and `acceptance`, requires up-to-date branches, and enforces the rules for admins. `acceptance` is bound to app ID `15368` (GitHub Actions). Force pushes and branch deletion are disabled. The `quality` app binding remains its original value.
+
+The prerequisite [acceptance run on main](https://github.com/GetYourFit/getyourfit-prod/actions/runs/38394404459) passed at integration merge commit `6c13f165d66fd8e374127ceb192b0e5a53ed9ff2`. The `acceptance` job verified the good stub, all bad variants, and production start before the protection change. [Deployment inputs](deploy-inputs.md) records the separate hosting, vault, storage, and public-origin work.
