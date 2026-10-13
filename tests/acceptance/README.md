@@ -13,7 +13,7 @@ npm run acceptance
 
 The existing root npm script invokes this package. Playwright runs an actual headless Chromium browser with separate contexts and public API requests. It supports repeatable isolated sessions and file uploads in Linux CI without a service account or charge. Interactive inspection uses chrome-devtools-axi. Browser installation follows [Playwright's CI documentation](https://playwright.dev/docs/ci).
 
-The runner first requires an `npm start` production service. If it is missing, the runner records a mandatory failure and stops without building or serving a static preview. Otherwise it builds the app, launches `npm start` on `127.0.0.1:4174`, and refuses to run if that port is occupied. The contract stub and local mail sink use free ephemeral loopback ports chosen per run. A private temporary directory is supplied as `GYF_DATA_DIR`; `DATABASE_URL` names a SQLite database inside it. The service must honor these isolation settings. Only a small process-environment allowlist is inherited; deployment credentials and mail-provider keys are excluded. `NODE_ENV=production`, `APP_URL`, `HOST` and `PORT` define the production-equivalent local boundary.
+The runner first requires an `npm start` production service. If it is missing, the runner records a mandatory failure and stops without building or serving a static preview. Otherwise it builds the app and launches `npm start` on a free ephemeral loopback port chosen per run. The contract stub and local mail sink also use free ephemeral loopback ports. A private temporary directory is supplied as `GYF_DATA_DIR`; `DATABASE_URL` names a SQLite database inside it. The service must honor these isolation settings. Only a small process-environment allowlist is inherited; deployment credentials and mail-provider keys are excluded. `NODE_ENV=production`, `APP_URL`, `HOST` and `PORT` define the production-equivalent local boundary.
 
 For v0.1, `GYF_MAIL_MODE=disabled`. A local SMTP sink on a free ephemeral loopback port is configured through `SMTP_HOST`, `SMTP_PORT` and `SMTP_URL`, and any message received causes a failure. Signup must immediately yield a usable account without email verification. The browser refuses external requests. No real user, production database, external mailbox or service signup is used. Future provider-backed mail reopens at v0.2 when a provider is named.
 
@@ -33,9 +33,11 @@ The browser first tries the required Name field empty, then supplies a name and 
 
 Stubs are test oracles for the checker, never product evidence. Normal `npm run acceptance` ignores inherited `ACCEPTANCE_STUB` and `MUTATION` values and always builds the app. Selective execution is refused outside explicit `--stub` mode. CI must execute both the verifier and the normal production command.
 
-## CI handoff
+## CI integration
 
-[ci/acceptance.yml](ci/acceptance.yml) is the exact workflow for an integration owner to install as `.github/workflows/acceptance.yml`. This worker is restricted to `tests/acceptance/`, so the file is a handoff artifact, not an active check. Until integration, acceptance does not gate deployment. Require the `acceptance` check beside `quality`, and let a deploy depend on both jobs from the same revision. For a separate deploy workflow, verify successful checks on its exact commit SHA; a green check on an ancestor is insufficient. Do not use path filters, `continue-on-error`, readiness-based skipping or contract-stub output to satisfy that gate.
+The [active acceptance workflow](../../.github/workflows/acceptance.yml) installs both locked dependency sets and Chromium on Node.js 24. Its job is named `acceptance` and runs on every pull request and push. It requires the good stub to pass, all known-bad variants to fail as intended, and all production cases to pass through `npm start`. Reports and screenshots are retained as a CI artifact for seven days. [ci/acceptance.yml](ci/acceptance.yml) preserves the original handoff template.
+
+After `acceptance` passes on the integration merge on `main`, require it beside `quality` without loosening existing protection. That settings change follows this CI integration. Let a deploy depend on both checks from the same revision. For a separate deploy workflow, verify successful checks on its exact commit SHA; a green check on an ancestor is insufficient. Do not use path filters, `continue-on-error`, readiness-based skipping or contract-stub output to satisfy that gate.
 
 ## Sequenced coverage
 
