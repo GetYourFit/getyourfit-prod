@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import http from 'node:http';
+import { isIP } from 'node:net';
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,14 +9,13 @@ import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, consumeEmailVerificationToken, emailDeliveryMode, hashPassword, isLockedOut, localMailbox, migrateAuth, recordSignInResult, sendMail, settleMailForAccountDeletion } from './auth.mjs';
 import { audit, database, ensureAuthSchema } from './database.mjs';
 import { ensureWardrobeSchema, exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
-import { apiOrigin, apiPort } from './config.mjs';
+import { allowedHosts, allowedOrigins, apiOrigin, apiPort, authOrigin, trustedProxies } from './config.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const allowedHosts = new Set([`localhost:${apiPort}`, `127.0.0.1:${apiPort}`]);
-const allowedOrigins = new Set(['http://localhost:5173', 'http://127.0.0.1:5173', `http://localhost:${apiPort}`, apiOrigin]);
 const app = express();
 
 app.disable('x-powered-by');
+app.set('trust proxy', trustedProxies);
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -29,10 +29,13 @@ app.use(helmet({
 }));
 app.use((request, response, next) => {
   response.setHeader('Cache-Control', 'no-store');
-  if (!allowedHosts.has(request.headers.host)) return response.status(403).json({ error: 'This local service only accepts local requests.' });
+  if (!allowedHosts.has(request.headers.host?.toLowerCase())) return response.status(403).json({ error: 'This service only accepts configured GetYourFit hosts.' });
   const origin = request.headers.origin;
-  if (origin && !allowedOrigins.has(origin)) return response.status(403).json({ error: 'This local service only accepts requests from GetYourFit.' });
+  if (origin && !allowedOrigins.has(origin)) return response.status(403).json({ error: 'This service only accepts configured GetYourFit origins.' });
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && !origin) return response.status(403).json({ error: 'A same-site request is required.' });
+  const clientIP = request.ip;
+  if (!isIP(clientIP)) return response.status(400).json({ error: 'The request has an invalid client address.' });
+  request.headers['x-gyf-client-ip'] = clientIP;
   next();
 });
 
@@ -76,8 +79,7 @@ app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, re
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     database.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(user.id);
     database.prepare('INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(tokenHash, user.id, Date.now() + 15 * 60_000);
-    const baseURL = process.env.BETTER_AUTH_URL || (process.env.NODE_ENV === 'production' ? apiOrigin : 'http://127.0.0.1:5173');
-    const resetURL = new URL('/', baseURL);
+    const resetURL = new URL('/', authOrigin);
     resetURL.searchParams.set('token', token);
     void sendMail({ to: email, subject: 'Reset your GetYourFit password', text: `Use this single-use link within 15 minutes to reset your password:\n\n${resetURL}\n\nIf you did not request this, ignore this message.` }).catch(() => audit('mail-delivery-failed'));
   }
