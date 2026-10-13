@@ -42,7 +42,7 @@ These entries are checker-owned handoff material for firstmate to incorporate in
 
 ## CF-V01-002: Checker raced the Add garment entry point
 
-- Status: repaired. The browser waits for a visible "Add garment" button or photo input, clicks the button only when the input is not visible, then waits for the input. The contract stub delays the button and places its hidden photo input first in document order. The verifier covers eight good cases and twenty-five targeted mutations.
+- Status: repaired. The browser waits for a visible "Add garment" button or photo input, clicks the button only when the input is not visible, then waits for the input. The contract stub delays the button and places its hidden photo input first in document order. The verifier covers eight good cases and thirty-one targeted mutations, including browser/API 18+ refusal, anonymous collection isolation and exact photo rendering after refresh.
 
 ## CF-V01-001: Checker omitted the required signup Name
 

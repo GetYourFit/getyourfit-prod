@@ -11,8 +11,12 @@ const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir()
 const scratch = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-verifier-'));
 const mutations = [
   ['browser', caseNames.browser, /Timeout|Unavailable|create.*account/i],
+  ['browser-age-unchecked', caseNames.browser, /Unchecked 18\+ signup was not refused/],
+  ['browser-age-missing', caseNames.browser, /Timeout|18\|age/],
   ['empty-name', caseNames.browser, /Empty signup name was not refused/],
   ['signup', caseNames.signup, /Signup returned HTTP 503/],
+  ['age-unchecked', caseNames.signup, /Unchecked age confirmation signup accepted without 18\+ confirmation/],
+  ['age-missing', caseNames.signup, /Missing age confirmation signup accepted without 18\+ confirmation/],
   ['session', caseNames.signup, /Session returned HTTP 401/],
   ['duplicate', caseNames.signup, /Login after duplicate signup returned HTTP 401/],
   ['authentication', caseNames.authentication, /Wrong password accepted/],
@@ -27,6 +31,8 @@ const mutations = [
   ['delete-isolation', caseNames.isolation, /accessible to another session/],
   ['photo-isolation', caseNames.isolation, /accessible to another session/],
   ['list-isolation', caseNames.isolation, /leaked private garment/],
+  ['anonymous-list-isolation', caseNames.isolation, /Anonymous wardrobe leaked private garment/],
+  ['refresh-photo-render', caseNames.browser, /Reloaded garment image source does not match saved photoUrl/],
   ['unowned-outfit', caseNames.outfit, /outside the wearer's wardrobe/],
   ['single-shirt', caseNames.singleShirt, /Single-shirt wardrobe returned an outfit/],
   ['missing-weather', caseNames.missingFacts, /Unknown weather returned an outfit/],

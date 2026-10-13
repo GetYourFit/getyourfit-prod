@@ -20,7 +20,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
   if (req.method === 'GET' && url.pathname === '/') return page(res, `<h1>Know what to wear</h1><p>Add your shirt and get an outfit for tonight.</p><a href="/sign-up">Get started</a>`);
   if (req.method === 'GET' && url.pathname === '/sign-up') {
-    return page(res, `<h1>Create account</h1><form><label>Your name<input name="name" ${mutation === 'empty-name' ? '' : 'required'}></label><label>Email<input type="email" name="email" required></label><label>Password<input type="password" name="password" required></label><label><input type="checkbox" name="age">I am 18 or older</label><button>${mutation === 'browser' ? 'Unavailable' : 'Create account'}</button></form><p role="status"></p><script>document.querySelector('form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);const r=await fetch('/api/auth/sign-up/email',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:f.get('name'),email:f.get('email'),password:f.get('password'),adultConfirmed:f.has('age'),callbackURL:location.origin})});if(r.ok)location.href='/wardrobe';else document.querySelector('[role=status]').textContent='Cannot create account'}</script>`);
+    return page(res, `<h1>Create account</h1><form><label>Your name<input name="name" ${mutation === 'empty-name' ? '' : 'required'}></label><label>Email<input type="email" name="email" required></label><label>Password<input type="password" name="password" required></label>${mutation === 'browser-age-missing' ? '' : `<label><input type="checkbox" name="age" ${mutation === 'browser-age-unchecked' ? '' : 'required'}>I am 18 or older</label>`}<button>${mutation === 'browser' ? 'Unavailable' : 'Create account'}</button></form><p role="status"></p><script>document.querySelector('form').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);const r=await fetch('/api/auth/sign-up/email',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:f.get('name'),email:f.get('email'),password:f.get('password'),adultConfirmed:f.has('age'),callbackURL:location.origin})});if(r.ok)location.href='/wardrobe';else document.querySelector('[role=status]').textContent='Cannot create account'}</script>`);
   }
   if (req.method === 'GET' && url.pathname === '/wardrobe') {
     return page(res, `<h1>Your wardrobe</h1><form id="photo" hidden><label>Garment photo<input name="photo" type="file" accept="image/jpeg"></label><label><input name="photo_consent" type="checkbox">Process this photo</label><img id="preview" alt="Garment photo preview" hidden><section id="facts" hidden><h2>Confirm your garment facts</h2><label>Name<input name="name"></label><label>Category<select name="category"><option value="">Choose a category</option><option value="top">Top</option><option value="bottom">Bottom</option><option value="footwear">Footwear</option></select></label><label>Color<input name="color"></label><label>Size on label<input name="size"></label><label>Does it fit you now?<select name="fit"><option value="unknown">I'm not sure</option><option value="fits">Fits</option><option value="does-not-fit">Does not fit</option></select></label><fieldset><legend>Weather you would wear it in</legend><label><input type="checkbox" name="weather" value="warm">warm</label><label><input type="checkbox" name="weather" value="mild">mild</label><label><input type="checkbox" name="weather" value="cold">cold</label></fieldset><fieldset><legend>Dress codes you would wear it for</legend><label><input type="checkbox" name="dress_code" value="casual">casual</label><label><input type="checkbox" name="dress_code" value="smart-casual">smart-casual</label><label><input type="checkbox" name="dress_code" value="formal">formal</label></fieldset><label><input type="checkbox" name="available" value="true">Available to wear now</label><label><input type="checkbox" name="ownership" value="true">I confirm this garment is mine and these are my facts.</label></section><button>Save garment</button></form><div id="entry"></div><section id="garments"></section><form id="outfit"><label>Occasion<input name="occasion"></label><label>Weather<select name="weather"><option value="unknown">I'm not sure</option><option value="mild">Mild</option><option value="warm">Warm</option><option value="cold">Cold</option></select></label><label>Dress code<select name="dress_code"><option value="unknown">I'm not sure</option><option value="casual">Casual</option><option value="smart-casual">Smart casual</option><option value="formal">Formal</option></select></label><button>Find an outfit</button></form><p role="status"></p><section id="outfits"></section><script>
@@ -36,8 +36,12 @@ const server = http.createServer(async (req, res) => {
   let body = {};
   try { body = buffers.length ? JSON.parse(Buffer.concat(buffers).toString()) : {}; } catch { return json(res, 400, { error: 'invalid request' }); }
   if (url.pathname === '/api/auth/sign-up/email' && req.method === 'POST') {
-    if (mutation === 'signup') return json(res, 503, { error: 'unavailable' });
+    if (mutation === 'signup' && body.adultConfirmed === true) return json(res, 503, { error: 'unavailable' });
     if (body.name === '' && mutation !== 'empty-name') return json(res, 422, { error: 'name required' });
+    const missingAgeConfirmation = !Object.hasOwn(body, 'adultConfirmed');
+    const acceptsUncheckedAge = mutation === 'age-unchecked' && body.adultConfirmed === false;
+    const acceptsMissingAge = mutation === 'age-missing' && missingAgeConfirmation;
+    if (body.adultConfirmed !== true && !acceptsUncheckedAge && !acceptsMissingAge) return json(res, 422, { error: '18+ confirmation required' });
     if (users.has(body.email)) {
       if (mutation === 'duplicate') users.set(body.email, { ...users.get(body.email), password: body.password });
       return json(res, 409, { error: 'cannot create account' });
@@ -60,6 +64,16 @@ const server = http.createServer(async (req, res) => {
     if (mutation === 'session') return json(res, 401, { error: 'lost session' });
     return json(res, 200, email ? { signedIn: true, email, twoFactorEnabled: false, emailDeliveryMode: 'disabled' } : { signedIn: false, emailDeliveryMode: 'disabled' });
   }
+  if (url.pathname === '/api/wardrobe' && req.method === 'GET') {
+    if (!email) {
+      if (mutation === 'anonymous-list-isolation') return json(res, 200, [...garments.values()].map(publicItem));
+      return json(res, 401, { error: 'sign in required' });
+    }
+    return json(res, 200, [...garments.values()].filter(item => mutation === 'list-isolation' || owns(email, item)).map(item => {
+      const value = publicItem(item);
+      return mutation === 'refresh-photo-render' && owns(email, item) ? { ...value, photoUrl: `${value.photoUrl}?wrong=1` } : value;
+    }));
+  }
   if (!email) return json(res, 401, { error: 'sign in required' });
   if (url.pathname === '/api/wardrobe' && req.method === 'POST') {
     if (!body.consent && mutation !== 'consent') return json(res, 422, { error: 'consent required' });
@@ -73,16 +87,14 @@ const server = http.createServer(async (req, res) => {
     garmentPhotos.set(id, filename || 'garment-photo.jpg');
     return json(res, 201, publicItem(item));
   }
-  if (url.pathname === '/api/wardrobe' && req.method === 'GET') {
-    return json(res, 200, [...garments.values()].filter(item => mutation === 'list-isolation' || owns(email, item)).map(publicItem));
-  }
   const photoMatch = url.pathname.match(/^\/api\/wardrobe\/([^/]+)\/photo$/);
   if (photoMatch && req.method === 'GET') {
     const item = garments.get(photoMatch[1]);
     if (!item || (!owns(email, item) && !['read-isolation', 'photo-isolation'].includes(mutation))) return json(res, 404, { error: 'not found' });
     if (mutation === 'read-isolation' && !owns(email, item)) return json(res, 200, publicItem(item));
     res.writeHead(200, { 'content-type': 'image/jpeg' });
-    return res.end(mutation === 'photo' ? Buffer.from('not a photograph') : photos.get(garmentPhotos.get(item.id)));
+    const photo = mutation === 'refresh-photo-render' && url.searchParams.has('wrong') ? photos.get('footwear.jpg') : photos.get(garmentPhotos.get(item.id));
+    return res.end(mutation === 'photo' ? Buffer.from('not a photograph') : photo);
   }
   const itemMatch = url.pathname.match(/^\/api\/wardrobe\/([^/]+)$/);
   if (itemMatch && ['PATCH', 'DELETE'].includes(req.method)) {

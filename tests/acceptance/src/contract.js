@@ -9,14 +9,14 @@ export const contract = {
 };
 
 export const caseNames = {
-  browser: 'V01 browser signup, real photo, clarification and refresh',
+  browser: 'V01 browser signup, real photo, clarification and exact refresh',
   signup: 'V01 API signup creates a usable private session without mail',
   authentication: 'V01 wrong and unknown credentials are refused without enumeration',
   photo: 'V01 API real photo persists and invalid uploads are refused',
   outfit: 'V01 API explicit facts return a complete explained outfit from owned garments',
   singleShirt: 'V01 one owned shirt does not fabricate a complete outfit',
   missingFacts: 'V01 unknown weather or dress code requests one fact or abstains',
-  isolation: 'V01 two users cannot read, modify or delete each other garments or photos',
+  isolation: 'V01 users and anonymous sessions cannot access private garments or photos',
 };
 
 export function account() {

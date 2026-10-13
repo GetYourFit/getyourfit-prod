@@ -266,6 +266,8 @@ function requireQuestionOrAbstention(body, label, expectedField) {
   return body.explanation;
 }
 async function signupJourney(context) {
+  await assertAgeConfirmationRefused(context, false, 'Unchecked age confirmation');
+  await assertAgeConfirmationRefused(context, undefined, 'Missing age confirmation');
   const user = credentials();
   const response = await api(context, 'POST', contract.register, { ...user, callbackURL: baseURL });
   await jsonOK(response, 'Signup');
@@ -280,6 +282,25 @@ async function signupJourney(context) {
   const login = await api(context, 'POST', contract.login, { email: user.email, password: user.password, rememberMe: false });
   await jsonOK(login, 'Login after duplicate signup');
   await session(context, user.email);
+}
+async function assertAgeConfirmationRefused(context, adultConfirmed, label) {
+  const user = credentials();
+  const body = { name: user.name, email: user.email, password: user.password, callbackURL: baseURL };
+  if (adultConfirmed !== undefined) body.adultConfirmed = adultConfirmed;
+  const response = await api(context, 'POST', contract.register, body);
+  assert(response.status() >= 400 && response.status() < 500, `${label} signup accepted without 18+ confirmation`);
+  assert(!response.headers()['set-cookie'], `${label} signup refusal set a session cookie`);
+  const current = await api(context, 'GET', contract.session);
+  if (current.ok()) assert.equal((await jsonOK(current, `${label} session`)).signedIn, false, `${label} refusal created a session`);
+  else assert([401, 403].includes(current.status()), `${label} refusal created a session`);
+  const stranger = await browser.newContext({ baseURL });
+  try {
+    const login = await api(stranger, 'POST', contract.login, { email: user.email, password: user.password, rememberMe: false });
+    assert([401, 403].includes(login.status()), `${label} refusal created a usable account`);
+    const anonymous = await api(stranger, 'GET', contract.session);
+    if (anonymous.ok()) assert.equal((await jsonOK(anonymous, `${label} anonymous session`)).signedIn, false, `${label} refusal created a usable session`);
+    else assert([401, 403].includes(anonymous.status()), `${label} refusal created a usable session`);
+  } finally { await stranger.close(); }
 }
 async function authenticationFailures(context) {
   const user = await signup(context);
@@ -369,6 +390,12 @@ async function isolation(context) {
     const own = await jsonOK(await api(other, 'GET', contract.wardrobe), 'Other user wardrobe');
     assert(Array.isArray(own), 'Other user wardrobe response is not a collection');
     assert.equal(own.length, 0, 'Other user list leaked private garment');
+    const anonymousList = await api(anonymous, 'GET', contract.wardrobe);
+    if (anonymousList.ok()) {
+      const anonymousItems = await jsonOK(anonymousList, 'Anonymous wardrobe');
+      assert(Array.isArray(anonymousItems), 'Anonymous wardrobe response is not a collection');
+      assert.equal(anonymousItems.length, 0, 'Anonymous wardrobe leaked private garment');
+    } else assert([401, 403, 404].includes(anonymousList.status()), 'Anonymous wardrobe exposed private garments');
   } finally { await other.close(); await anonymous.close(); }
 }
 async function browserJourney(context, page) {
@@ -386,7 +413,8 @@ async function browserJourney(context, page) {
   await page.getByLabel(/^email/i).fill(user.email);
   await page.getByLabel(/^password/i).fill(user.password);
   const age = page.getByRole('checkbox', { name: /18|age/i });
-  if (await age.count()) await age.check();
+  await age.waitFor();
+  await age.check();
   const name = page.getByLabel(/^(your |display )?name$/i);
   await name.waitFor();
   const create = page.getByRole('button', { name: /create.*account|sign up/i });
@@ -401,8 +429,14 @@ async function browserJourney(context, page) {
   assert(emptyNameInvalid, 'Empty signup name was not refused by the form');
   assert.equal(signupAttempts.length, 0, 'Empty signup name submitted an account request');
   assert(await create.isVisible(), 'Empty signup name left the account form');
-  page.off('request', observeSignup);
   await name.fill('Acceptance wearer');
+  await age.uncheck();
+  assert(await age.evaluate(input => input.validity.valueMissing), 'Unchecked 18+ signup was not refused by the form');
+  await create.click();
+  assert.equal(signupAttempts.length, 0, 'Unchecked 18+ signup submitted an account request');
+  assert(await create.isVisible(), 'Unchecked 18+ signup left the account form');
+  page.off('request', observeSignup);
+  await age.check();
   const [registered] = await Promise.all([
     page.waitForResponse(response => new URL(response.url()).pathname.startsWith('/api/auth/') && response.request().method() === 'POST'),
     create.click(),
@@ -450,12 +484,32 @@ async function browserJourney(context, page) {
   const body = await jsonOK(suggested, 'Browser outfit request');
   const answer = requireQuestionOrAbstention(body, 'Single-shirt browser wardrobe');
   await page.getByText(answer, { exact: true }).waitFor();
+  const savedPhotoURL = new URL(item.photoUrl, baseURL).href;
+  const renderedPhoto = async label => {
+    const result = await page.getByRole('img', { name: /garment|shirt/i }).evaluateAll(async (images, expectedSource) => {
+      const img = images.find(candidate => candidate.currentSrc === expectedSource);
+      if (!img) return null;
+      await img.decode();
+      const canvas = globalThis.document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+      const context = canvas.getContext('2d'); context.drawImage(img, 0, 0, 32, 32);
+      const pixels = context.getImageData(0, 0, 32, 32).data;
+      let fingerprint = 2166136261;
+      for (const value of pixels) fingerprint = Math.imul(fingerprint ^ value, 16777619);
+      return { source: img.currentSrc, width: img.naturalWidth, height: img.naturalHeight, fingerprint: fingerprint >>> 0 };
+    }, savedPhotoURL);
+    assert(result, `${label} image source does not match saved photoUrl`);
+    assert(result.width >= 100 && result.height >= 100, `${label} did not decode as a garment photo`);
+    return result;
+  };
   const image = page.getByRole('img', { name: /garment|shirt/i }).first();
   await image.waitFor();
-  assert(await image.evaluate(img => img.complete && img.naturalWidth >= 100), 'Uploaded garment is not visible');
+  const uploadedPhoto = await renderedPhoto('Uploaded garment');
   await page.reload();
   await session(context, user.email);
-  await page.getByRole('img', { name: /garment|shirt/i }).first().waitFor();
+  const reloadedImage = page.getByRole('img', { name: /garment|shirt/i }).first();
+  await reloadedImage.waitFor();
+  const reloadedPhoto = await renderedPhoto('Reloaded garment');
+  assert.equal(reloadedPhoto.fingerprint, uploadedPhoto.fingerprint, 'Reloaded garment image changed from the saved photo');
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     assert(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth + 1), `Main journey overflows at ${width}px`);
