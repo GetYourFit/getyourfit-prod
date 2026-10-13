@@ -8,7 +8,7 @@ The v0.1 default sends no email and allows sign-in with an unverified address. E
 
 ## Run locally
 
-Requirements: Node.js 22.18 or later. Local Apple Vision classification additionally needs macOS and `/usr/bin/swift`; classification failures are shown honestly and never replaced by fabricated labels.
+Requirements: Node.js 22.18 or later. Local Apple Vision classification additionally needs macOS and the Swift toolchain; classification failures are shown honestly and never replaced by fabricated labels.
 
 Set `BETTER_AUTH_SECRET` to a random key of at least 32 characters from your local secret store. Generate it once, retain it with the database, and reuse it on every restart. Changing it invalidates sessions and makes existing authenticator secrets unreadable. The server refuses startup without this key before opening the database. You can generate a key with `node -e 'process.stdout.write(require("node:crypto").randomBytes(48).toString("base64url"))'`; store its output privately, outside the repository.
 
