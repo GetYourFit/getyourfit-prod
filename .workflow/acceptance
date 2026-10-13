@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+hook=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
+cd "$(dirname "$hook")/.."
+if [ -z "${REQUIRE_NODE_GUARDED:-}" ]; then
+  REQUIRE_NODE_GUARDED=1 exec .workflow/require-node "$hook" "$@"
+fi
+npm ci
+npm ci --prefix tests/acceptance
+(cd tests/acceptance && npm exec -- playwright install --with-deps chromium)
+exec npm run acceptance

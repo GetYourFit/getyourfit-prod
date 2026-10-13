@@ -47,5 +47,6 @@ npm run acceptance
 - [Acceptance matrix](docs/slice-1-acceptance.md) records the slice's end-to-end gates and evidence status.
 - [Evidence ledger](docs/evidence-ledger.md) records research, decisions, and observed results.
 - [Feature map](FEATURE_MAP.md) links to generated account, wardrobe, outfit, and data-control browser guides.
+- [Workflow kit](docs/workflow-kit.md) records the pinned adoption, CI checks, and product acceptance hook.
 
 `npm run verify:wardrobe` builds the production app and drives real signup, photo permission, invalid-image rejection, the licensed photographs in [tests/fixtures](tests/fixtures/README.md), facts and correction, outfit clarification and abstention, cross-account isolation, export, restart, and deletion. Set `GYF_PROOF_DIR` to a directory outside the repository to retain screenshots, snapshots, and network evidence. The verifier selects a free ephemeral loopback port with `GYF_PORT` and owns only its disposable data and named browser session. It never stops another worktree's listener.

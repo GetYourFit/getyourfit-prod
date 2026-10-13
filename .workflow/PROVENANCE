@@ -1,0 +1,10 @@
+{
+  "sha": "00c27745d1dbc076667d4618d21f13c88e69b725",
+  "files": {
+    ".github/workflows/workflow-kit.yml": "00c7b07cfb187eec44d10a5af9abfc471b262b436fed56793c1ba499aa59db39",
+    ".workflow/checks.py": "9c08b3a745b50d9298eb0fea9eda52e26db064dcd16b795805f5f6f97966cf96",
+    ".workflow/hooks/pre-commit": "59c883131fc7287aa91e2c3317e6d413f9e09a47b4864c84ce6de83d03403f32",
+    ".workflow/hooks/pre-push": "79f1923d0fa4b5a7363eaaa43baab8fe9fe4eab3e1d5848b3df47cdc114eda84"
+  },
+  "hooks_opted_out": true
+}
