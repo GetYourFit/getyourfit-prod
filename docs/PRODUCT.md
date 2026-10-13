@@ -26,7 +26,7 @@ Wearer-first fashion decisions grounded in the wearer's real wardrobe and contex
 
 Help a first wearer decide what to wear for one stated occasion, with a complete explained outfit assembled from their own available clothes. Make “you already own it” a useful answer. The wearer can correct every suggestion and their correction wins.
 
-The v0.1 local path supports email/password signup without mail, optional TOTP, consented real photo upload, local garment review, a compact wardrobe, one factual outfit suggestion, wearer correction, and full data export or deletion. New accounts sign in immediately and retain an unverified email status. Verification and password recovery delivery move to v0.2. Their preserved opt-in SMTP implementation requires operator configuration; the in-memory catcher is restricted to automated test runs. [Workflow-kit documentation](workflow-kit.md) records the required checks. Public deployment still requires the Host and Origin changes in [deployment inputs](deploy-inputs.md).
+The v0.1 local path supports email/password signup without mail, optional TOTP, consented real photo upload, local garment review, a compact wardrobe, one factual outfit suggestion, wearer correction, and full data export or deletion. New accounts sign in immediately and retain an unverified email status. Verification and password recovery delivery move to v0.2. Their preserved opt-in SMTP implementation requires operator configuration; the in-memory catcher is restricted to automated test runs. [Workflow-kit documentation](workflow-kit.md) records the required checks. Public deployment still requires the operator configuration in [deployment inputs](deploy-inputs.md).
 
 ## Capabilities and Constraints
 

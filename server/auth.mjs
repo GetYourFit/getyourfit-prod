@@ -5,17 +5,8 @@ import { simpleParser } from 'mailparser';
 import { betterAuth } from 'better-auth';
 import { twoFactor } from 'better-auth/plugins';
 import { hash, verify } from '@node-rs/argon2';
-import { apiOrigin, apiPort, authSecret } from './config.mjs';
+import { allowedOrigins, authOrigin, authSecret } from './config.mjs';
 import { audit, database } from './database.mjs';
-
-const localOnly = process.env.NODE_ENV !== 'production';
-const baseURL = process.env.BETTER_AUTH_URL || (localOnly ? 'http://127.0.0.1:5173' : apiOrigin);
-const trustedOrigins = new Set([
-  'http://localhost:5173', 'http://127.0.0.1:5173',
-  `http://localhost:${apiPort}`, apiOrigin,
-  baseURL,
-  ...(process.env.GYF_ALLOWED_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean),
-]);
 
 const messages = [];
 function parsedRecipients(addresses = []) {
@@ -129,10 +120,10 @@ export function consumeEmailVerificationToken(token) {
 
 export const auth = betterAuth({
   appName: 'GetYourFit',
-  baseURL,
+  baseURL: authOrigin,
   secret: authSecret,
   database,
-  trustedOrigins: [...trustedOrigins],
+  trustedOrigins: [...allowedOrigins],
   logger: { disabled: true },
   rateLimit: {
     enabled: true,
@@ -176,6 +167,7 @@ export const auth = betterAuth({
   },
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 12, cookieCache: { enabled: false } },
   advanced: {
+    ipAddress: { ipAddressHeaders: ['x-gyf-client-ip'] },
     useSecureCookies: true,
     cookiePrefix: 'gyf',
     defaultCookieAttributes: { httpOnly: true, secure: true, sameSite: 'lax', path: '/' },
