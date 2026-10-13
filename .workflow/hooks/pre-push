@@ -1,0 +1,8 @@
+#!/bin/sh
+# Workflow kit: every check, then the product's acceptance hook, before a push. Vendored by scripts/adopt-product, do not edit here.
+set -eu
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+repo=$(git rev-parse --show-toplevel)
+cd "$repo"
+python3 .workflow/checks.py --root "$repo"
+exec .workflow/acceptance

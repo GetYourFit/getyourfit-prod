@@ -1,0 +1,32 @@
+# Workflow kit: runs the workflow's checks and the product's acceptance hook. Vendored by scripts/adopt-product, do not edit here.
+name: workflow-kit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-kit-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  workflow-kit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Workflow checks
+        env:
+          WF_RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && format('{0}..{1}', github.event.before, github.sha)) || '' }}
+        run: python3 .workflow/checks.py
+      - name: Acceptance hook
+        run: .workflow/acceptance

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Workflow kit: the content checks before a commit. Vendored by scripts/adopt-product, do not edit here.
+set -eu
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+repo=$(git rev-parse --show-toplevel)
+exec python3 "$repo/.workflow/checks.py" --root "$repo" --only secrets --only em-dash --only pins
