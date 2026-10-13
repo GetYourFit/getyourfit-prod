@@ -172,6 +172,13 @@ async function freePort() {
   await new Promise(resolve => probe.close(resolve));
   return port;
 }
+async function requiredControl(locator, message) {
+  try { await locator.waitFor(); } catch (error) {
+    if (error?.name === 'TimeoutError') throw new Error(message);
+    throw error;
+  }
+}
+
 async function waitForServer() {
   const deadline = Date.now() + 20000;
   while (Date.now() < deadline) {
@@ -413,11 +420,12 @@ async function browserJourney(context, page) {
   await page.getByLabel(/^email/i).fill(user.email);
   await page.getByLabel(/^password/i).fill(user.password);
   const age = page.getByRole('checkbox', { name: /18|age/i });
-  await age.waitFor();
+  await requiredControl(age, 'Mandatory 18+ confirmation checkbox is missing from signup');
   await age.check();
   const name = page.getByLabel(/^(your |display )?name$/i);
   await name.waitFor();
   const create = page.getByRole('button', { name: /create.*account|sign up/i });
+  await requiredControl(create, 'Signup action is missing from the account form');
   const signupAttempts = [];
   const observeSignup = request => {
     if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/auth/')) signupAttempts.push(request);

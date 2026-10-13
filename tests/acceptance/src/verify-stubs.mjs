@@ -10,9 +10,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-mutations-'));
 const scratch = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-verifier-'));
 const mutations = [
-  ['browser', caseNames.browser, /Timeout|Unavailable|create.*account/i],
+  ['browser', caseNames.browser, /Signup action is missing from the account form/],
   ['browser-age-unchecked', caseNames.browser, /Unchecked 18\+ signup was not refused/],
-  ['browser-age-missing', caseNames.browser, /Timeout|18\|age/],
+  ['browser-age-missing', caseNames.browser, /Mandatory 18\+ confirmation checkbox is missing from signup/],
   ['empty-name', caseNames.browser, /Empty signup name was not refused/],
   ['signup', caseNames.signup, /Signup returned HTTP 503/],
   ['age-unchecked', caseNames.signup, /Unchecked age confirmation signup accepted without 18\+ confirmation/],
@@ -21,7 +21,7 @@ const mutations = [
   ['duplicate', caseNames.signup, /Login after duplicate signup returned HTTP 401/],
   ['authentication', caseNames.authentication, /Wrong password accepted/],
   ['enumeration', caseNames.authentication, /different refusal body/],
-  ['photo', caseNames.photo, /placeholder, damaged or different|decode/i],
+  ['photo', caseNames.photo, /source image could not be decoded/],
   ['consent', caseNames.photo, /Invalid or non-consented upload accepted/],
   ['invalid-photo', caseNames.photo, /Invalid or non-consented upload accepted/],
   ['outfit', caseNames.outfit, /omits top, bottom or footwear/],
