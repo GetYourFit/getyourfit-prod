@@ -12,7 +12,7 @@ const json = (res, status, data, headers = {}) => { res.writeHead(status, { 'con
 const page = (res, content) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GetYourFit</title><style>body{font:18px sans-serif;margin:16px;color:#222}input,button{display:block;max-width:100%;box-sizing:border-box;margin:8px 0}img{max-width:100%;width:240px}</style></head><body><main>${content}</main></body></html>`); };
 const authenticated = req => sessions.get((req.headers.cookie || '').match(/gyf_session=([^;]+)/)?.[1]);
 const owns = (email, item) => item?.email === email;
-const publicItem = ({ email, ...item }) => item;
+const publicItem = item => { const result = { ...item }; delete result.email; return result; };
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, origin);

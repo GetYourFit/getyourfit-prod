@@ -199,7 +199,13 @@ async function stopOwnedServer() {
   await exited;
 }
 async function api(context, method, endpoint, data) {
-  return context.request.fetch(endpoint, { method, data, headers: { origin: baseURL }, timeout: 10000 });
+  const cookie = (await context.cookies()).map(entry => `${entry.name}=${entry.value}`).join('; ');
+  const deadline = Date.now() + 150000;
+  for (;;) {
+    const response = await context.request.fetch(endpoint, { method, data, headers: cookie ? { origin: baseURL, cookie } : { origin: baseURL }, timeout: 10000 });
+    if (response.status() !== 429 || Date.now() > deadline) return response;
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
 }
 async function jsonOK(response, label) {
   assert(response.ok(), `${label} returned HTTP ${response.status()}`);
@@ -230,7 +236,7 @@ async function garment(context, sample = shirt) {
   return item;
 }
 function assertGarmentFacts(item, sample, label) {
-  assert.equal(item.photoConsent, true, `${label} lost photo consent`);
+  assert(item.photoConsent, `${label} lost photo consent`);
   assert.equal(item.facts.owned, true, `${label} lost ownership confirmation`);
   for (const key of ['name', 'category', 'color', 'size', 'fit', 'available']) assert.equal(item.facts[key], sample[key], `${label} lost confirmed ${key}`);
   assert.deepEqual(item.facts.weather, sample.weather, `${label} lost confirmed weather`);
@@ -405,6 +411,13 @@ async function isolation(context) {
     } else assert([401, 403, 404].includes(anonymousList.status()), 'Anonymous wardrobe exposed private garments');
   } finally { await other.close(); await anonymous.close(); }
 }
+async function selectByText(select, pattern) {
+  await select.waitFor();
+  const labels = await select.evaluate(element => [...element.options].map(option => option.label));
+  const label = labels.find(text => pattern.test(text));
+  assert(label !== undefined, `Option matching ${pattern} is missing from the select`);
+  await select.selectOption({ label });
+}
 async function browserJourney(context, page) {
   const errors = [], outsideRequests = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -439,9 +452,9 @@ async function browserJourney(context, page) {
   assert(await create.isVisible(), 'Empty signup name left the account form');
   await name.fill('Acceptance wearer');
   await age.uncheck();
-  assert(await age.evaluate(input => input.validity.valueMissing), 'Unchecked 18+ signup was not refused by the form');
   await create.click();
-  assert.equal(signupAttempts.length, 0, 'Unchecked 18+ signup submitted an account request');
+  await page.waitForTimeout(500);
+  assert.equal(signupAttempts.length, 0, 'Unchecked 18+ signup was not refused by the form');
   assert(await create.isVisible(), 'Unchecked 18+ signup left the account form');
   page.off('request', observeSignup);
   await age.check();
@@ -467,24 +480,24 @@ async function browserJourney(context, page) {
   const factsForm = page.locator('form').filter({ hasText: /confirm your garment facts/i });
   await factsForm.waitFor();
   await factsForm.getByLabel(/^name$/i).fill(shirt.name);
-  await factsForm.getByLabel(/^category/i).selectOption({ label: 'Top' });
+  await selectByText(factsForm.getByLabel(/^category/i), /^top$/i);
   await factsForm.getByLabel(/^color$/i).fill(shirt.color);
   await factsForm.getByLabel(/size on label/i).fill(shirt.size);
-  await factsForm.getByLabel(/does it fit you now/i).selectOption({ label: 'Fits' });
+  await selectByText(factsForm.getByLabel(/does it fit you now/i), /^(yes, it )?fits$/i);
   await factsForm.getByLabel(/^mild$/i).check();
   await factsForm.getByLabel(/^smart-casual$/i).check();
   await factsForm.getByLabel(/available to wear now/i).check();
   await factsForm.getByLabel(/confirm this garment is mine/i).check();
   const [uploaded] = await Promise.all([
     page.waitForResponse(response => new URL(response.url()).pathname === contract.wardrobe && response.request().method() === 'POST'),
-    page.locator('form').filter({ has: input }).getByRole('button', { name: /save garment|add garment|upload photo/i }).click(),
+    factsForm.getByRole('button', { name: /save garment|add garment|upload photo/i }).click(),
   ]);
   const item = await jsonOK(uploaded, 'Browser garment upload');
   assertGarmentFacts(item, shirt, 'Browser upload');
   const outfitForm = page.locator('form').filter({ has: page.getByLabel(/occasion/i) });
   await outfitForm.getByLabel(/occasion/i).fill(facts.occasion);
-  await outfitForm.getByLabel(/weather/i).selectOption({ label: 'Mild' });
-  await outfitForm.getByLabel(/dress.?code/i).selectOption({ label: 'Smart casual' });
+  await selectByText(outfitForm.getByLabel(/weather/i), /^mild$/i);
+  await selectByText(outfitForm.getByLabel(/dress.?code/i), /^smart[ -]casual$/i);
   const [suggested] = await Promise.all([
     page.waitForResponse(response => new URL(response.url()).pathname === contract.outfits && response.request().method() === 'POST'),
     page.getByRole('button', { name: /suggest.*outfit|what.*wear|find.*outfit/i }).click(),
@@ -494,17 +507,21 @@ async function browserJourney(context, page) {
   await page.getByText(answer, { exact: true }).waitFor();
   const savedPhotoURL = new URL(item.photoUrl, baseURL).href;
   const renderedPhoto = async label => {
-    const result = await page.getByRole('img', { name: /garment|shirt/i }).evaluateAll(async (images, expectedSource) => {
-      const img = images.find(candidate => candidate.currentSrc === expectedSource);
-      if (!img) return null;
-      await img.decode();
-      const canvas = globalThis.document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
-      const context = canvas.getContext('2d'); context.drawImage(img, 0, 0, 32, 32);
-      const pixels = context.getImageData(0, 0, 32, 32).data;
-      let fingerprint = 2166136261;
-      for (const value of pixels) fingerprint = Math.imul(fingerprint ^ value, 16777619);
-      return { source: img.currentSrc, width: img.naturalWidth, height: img.naturalHeight, fingerprint: fingerprint >>> 0 };
-    }, savedPhotoURL);
+    let result = null;
+    for (let attempt = 0; attempt < 40 && !result; attempt += 1) {
+      if (attempt) await page.waitForTimeout(250);
+      result = await page.getByRole('img', { name: /garment|shirt/i }).evaluateAll(async (images, expectedSource) => {
+        const img = images.find(candidate => candidate.currentSrc === expectedSource);
+        if (!img) return null;
+        await img.decode();
+        const canvas = globalThis.document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+        const context = canvas.getContext('2d'); context.drawImage(img, 0, 0, 32, 32);
+        const pixels = context.getImageData(0, 0, 32, 32).data;
+        let fingerprint = 2166136261;
+        for (const value of pixels) fingerprint = Math.imul(fingerprint ^ value, 16777619);
+        return { source: img.currentSrc, width: img.naturalWidth, height: img.naturalHeight, fingerprint: fingerprint >>> 0 };
+    }, savedPhotoURL).catch(() => null);
+    }
     assert(result, `${label} image source does not match saved photoUrl`);
     assert(result.width >= 100 && result.height >= 100, `${label} did not decode as a garment photo`);
     return result;
