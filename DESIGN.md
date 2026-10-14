@@ -11,9 +11,9 @@ An editorial wardrobe companion: garment photographs carry the visual weight, wi
 | Canvas | `#F4F1EB` |
 | Surface | `#FFFEFC` |
 | Ink | `#252621` |
-| Muted ink | `#74736B` |
+| Muted ink | `#68675F` |
 | Rule | `#DDD9D0` |
-| Accent | `#C65D43` |
+| Accent | `#A44D37` |
 | Soft accent | `#F4E7E1` |
 | Positive | `#53694E` |
 

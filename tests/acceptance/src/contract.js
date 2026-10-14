@@ -9,6 +9,7 @@ export const contract = {
 };
 
 export const caseNames = {
+  contrast: 'V02 visible text meets WCAG AA contrast on phone and desktop',
   browser: 'V01 browser signup, real photo, clarification and exact refresh',
   signup: 'V01 API signup creates a usable private session without mail',
   authentication: 'V01 wrong and unknown credentials are refused without enumeration',

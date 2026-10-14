@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import axe from 'axe-core';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdir, readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { createServer as tcpServer } from 'node:net';
@@ -34,6 +35,7 @@ const shirt = garments[0];
 const facts = { occasion: 'dinner', weather: 'mild', dressCode: 'smart-casual' };
 const secrets = new Set();
 const cases = [
+  [caseNames.contrast, ['A-1'], contrastJourney],
   [caseNames.browser, ['R4', 'R5', 'R7', 'R26', 'A-1'], browserJourney],
   [caseNames.signup, ['R4', 'R26', 'R27', 'A-1'], signupJourney],
   [caseNames.authentication, ['R26', 'R27'], authenticationFailures],
@@ -411,6 +413,36 @@ async function selectByText(select, pattern) {
   const label = labels.find(text => pattern.test(text));
   assert(label !== undefined, `Option matching ${pattern} is missing from the select`);
   await select.selectOption({ label });
+}
+async function contrastJourney(context, page) {
+  const scans = [];
+  async function scan(surface) {
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.evaluate(axe.source);
+      const result = await page.evaluate(async () => {
+        const { violations, incomplete, passes } = await globalThis.axe.run(globalThis.document, { runOnly: ['color-contrast'] });
+        const findings = items => items.map(({ id, nodes }) => ({ id, nodes: nodes.map(({ target, any }) => ({ target, checks: any.map(({ message, data }) => ({ message, data })) })) }));
+        return { violations: findings(violations), incomplete: findings(incomplete), checked_nodes: passes.reduce((sum, rule) => sum + rule.nodes.length, 0) };
+      });
+      scans.push({ surface, width, ...result });
+      await writeFile(path.join(output, 'contrast.json'), `${JSON.stringify(scans, null, 2)}\n`);
+      await page.screenshot({ path: path.join(output, 'screenshots', `contrast-${surface}-${width}.png`), fullPage: true, mask: [page.locator('input[type=email], input[type=password]'), ...[...secrets].map(secret => page.getByText(secret, { exact: false }))] });
+      assert.equal(result.violations.length, 0, `WCAG AA color-contrast failed on ${surface} at ${width}px: ${JSON.stringify(result.violations)}`);
+      assert.equal(result.incomplete.length, 0, `WCAG AA color-contrast needs review on ${surface} at ${width}px: ${JSON.stringify(result.incomplete)}`);
+      assert(result.checked_nodes > 0, `WCAG AA color-contrast checked no text on ${surface} at ${width}px`);
+    }
+  }
+  await page.goto(baseURL);
+  await page.getByRole('main').waitFor();
+  await scan('signed-out');
+  await page.getByRole('link', { name: /get started|sign up|create.*account/i }).or(page.getByRole('button', { name: /get started|sign up|create.*account/i })).first().click();
+  await page.getByLabel(/^(your |display )?name$/i).waitFor();
+  await scan('signup');
+  await signup(context);
+  await page.goto('/wardrobe');
+  await page.getByRole('button', { name: /^add garment$/i }).waitFor();
+  await scan('wardrobe-account');
 }
 async function browserJourney(context, page) {
   const errors = [], outsideRequests = [];
