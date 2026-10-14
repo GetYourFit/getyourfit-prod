@@ -30,7 +30,7 @@ The v0.1 local path supports email/password signup without mail, optional TOTP, 
 
 ## Capabilities and Constraints
 
-- Store garment photos and wardrobe records on the same device. Resize photos in the browser before the local service stores them.
+- Store garment photos and wardrobe records privately on the GetYourFit server, in the wearer's account. Resize photos in the browser before upload; the photo and its facts leave the browser to reach the server, which classifies the photo without an external recognition service. Nothing is sold, shared or used for model training.
 - Ask for explicit photo consent and allow the wearer to correct garment facts.
 - Make one complete outfit decision from available owned items. Enforce only ownership, availability, size, weather, dress code, and budget facts.
 - Ask a clarifying question when a required fact is unknown. Never represent an incomplete set as a complete outfit.
