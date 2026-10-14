@@ -203,7 +203,7 @@ app.use('/api/auth', (request, response, next) => {
 app.use((error, _request, response, next) => {
   if (response.headersSent) return next(error);
   audit('request-failed');
-  response.status(500).json({ error: 'The local service hit a problem. Try again.' });
+  response.status(500).json({ error: 'Something went wrong on our side. Try again.' });
 });
 
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
