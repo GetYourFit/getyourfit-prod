@@ -480,6 +480,7 @@ async function frontDoorJourney(context, page) {
     const violations = await page.evaluate(async () => (await globalThis.axe.run(globalThis.document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } })).violations.map(({ id, nodes }) => ({ id, targets: nodes.map(node => node.target) })));
     assert.deepEqual(violations, [], `Public screen fails automated WCAG AA at ${width}px: ${JSON.stringify(violations)}`);
   }
+  await assertHostedPrivacy(page, 'public');
   assert.equal(apiRequests.length, 0, 'The public example depends on account APIs');
   const entry = await page.locator('script[type=module][src]').first().getAttribute('src');
   assert(entry, 'The public application module is missing');
@@ -502,6 +503,7 @@ async function frontDoorJourney(context, page) {
   const name = page.getByLabel(/^(your |display )?name$/i);
   await name.waitFor();
   assert(await name.evaluate(element => element === globalThis.document.activeElement), 'Signup entry lost keyboard focus');
+  await assertHostedPrivacy(page, 'signup');
   const password = page.getByLabel(/^password/i);
   const description = await password.evaluate(element => (element.getAttribute('aria-describedby') || '').split(/\s+/).map(id => globalThis.document.getElementById(id)?.textContent || '').join(' '));
   assert.match(description, /12/, 'Signup password requirements are not described');
@@ -531,6 +533,11 @@ async function frontDoorJourney(context, page) {
   assert(await heading.evaluate(element => element === globalThis.document.activeElement), 'Successful signup lost wardrobe focus');
   const garments = await jsonOK(await api(context, 'GET', contract.wardrobe), 'New wardrobe');
   assert.deepEqual(garments, [], 'Example garments were inserted into the private wardrobe');
+  await assertHostedPrivacy(page, 'wardrobe/account');
+}
+async function assertHostedPrivacy(page, surface) {
+  const claims = await page.locator('body').innerText();
+  assert.doesNotMatch(claims, /\b(?:sav(?:ed|ing|e)|stor(?:ed|ing|e)|kept|private|stays?|remains?)[^,.;!?\n]{0,80}\b(?:on|in)\s+(?:this|your|the)\s+(?:device|phone|browser)\b|\bno (?:image|photo) leaves (?:this|your|the) device\b/i, `False on-device storage claim on ${surface}`);
 }
 async function signupSubmission(page, action, input) {
   try {
@@ -595,6 +602,7 @@ async function browserJourney(context, page) {
   if (!(await input.isVisible())) await entry.first().click();
   await input.waitFor();
   const consent = page.getByRole('checkbox', { name: /photo|process/i });
+  await assertHostedPrivacy(page, 'garment consent');
   assert.equal(await consent.isChecked(), false, 'Photo consent was preselected');
   await consent.check();
   await input.setInputFiles(path.join(suiteRoot, 'fixtures', shirt.filename));
@@ -651,11 +659,13 @@ async function browserJourney(context, page) {
   };
   const image = page.getByRole('img', { name: /garment|shirt/i }).first();
   await image.waitFor();
+  await assertHostedPrivacy(page, 'saved garment/outfit');
   const uploadedPhoto = await renderedPhoto('Uploaded garment');
   await page.reload();
   await session(context, user.email);
   const reloadedImage = page.getByRole('img', { name: /garment|shirt/i }).first();
   await reloadedImage.waitFor();
+  await assertHostedPrivacy(page, 'refreshed wardrobe/account');
   const reloadedPhoto = await renderedPhoto('Reloaded garment');
   assert.equal(reloadedPhoto.fingerprint, uploadedPhoto.fingerprint, 'Reloaded garment image changed from the saved photo');
   for (const width of [320, 390, 768, 1440]) {

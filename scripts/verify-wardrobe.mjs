@@ -38,7 +38,7 @@ function chrome(args) {
 }
 
 function element(role, name, index = 0) {
-  const entry = chrome(['snapshot', '--full']).split('\n').filter((line) => line.includes(` ${role} "${name}"`))[index];
+  const entry = chrome(['snapshot', '--full']).split('\n').filter((line) => line.includes(` ${role} "${name}"`) || line.includes(` ${role} "${name} `))[index];
   assert.ok(entry, `Missing ${role}: ${name}`);
   const uid = entry.match(/uid=(\S+)/)?.[1];
   assert.ok(uid);
@@ -113,7 +113,7 @@ function check(name) { chrome(['click', element('checkbox', name)]); }
 async function addGarment(category, name, color, fit, testBadPhoto = false) {
   click('Add garment');
   assert.equal(evaluate('() => document.querySelector("input[type=file]").disabled'), true, 'Photo processed without consent.');
-  check('I own this garment and have permission to use its photo. I consent to processing and storing it on this device, without sharing or model training.');
+  check('I own this garment and have permission to use its photo. I consent to reviewing and storing it in my private account on the GetYourFit server, without sharing or model training.');
   if (testBadPhoto) {
     const bad = path.join(root, 'tests/fixtures/damaged.jpg');
     const before = evaluate('() => performance.getEntriesByType("resource").filter(e => e.name.includes("/api/wardrobe/review")).length');
@@ -132,12 +132,13 @@ async function addGarment(category, name, color, fit, testBadPhoto = false) {
 
 try {
   run('npm', ['run', 'build']);
-  await startServer(); chrome(['open', origin]); chrome(['emulate', '--viewport', '1440x1000x1']);
+  await startServer(); chrome(['open', `${origin}/sign-in`]); chrome(['emulate', '--viewport', '1440x1000x1']);
   await shown('Welcome back.'); capture('wardrobe-signin-desktop');
   chrome(['emulate', '--viewport', '390x844x1,mobile,touch']);
   assert.equal(evaluate('() => window.innerWidth'), 390);
   assert.equal(evaluate('() => document.documentElement.scrollWidth <= window.innerWidth'), true);
-  capture('wardrobe-signin-mobile'); chrome(['emulate', '--viewport', '1440x1000x1']);
+  await shown('Welcome back.'); capture('wardrobe-signin-mobile'); chrome(['emulate', '--viewport', '1440x1000x1']);
+  await shown('Welcome back.');
   click('Create an account'); fill('YOUR NAME', 'Wardrobe wearer'); fill('EMAIL ADDRESS', email); fill('PASSWORD', password);
   check('I confirm I am at least 18 years old. GetYourFit does not create an account for minors.'); click('Create account');
   await shown('A wardrobe worth knowing.'); capture('wardrobe-before');
@@ -191,7 +192,7 @@ try {
   await shown('White T-shirt'); fill('Occasion', 'Lunch with a friend'); select('Weather', 'mild'); select('Dress code', 'casual'); click('Find an outfit'); await shown('A complete set for');
   chrome(['click', element('button', 'Don’t use this for this occasion')]); await shown('Your correction wins.');
   assert.equal(evaluate('() => document.querySelectorAll(".outfit-item").length'), 0);
-  chrome(['open', origin]); await shown('White T-shirt'); fill('Occasion', '  LUNCH WITH A FRIEND  '); select('Weather', 'mild'); select('Dress code', 'casual');
+  chrome(['open', `${origin}/wardrobe`]); await shown('White T-shirt'); fill('Occasion', '  LUNCH WITH A FRIEND  '); select('Weather', 'mild'); select('Dress code', 'casual');
   click('Find an outfit'); await shown('1 item stays excluded'); capture('wardrobe-correction');
   const corrected = browserApi('/api/wardrobe/outfit', { occasion: '  LUNCH WITH A FRIEND  ', weather: 'mild', dressCode: 'casual' }).body;
   assert.equal(corrected.kind, 'incomplete'); assert.equal(corrected.excludedCount, 1);
@@ -248,14 +249,14 @@ try {
   assert.equal((await (await fetch(`${origin}/api/wardrobe`, { headers: otherHeaders })).json()).length, 0);
   const untrusted = await fetch(`${origin}/api/wardrobe/review`, { method: 'POST', headers: { Origin: 'https://example.invalid', 'Content-Type': 'application/json' }, body: '{}' });
   assert.equal(untrusted.status, 403);
-  click('Sign out'); await shown('Welcome back.');
+  click('Sign out'); await shown('Example outfit');
   const signedOutState = acceptanceState();
   assert.throws(() => assertAcceptance(signedOutState), /R13: sign-in/);
-  fill('EMAIL ADDRESS', email); fill('PASSWORD', password); click('Sign in'); await shown('White T-shirt');
-  await stopServer(); await startServer(); chrome(['open', origin]); await shown('White T-shirt');
+  chrome(['open', `${origin}/sign-in`]); await shown('Welcome back.'); fill('EMAIL ADDRESS', email); fill('PASSWORD', password); click('Sign in'); await shown('White T-shirt');
+  await stopServer(); await startServer(); chrome(['open', `${origin}/wardrobe`]); await shown('White T-shirt');
   assert.equal(evaluate('() => document.querySelectorAll(".garment-card img").length'), 2);
   assert.equal(evaluate('() => [...document.querySelectorAll(".garment-card img")].every(img => img.complete && img.naturalWidth > 0)'), true);
-  click('Download export'); click('Delete my data'); click('Erase permanently'); await shown('Welcome back.');
+  click('Download export'); click('Delete my data'); click('Erase permanently'); await shown('Example outfit');
   const db = new Database(path.join(dataDir, 'getyourfit.sqlite'), { readonly: true });
   assert.equal(db.prepare('SELECT count(*) AS n FROM garments').get().n, 0);
   assert.equal(db.prepare('SELECT count(*) AS n FROM outfit_exclusions').get().n, 0); db.close();
