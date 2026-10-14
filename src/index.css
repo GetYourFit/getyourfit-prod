@@ -1,17 +1,17 @@
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #252621;
-  background: #f4f1eb;
+  font-family: Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #1d2724;
+  background: #f7f8f5;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --canvas: #f4f1eb;
-  --surface: #fffefc;
-  --ink: #252621;
-  --muted: #68675f;
-  --quiet: #68675f;
+  --canvas: #f7f8f5;
+  --surface: #fff;
+  --ink: #1d2724;
+  --muted: #56645d;
+  --quiet: #56645d;
   --rule: #ddd9d0;
-  --accent: #a44d37;
+  --accent: #285342;
   --positive: #53694e;
   --serif: Iowan Old Style, Baskerville, 'Palatino Linotype', Georgia, serif;
   --mono: ui-monospace, 'SFMono-Regular', Consolas, monospace;
@@ -26,20 +26,20 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 h1, h2, h3, p { margin-top: 0; }
 .brand-mark { display: grid; width: 39px; height: 39px; place-items: center; border-radius: 50%; background: var(--ink); color: var(--canvas); font-family: var(--serif); font-size: 25px; line-height: 1; }
-.eyebrow, .auth-number, .auth-edge-note { color: var(--accent); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.eyebrow { color: var(--accent); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .auth-layout { display: grid; min-height: 100vh; grid-template-columns: minmax(0, 1.06fr) minmax(380px, .94fr); }
 .auth-copy { display: flex; flex-direction: column; justify-content: space-between; min-height: 100vh; padding: clamp(30px, 6vw, 82px); }
 .auth-main { max-width: 550px; margin: auto 0; padding: 42px 0; }
 .auth-main .eyebrow { margin-bottom: 22px; }
-.auth-main h1 { margin: 0 0 20px; font-family: var(--serif); font-size: clamp(58px, 8vw, 104px); font-weight: 400; letter-spacing: -.045em; line-height: .96; }
+.auth-main h1 { margin: 0 0 20px; font-size: clamp(40px, 5vw, 64px); font-weight: 600; letter-spacing: -.035em; line-height: 1.08; }
 .auth-description { max-width: 420px; margin-bottom: 29px; color: #68675f; font-size: 15px; line-height: 1.7; }
 .auth-points { display: grid; gap: 13px; color: #595a53; font-size: 12px; }
 .auth-points div { display: flex; align-items: center; gap: 10px; }
 .auth-points svg { color: var(--positive); }
 .auth-footnote { margin: 0; color: var(--quiet); font-family: var(--mono); font-size: 9px; letter-spacing: .06em; }
-.auth-action { position: relative; display: grid; min-height: 100vh; place-items: center; border-left: 1px solid var(--rule); background: #efede7; }
+.auth-action { position: relative; display: grid; min-height: 100vh; place-items: center; border-left: 1px solid var(--rule); background: var(--surface); }
 .auth-action-inner { width: min(370px, calc(100% - 64px)); padding: 64px 0; }
-.auth-action h2 { margin: 18px 0 8px; font-family: var(--serif); font-size: 36px; font-weight: 400; letter-spacing: -.035em; }
+.auth-action h2 { margin: 18px 0 8px; font-size: 36px; font-weight: 600; letter-spacing: -.035em; }
 .auth-action-inner > p:not(.inline-error) { margin-bottom: 22px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .auth-form { display: grid; gap: 14px; }
 .auth-form label { display: grid; gap: 7px; }
@@ -64,7 +64,6 @@ h1, h2, h3, p { margin-top: 0; }
 .privacy-note svg { flex: 0 0 auto; margin-top: 1px; color: var(--positive); }
 .mail-delivery-note { display: flex; gap: 9px; border: 1px solid #d9d4ca; border-radius: 5px; padding: 12px; color: #5d5c55; font-size: 11px; line-height: 1.6; }
 .mail-delivery-note svg { flex: 0 0 auto; color: var(--positive); }
-.auth-edge-note { position: absolute; right: 24px; bottom: 19px; color: var(--quiet); font-size: 8px; }
 .account-shell { min-height: 100vh; }
 .account-topbar { display: flex; height: 68px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--rule); padding: 0 clamp(24px, 7vw, 100px); }
 .brand-lockup { display: flex; align-items: center; gap: 11px; text-decoration: none; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; }
@@ -115,7 +114,6 @@ h1, h2, h3, p { margin-top: 0; }
   .auth-action { min-height: auto; border-top: 1px solid var(--rule); border-left: 0; }
   .auth-action-inner { width: min(calc(100% - 48px), 390px); padding: 25px 0 58px; }
   .auth-action h2 { margin-top: 12px; font-size: 31px; }
-  .auth-edge-note { display: none; }
   .account-topbar { height: 59px; padding: 0 21px; }
   .account-topbar .brand-lockup, .account-topbar .text-button { flex-shrink: 0; }
   .account-email { min-width: 0; margin: 0 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -214,3 +212,17 @@ select:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); 
   .garment-card > img, .outfit-item > img { aspect-ratio: 4 / 3; }
   .wardrobe-empty { gap: 20px; }
 }
+
+.auth-description { color: var(--muted); font-size: 16px; }
+.auth-action-inner > p:not(.inline-error) { font-size: 16px; }
+.auth-form .field-label { font-family: inherit; font-size: 14px; letter-spacing: 0; }
+.auth-form .text-input { font-size: 16px; border-color: #7f8f85; border-radius: 8px; }
+.auth-form .button { font-size: 16px; border-radius: 8px; min-height: 48px; }
+.auth-layout .text-button { min-height: 44px; font-size: 14px; text-decoration: none; }
+.auth-layout .consent-check, .auth-layout .privacy-note { font-size: 14px; }
+.auth-layout .inline-error { font-size: 14px; }
+.auth-layout .form-note { color: var(--muted); font-size: 14px; }
+.auth-layout .age-check input { width: 18px; height: 18px; flex: 0 0 auto; }
+.auth-layout [role=alert]:focus { outline: 3px solid var(--accent); outline-offset: 3px; }
+.auth-status { min-height: 21px; margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+#wardrobe-title:focus-visible { outline: 3px solid var(--accent); outline-offset: 6px; }

@@ -11,7 +11,7 @@ The 2026-10-12 version ladder targets v0.1: email/password signup without mail, 
 | A05 | Probe origin and rate controls | Cross-origin and missing-origin mutations fail; reset and sign-in rate limits trigger; a successful sign-in clears the user's failure count. | Passed locally in `npm run verify:auth` |
 | A06 | Configure TOTP, use an invalid code, then sign in with a valid code | Invalid codes fail; enrollment and a valid code work; setup data is not exposed during sign-in. | Passed locally in `npm run verify:auth` |
 | A07 | Sign out locally and everywhere | Local sign-out ends this session. Revoke-all deletes every account session and clears the configured secure cookie. | Passed locally in `npm run verify:auth` |
-| A08 | Add a real garment photo | Ask permission before local processing; resize in browser; invalid bytes and unsupported types are rejected; no image leaves the device. | Passed locally in `verify:wardrobe`; consent, real CC0 photos, invalid browser decode and authenticated API rejection |
+| A08 | Add a real garment photo | Ask permission before the photo is reviewed and stored in the wearer's private account on the GetYourFit server; resize in browser; invalid bytes and unsupported types are rejected; the resized photo is uploaded to the server for review. | Passed locally in `verify:wardrobe`; consent, real CC0 photos, invalid browser decode and authenticated API rejection. Correction 2026-10-14: the v0.1 wording said local processing and that no image leaves the device; the hosted product uploads the resized photo to the server, so that claim was false for production |
 | A09 | Review and correct the garment | Show honest classifier source, version, and confidence; wearer correction persists with source `wearer-correction`, model version `null`, and confidence `1`. | Passed locally; advisory Vision classification and confirmed facts remain separate; fit and availability corrections persisted |
 | A10 | Reopen the wardrobe | The saved real photo loads from the local service and corrected facts remain visible after refresh. | Passed locally; refresh and same-database restart preserve private images and facts |
 | A11 | Request an outfit with unknown required facts | Ask one focused question; do not describe an incomplete set as complete. | Passed locally; unknown context and unknown fit each ask one question |
@@ -29,7 +29,7 @@ Keep the database, browser state, and photos isolated. Capture action and result
 
 ## Photo decode regression
 
-Select `tests/fixtures/damaged.jpg`, the five-byte sequence `00 01 02 03 04`, through **Review photo on this device** after confirming photo permission. The page must announce `This file could not be opened as an image. Choose a different JPEG, PNG, or WebP photo.`, keep Save disabled, and send no request to `/api/wardrobe/review`. Then select a valid licensed photograph and confirm that review reaches the local classifier. Keep screenshots and network evidence outside the repository.
+Select `tests/fixtures/damaged.jpg`, the five-byte sequence `00 01 02 03 04`, through **Review your photo** after confirming photo permission. The page must announce `This file could not be opened as an image. Choose a different JPEG, PNG, or WebP photo.`, keep Save disabled, and send no request to `/api/wardrobe/review`. Then select a valid licensed photograph and confirm that review reaches the server classifier. Keep screenshots and network evidence outside the repository.
 
 ## R13 contract
 

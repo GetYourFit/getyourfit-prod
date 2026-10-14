@@ -13,7 +13,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
       credentials: 'same-origin',
     });
   } catch {
-    throw new Error('The local service is unavailable. Check that it is running, then try again.');
+    throw new Error('We could not connect to GetYourFit. Check your connection and try again.');
   }
   if (!response.ok) {
     const result = await response.json().catch(() => ({})) as ApiError;

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /wardrobe
+Disallow: /sign-in
+Disallow: /sign-up

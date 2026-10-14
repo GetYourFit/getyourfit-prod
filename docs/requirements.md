@@ -12,7 +12,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | R4 | slice1-local | Account, real photo, correction, wardrobe, one outfit, export, and deletion; fit, purchase, social, and long-term memory are deferred. |
 | R5 | slice1-local | Occasion, weather, and dress code feed one clear outfit action; unknown required facts produce one question. Natural-language parsing and shopping context are deferred. |
 | R6 | next | This slice asks only the questions required to complete its decision. Broader adaptive onboarding needs outcome evidence. |
-| R7 | slice1-local | One consented real photo is resized, classified locally, reviewed, corrected, and stored with provenance. Additional ownership states and ingestion channels are deferred. |
+| R7 | slice1-local | One consented real photo is resized in the browser, classified on the server, reviewed, corrected, and stored with provenance. Additional ownership states and ingestion channels are deferred. |
 | R8 | next | Persisted user corrections are the first memory signal; the broader typed style memory and decay model need repeated outcomes. |
 | R9 | slice1-local | Explicit owned garment photos and facts only. Imports and other ownership states come later. |
 | R10 | slice1-local | Store category, color, size, fit, availability, weather, and dress-code facts with source and inference provenance. Extended material, measurement, and commerce fields are deferred. |
@@ -64,7 +64,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | Area | Status | Evidence boundary |
 | --- | --- | --- |
 | Understand value, secure account, minimal onboarding | slice1-local | v0.1 email/password creation and sign-in, 18+ confirmation and local session; verification/recovery delivery remains v0.2. |
-| Real photo and correctable interpretation | slice1-local | Browser resize, explicit photo consent, on-device Apple Vision, persisted wearer correction, and local image load. |
+| Real photo and correctable interpretation | slice1-local | Browser resize, explicit photo consent, server-side Apple Vision classification, persisted wearer correction, and private image load from the account. |
 | Wardrobe and outfit judgment | slice1-local | Complete outfit only from owned, available, fitting items matching known weather and dress code; one clarifying question or an abstention otherwise. |
 | Model-driven taste, look adaptation, fit advice, commerce, try-on | deferred-with-reason | No evaluated taste model, licensed look corpus, fit evidence, commerce, or validated try-on model is available for slice 1. |
 | Persistent correction, export, deletion | slice1-local | Saved context-specific corrections, archive export, and account cascade deletion. |
