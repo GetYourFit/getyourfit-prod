@@ -10,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-mutations-'));
 const scratch = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-verifier-'));
 const mutations = [
+  ['contrast', caseNames.contrast, /WCAG AA color-contrast failed.*signed-out.*390px/],
   ['browser', caseNames.browser, /Signup action is missing from the account form/],
   ['browser-age-unchecked', caseNames.browser, /Unchecked 18\+ signup was not refused/],
   ['browser-age-missing', caseNames.browser, /Mandatory 18\+ confirmation checkbox is missing from signup/],
