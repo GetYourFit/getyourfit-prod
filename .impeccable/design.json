@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-14T07:23:40.546Z",
+  "title": "Design System: GetYourFit",
+  "extensions": {
+    "colorMeta": {
+      "action": {
+        "role": "primary",
+        "displayName": "Deep green"
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Cool near-white"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Green-black"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted green-gray"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Public value statement",
+        "purpose": "First-screen heading, responsive 40/52/64px."
+      },
+      "body": {
+        "displayName": "Body and account input",
+        "purpose": "Readable copy and phone forms."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "action-color",
+        "value": "background-color 150ms ease",
+        "purpose": "Primary action hover; removed with reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "600px"
+      },
+      {
+        "name": "tablet",
+        "value": "1000px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Public primary action",
+      "kind": "button",
+      "refersTo": "public-primary",
+      "description": "The wardrobe entry action following the example.",
+      "html": "<a class=\"ds-primary\" href=\"/sign-up\">Build my wardrobe <span aria-hidden=\"true\">→</span></a>",
+      "css": ".ds-primary { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 24px; margin-top: 24px; border-radius: 8px; padding: 12px 20px; background: #285342; color: white; font-weight: 600; text-decoration: none; transition: background-color 150ms ease; }\n.ds-primary:hover { background: #183b2e; }\n.ds-primary { margin-top: 20px; }\n.ds-primary { font-family: Manrope, -apple-system, sans-serif; box-sizing: border-box; } .ds-primary:focus-visible { outline: 3px solid #285342; outline-offset: 3px; } @media(prefers-reduced-motion:reduce) { .ds-primary {transition:none;} }"
+    },
+    {
+      "name": "Account input",
+      "kind": "input",
+      "refersTo": "account-input",
+      "description": "Labeled account entry with readable phone text.",
+      "html": "<label class=\"ds-label\">Name<input class=\"ds-input\" name=\"name\" autocomplete=\"name\" required></label>",
+      "css": ".ds-label { display:grid; gap:7px; font:14px Manrope,sans-serif; color:#1d2724; } .ds-input { padding:12px; background:#fff; color:#1d2724; font:16px Manrope,sans-serif; border:1px solid #7f8f85; border-radius:8px; } .ds-input:focus-visible {outline:3px solid #285342;outline-offset:3px;}"
+    },
+    {
+      "name": "Example details",
+      "kind": "custom",
+      "description": "Native disclosure for illustrative facts and limitations.",
+      "html": "<details class=\"ds-details\"><summary>About this example</summary><p>These are illustrative facts, shown with historical collection photographs.</p></details>",
+      "css": ".ds-details { font:14px/1.5 Manrope,sans-serif; color:#1d2724; } .ds-details summary { display:flex;align-items:center;min-height:44px;cursor:pointer;font-weight:600;text-decoration:underline;text-underline-offset:4px;} .ds-details summary:focus-visible {outline:3px solid #285342;outline-offset:3px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The clothes, explained",
+    "overview": "Real garment photographs carry the visual weight. Clear type and restrained green controls help the wearer inspect an explained outcome and act.",
+    "keyCharacteristics": [
+      "Composed real garment photographs",
+      "Clear sans-serif hierarchy",
+      "Flat surfaces",
+      "Honest private-account storage"
+    ],
+    "rules": [],
+    "dos": [
+      "Use licensed real garments and preserve provenance.",
+      "Keep examples separate from private wardrobes.",
+      "Keep deliberate focus and readable loading states."
+    ],
+    "donts": [
+      "Do not claim hosted photographs stay on a phone.",
+      "Do not canonize the legacy private layouts.",
+      "Do not fabricate fit predictions or research."
+    ]
+  }
+}

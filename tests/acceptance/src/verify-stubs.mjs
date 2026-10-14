@@ -10,7 +10,22 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = process.env.ACCEPTANCE_OUTPUT || await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-mutations-'));
 const scratch = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-verifier-'));
 const mutations = [
-  ['contrast', caseNames.contrast, /WCAG AA color-contrast failed.*signed-out.*390px/],
+  ['contrast', caseNames.contrast, /WCAG AA color-contrast failed.*public.*390px/],
+  ['public-login-wall', caseNames.frontDoor, /public first screen has no labeled example outfit/],
+  ['public-photo', caseNames.frontDoor, /public example photo is missing or a placeholder/],
+  ['public-reason', caseNames.frontDoor, /public example has no explanation/],
+  ['public-facts', caseNames.frontDoor, /invented wearer facts as real/],
+  ['public-privacy', caseNames.frontDoor, /Privacy copy falsely claims hosted photos stay on the phone/],
+  ['public-small-action', caseNames.frontDoor, /primary wardrobe action is too small to tap/],
+  ['public-uncompressed', caseNames.frontDoor, /public application module is not compressed/],
+  ['auth-loading', caseNames.frontDoor, /Signup loading has no status announcement/],
+  ['auth-focus', caseNames.frontDoor, /Signup entry lost keyboard focus/],
+  ['auth-password-help', caseNames.frontDoor, /Signup password requirements are not described/],
+  ['auth-small-input', caseNames.frontDoor, /Phone signup inputs are too small/],
+  ['auth-enter', caseNames.frontDoor, /Browser signup did not submit on Enter/],
+  ['auth-error-focus', caseNames.frontDoor, /Signup error lost keyboard focus/],
+  ['wardrobe-focus', caseNames.frontDoor, /Successful signup lost wardrobe focus/],
+  ['auth-tap', caseNames.browser, /Browser signup did not submit on tap/],
   ['browser', caseNames.browser, /Signup action is missing from the account form/],
   ['browser-age-unchecked', caseNames.browser, /Unchecked 18\+ signup was not refused/],
   ['browser-age-missing', caseNames.browser, /Mandatory 18\+ confirmation checkbox is missing from signup/],

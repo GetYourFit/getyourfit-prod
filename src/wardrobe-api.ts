@@ -6,7 +6,7 @@ export async function wardrobeRequest<T>(path: string, schema: z.ZodType<T>, bod
     response = await fetch(`/api/wardrobe${path}`, { method, credentials: 'same-origin',
       ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) });
   } catch {
-    throw new Error('The local service is unavailable. Start it and try again.');
+    throw new Error('We could not connect to GetYourFit. Check your connection and try again.');
   }
   const payload: unknown = await response.json();
   if (!response.ok) {

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import http from 'node:http';
 import { isIP } from 'node:net';
 import express from 'express';
+import compression from 'compression';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
@@ -207,6 +208,7 @@ app.use((error, _request, response, next) => {
 
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
   const staticRoot = path.join(root, 'dist');
+  app.use(compression({ filter: (request, response) => !request.path.startsWith('/api/') && compression.filter(request, response) }));
   app.use(express.static(staticRoot, { etag: true, maxAge: '1h' }));
   app.use((request, response) => {
     if (request.path.startsWith('/api/')) return response.status(404).json({ error: 'This action is not available.' });

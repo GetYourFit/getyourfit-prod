@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Plus, ArrowUpRight } from 'lucide-react';
 import { contextSchema, decisionSchema, dressCodeSchema, garmentSchema, wardrobeSchema, weatherSchema, type Context, type Decision, type Garment } from '../shared/wardrobe';
@@ -16,8 +16,10 @@ export function Wardrobe() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [remove, setRemove] = useState('');
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
+    titleRef.current?.focus();
     let mounted = true;
     void wardrobeRequest('', wardrobeSchema, undefined, 'GET').then((items) => { if (mounted) setGarments(items); }).catch((cause: unknown) => {
       if (mounted) setError(cause instanceof Error ? cause.message : 'Your wardrobe could not be loaded.');
@@ -37,11 +39,11 @@ export function Wardrobe() {
 
   return <div className="wardrobe-content">
     <section aria-labelledby="wardrobe-title">
-      <div className="section-heading wardrobe-heading"><div><p className="eyebrow">YOUR OWN CLOTHES, FIRST</p><h1 id="wardrobe-title">A wardrobe worth knowing.</h1><p className="lede">Keep the clothes you own close. Make one clear decision about what to wear.</p></div>{editor.kind === 'closed' && <button className="button button-primary" disabled={busy || garments === null || garments.length >= 50} onClick={() => setEditor({ kind: 'add' })}><Plus size={16} /> Add garment</button>}</div>
+      <div className="section-heading wardrobe-heading"><div><p className="eyebrow">YOUR OWN CLOTHES, FIRST</p><h1 id="wardrobe-title" ref={titleRef} tabIndex={-1}>A wardrobe worth knowing.</h1><p className="lede">Keep the clothes you own close. Make one clear decision about what to wear.</p></div>{editor.kind === 'closed' && <button className="button button-primary" disabled={busy || garments === null || garments.length >= 50} onClick={() => setEditor({ kind: 'add' })}><Plus size={16} /> Add garment</button>}</div>
       {error && <p className="inline-error" role="alert">{error}</p>}
       {editor.kind !== 'closed' && <GarmentForm key={editor.kind === 'edit' ? editor.garment.id : 'add'} garment={editor.kind === 'edit' ? editor.garment : null} onCancel={() => setEditor({ kind: 'closed' })} onSaved={async () => { await refresh(); setDecision(null); setEditor({ kind: 'closed' }); }} />}
-      {garments === null ? <p role="status">{error ? 'Your wardrobe is unavailable. Reload after starting the local service.' : 'Opening your wardrobe…'}</p> : garments.length === 0 ? <div className="wardrobe-empty"><span className="empty-number">01</span><div><h2>Start with something you own.</h2><p>One real photo, then the facts only you can confirm. For a complete outfit, add a top and bottom (or one-piece) and footwear.</p></div></div> : <>
-        <p className="wardrobe-count">{garments.length} {garments.length === 1 ? 'garment' : 'garments'} · Private on this device</p>
+      {garments === null ? <p role="status">{error ? 'Your wardrobe is unavailable. Check your connection and reload to try again.' : 'Opening your wardrobe…'}</p> : garments.length === 0 ? <div className="wardrobe-empty"><span className="empty-number">01</span><div><h2>Start with something you own.</h2><p>One real photo, then the facts only you can confirm. For a complete outfit, add a top and bottom (or one-piece) and footwear.</p></div></div> : <>
+        <p className="wardrobe-count">{garments.length} {garments.length === 1 ? 'garment' : 'garments'} · Private in your account</p>
         <div className="garment-grid">{garments.map((item) => <article className="garment-card" key={item.id}>
           <img src={item.photoUrl} alt={item.facts.name} loading="lazy" width={400} height={400} />
           <div className="garment-card-copy"><p className="eyebrow">{item.facts.category}</p><h2>{item.facts.name}</h2><p>{item.facts.color} · Size {item.facts.size} · {item.facts.fit === 'fits' ? 'Fits you' : item.facts.fit === 'unknown' ? 'Fit unconfirmed' : 'Does not fit'}</p><p>{item.facts.available ? 'Available' : 'Unavailable'} · {item.facts.weather.join(', ')} · {item.facts.dressCode.join(', ')}</p>

@@ -11,3 +11,9 @@
 - Known-bad proof: the `contrast` stub restores `#74736b` on `#f4f1eb` at 14px. The verifier detected the intended 4.22:1 failure and required exit 1. All nine good-stub cases passed and all thirty-two bad variants were detected.
 - Local evidence (2026-10-14): all nine production cases passed using the working tree based on `8dc09dd`; the report correctly records `worktree_clean: false`. All six contrast scans passed, evaluating 13-49 text nodes per scan. Browser inspection captured before/after screenshots. `report.json`, `contrast.json`, masked screenshots, and `stub-mutations.json` stay outside the repository in caller-selected `ACCEPTANCE_OUTPUT` storage.
 - Limits: this resolves contrast on the scanned surfaces. It does not establish full WCAG conformance, keyboard or screen-reader behavior, loading/error-state coverage, or deployed-page conformance. Those remain in the wider A-1 quality work.
+
+## Public journey increment
+
+AF-001 remains enforced after replacing the palette: muted text is now `#56645D` on `#F7F8F5` (5.83:1), and white primary-action text is on `#285342` (8.73:1). Coverage expands to twelve scans across four surfaces and three widths. Historical measurements above describe the first contrast fix.
+
+The subsequent account-entry audit reproduced body focus on opening signup, small phone text and mode controls, and misleading hosted-storage copy. The public first screen and signup changes resolve those defects; loading, retry errors, Enter, tap, and successful empty-wardrobe focus have targeted known-bad proofs. See [product-quality-proof.md](product-quality-proof.md). Private editor focus restoration and direct wardrobe-load retry remain pending.

@@ -37,6 +37,7 @@ const secrets = new Set();
 const cases = [
   [caseNames.contrast, ['A-1'], contrastJourney],
   [caseNames.browser, ['R4', 'R5', 'R7', 'R26', 'A-1'], browserJourney],
+  [caseNames.frontDoor, ['R4', 'R19', 'R26', 'A-1'], frontDoorJourney],
   [caseNames.signup, ['R4', 'R26', 'R27', 'A-1'], signupJourney],
   [caseNames.authentication, ['R26', 'R27'], authenticationFailures],
   [caseNames.photo, ['R7', 'R26', 'R27'], photoJourney],
@@ -126,7 +127,7 @@ try {
       if (only && name !== only) continue;
       const item = { name, requirement_ids: ids, status: 'passed' };
       const caseStart = Date.now();
-      const context = await browser.newContext({ baseURL });
+      const context = await browser.newContext({ baseURL, ...([caseNames.browser, caseNames.frontDoor].includes(name) ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {}) });
       context.setDefaultTimeout(6000);
       activePage = await context.newPage();
       try {
@@ -417,7 +418,7 @@ async function selectByText(select, pattern) {
 async function contrastJourney(context, page) {
   const scans = [];
   async function scan(surface) {
-    for (const width of [390, 1440]) {
+    for (const width of [390, 768, 1440]) {
       await page.setViewportSize({ width, height: 844 });
       await page.evaluate(axe.source);
       const result = await page.evaluate(async () => {
@@ -435,14 +436,113 @@ async function contrastJourney(context, page) {
   }
   await page.goto(baseURL);
   await page.getByRole('main').waitFor();
-  await scan('signed-out');
-  await page.getByRole('link', { name: /get started|sign up|create.*account/i }).or(page.getByRole('button', { name: /get started|sign up|create.*account/i })).first().click();
+  await scan('public');
+  await page.getByRole('link', { name: /^sign in/i }).click();
+  await page.getByLabel(/^email/i).waitFor();
+  await scan('sign-in');
+  await page.getByRole('link', { name: /create.*account/i }).or(page.getByRole('button', { name: /create.*account/i })).first().click();
   await page.getByLabel(/^(your |display )?name$/i).waitFor();
   await scan('signup');
   await signup(context);
   await page.goto('/wardrobe');
   await page.getByRole('button', { name: /^add garment$/i }).waitFor();
   await scan('wardrobe-account');
+}
+async function frontDoorJourney(context, page) {
+  const apiRequests = [];
+  await context.route('**/api/**', async route => { apiRequests.push(route.request().url()); await route.abort(); });
+  await page.goto(baseURL);
+  await requiredControl(page.getByRole('heading', { name: /^example outfit$/i }), 'The public first screen has no labeled example outfit');
+  assert.equal(await page.locator('input[type=email], input[type=password]').count(), 0, 'The public first screen is an account wall');
+  await requiredControl(page.getByRole('heading', { name: /^why this works$/i }), 'The public example has no explanation');
+  const example = page.getByRole('region', { name: /^example outfit$/i });
+  const images = example.getByRole('img');
+  assert.equal(await images.count(), 3, 'The public example does not show a complete garment set');
+  for (const image of await images.all()) {
+    await image.evaluate(async element => { await element.decode().catch(() => {}); });
+    assert.equal(new URL(await image.evaluate(element => element.currentSrc), baseURL).origin, baseURL, 'Example photography is fetched from an external service');
+    const decoded = await image.evaluate(async element => {
+      try { const bitmap = await globalThis.createImageBitmap(await (await globalThis.fetch(element.currentSrc)).blob()); const dimensions = { width: bitmap.width, height: bitmap.height }; bitmap.close(); return dimensions; }
+      catch { return { width: 0, height: 0 }; }
+    });
+    assert(decoded.width >= 200 && decoded.height >= 200, 'The public example photo is missing or a placeholder');
+  }
+  assert.match(await example.innerText(), /illustrative|example facts/i, 'The public example presents invented wearer facts as real');
+  assert.match(await page.getByRole('region', { name: /wardrobe.*private/i }).innerText(), /GetYourFit server/i, 'Privacy copy falsely claims hosted photos stay on the phone');
+  assert.doesNotMatch(await page.getByRole('main').innerText(), /v0\.[12]|local edition|local app|private on this device/i, 'The public screen exposes release jargon or false device-local promises');
+  const primary = page.getByRole('link', { name: /^build my wardrobe/i });
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    assert(await primary.evaluate(element => element.getBoundingClientRect().height >= 44), 'The primary wardrobe action is too small to tap');
+    assert(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth), `Public screen overflows at ${width}px`);
+    await page.screenshot({ path: path.join(output, 'screenshots', `public-${width}.png`), fullPage: true });
+    await page.evaluate(axe.source);
+    const violations = await page.evaluate(async () => (await globalThis.axe.run(globalThis.document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } })).violations.map(({ id, nodes }) => ({ id, targets: nodes.map(node => node.target) })));
+    assert.deepEqual(violations, [], `Public screen fails automated WCAG AA at ${width}px: ${JSON.stringify(violations)}`);
+  }
+  assert.equal(apiRequests.length, 0, 'The public example depends on account APIs');
+  const entry = await page.locator('script[type=module][src]').first().getAttribute('src');
+  assert(entry, 'The public application module is missing');
+  const moduleResponse = await context.request.get(new URL(entry, baseURL).href, { headers: { 'accept-encoding': 'gzip' } });
+  assert(moduleResponse.ok(), 'The public application module cannot be loaded');
+  assert.equal(moduleResponse.headers()['content-encoding'], 'gzip', 'The public application module is not compressed');
+  assert((await moduleResponse.body()).length > 1000, 'The compressed application module cannot be decoded');
+  await context.unroute('**/api/**');
+  await page.setViewportSize({ width: 390, height: 844 });
+  let releaseSession;
+  const sessionGate = new Promise(resolve => { releaseSession = resolve; });
+  await context.route('**/api/session', async route => { await sessionGate; await route.continue(); });
+  await primary.focus();
+  await page.keyboard.press('Enter');
+  await requiredControl(page.getByRole('status').filter({ hasText: /opening.*account/i }), 'Signup loading has no status announcement');
+  const sessionResponse = page.waitForResponse(response => new URL(response.url()).pathname === contract.session);
+  releaseSession();
+  await sessionResponse;
+  await context.unroute('**/api/session');
+  const name = page.getByLabel(/^(your |display )?name$/i);
+  await name.waitFor();
+  assert(await name.evaluate(element => element === globalThis.document.activeElement), 'Signup entry lost keyboard focus');
+  const password = page.getByLabel(/^password/i);
+  const description = await password.evaluate(element => (element.getAttribute('aria-describedby') || '').split(/\s+/).map(id => globalThis.document.getElementById(id)?.textContent || '').join(' '));
+  assert.match(description, /12/, 'Signup password requirements are not described');
+  assert(await password.evaluate(element => parseFloat(globalThis.getComputedStyle(element).fontSize) >= 16), 'Phone signup inputs are too small and can trigger zoom');
+  const user = credentials();
+  await name.fill(user.name);
+  await page.getByLabel(/^email/i).fill(user.email);
+  await password.fill(user.password);
+  await page.getByRole('checkbox', { name: /18|age/i }).check();
+  await password.focus();
+  await context.route('**/api/auth/sign-up/email', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Temporarily unavailable' }) }));
+  await signupSubmission(page, () => page.keyboard.press('Enter'), 'Enter');
+  const alert = page.getByRole('alert');
+  await requiredControl(alert, 'Signup failure has no accessible error');
+  assert(await alert.evaluate(element => element === globalThis.document.activeElement), 'Signup error lost keyboard focus');
+  assert.match(await alert.innerText(), /try again/i, 'Signup error offers no recovery');
+  assert.equal(await page.getByLabel(/^email/i).inputValue(), user.email, 'Signup failure lost the entered email');
+  await page.screenshot({ path: path.join(output, 'screenshots', 'signup-error-390.png'), fullPage: true, mask: [page.locator('input[type=email], input[type=password]')] });
+  await context.unroute('**/api/auth/sign-up/email');
+  await password.focus();
+  const registered = await signupSubmission(page, () => page.keyboard.press('Enter'), 'Enter');
+  assert(registered.ok(), `Keyboard signup returned HTTP ${registered.status()}`);
+  await page.getByRole('button', { name: /create.*account/i }).waitFor({ state: 'hidden' });
+  await session(context, user.email);
+  const heading = page.getByRole('heading', { name: /wardrobe/i }).first();
+  await heading.waitFor();
+  assert(await heading.evaluate(element => element === globalThis.document.activeElement), 'Successful signup lost wardrobe focus');
+  const garments = await jsonOK(await api(context, 'GET', contract.wardrobe), 'New wardrobe');
+  assert.deepEqual(garments, [], 'Example garments were inserted into the private wardrobe');
+}
+async function signupSubmission(page, action, input) {
+  try {
+    const [response] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname.startsWith('/api/auth/') && response.request().method() === 'POST'),
+      action(),
+    ]);
+    return response;
+  } catch (error) {
+    if (error?.name === 'TimeoutError') throw new Error(`Browser signup did not submit on ${input}`);
+    throw error;
+  }
 }
 async function browserJourney(context, page) {
   const errors = [], outsideRequests = [];
@@ -454,7 +554,7 @@ async function browserJourney(context, page) {
   });
   await page.goto(baseURL);
   await page.getByRole('main').waitFor();
-  await page.getByRole('link', { name: /get started|sign up|create.*account/i }).or(page.getByRole('button', { name: /get started|sign up|create.*account/i })).first().click();
+  await page.getByRole('link', { name: /build my wardrobe|get started|sign up|create.*account/i }).or(page.getByRole('button', { name: /get started|sign up|create.*account/i })).first().click();
   const user = credentials();
   await page.getByLabel(/^email/i).fill(user.email);
   await page.getByLabel(/^password/i).fill(user.password);
@@ -484,10 +584,7 @@ async function browserJourney(context, page) {
   assert(await create.isVisible(), 'Unchecked 18+ signup left the account form');
   page.off('request', observeSignup);
   await age.check();
-  const [registered] = await Promise.all([
-    page.waitForResponse(response => new URL(response.url()).pathname.startsWith('/api/auth/') && response.request().method() === 'POST'),
-    create.click(),
-  ]);
+  const registered = await signupSubmission(page, () => create.tap(), 'tap');
   assert(registered.ok(), `Browser signup returned HTTP ${registered.status()}`);
   await create.waitFor({ state: 'hidden' });
   const cookies = await context.cookies();
