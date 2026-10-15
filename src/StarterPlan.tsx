@@ -81,7 +81,7 @@ export function StarterPlan() {
   }
 
   function parseInput(): StarterInput {
-    const result = starterInputSchema.safeParse({ ...values, budget: Number(values.budget) });
+    const result = starterInputSchema.safeParse({ ...values, budget: Number(values.budget), ownedRoles: values.ownedRoles.filter((role) => eligibleRoles(values).includes(role)) });
     if (!result.success) {
       const issue = result.error.issues[0];
       throw new Error(issue?.path[0] === 'occasion' ? 'Add the occasion to continue.' : issue?.path[0] === 'budget' ? 'Enter a whole-number budget from 0 to 1,000,000.' : 'Review the outfit needs and try again.');
@@ -131,7 +131,7 @@ export function StarterPlan() {
         const saved = await wardrobeRequest(`/starter-plans/${current.id}`, starterPlanSchema, { action: 'confirm-owned', role }, 'PATCH');
         setCurrent(saved);
         if (replacePlan) {
-          setValues((previous) => eligibleRoles(previous).includes(role) && !previous.ownedRoles.includes(role)
+          setValues((previous) => !previous.ownedRoles.includes(role)
             ? { ...previous, ownedRoles: [...previous.ownedRoles, role] }
             : previous);
         }
@@ -172,6 +172,10 @@ export function StarterPlan() {
       await act('reject', async () => {
         const rejected = await wardrobeRequest(`/starter-plans/${current.id}`, starterPlanSchema, { action: 'reject' }, 'PATCH');
         setCurrent(rejected);
+        setFormOpen(false);
+        setReplacePlan(false);
+        setEditingRole(null);
+        setNeedText('');
         setPlans((items) => items.map((item) => item.id === rejected.id ? rejected : item));
         focusPlanAfterUpdate();
         setStatus('Plan rejected and recorded in your account. Your wardrobe was not changed.');
@@ -179,6 +183,9 @@ export function StarterPlan() {
     } else {
       setDraft(null);
       setFormOpen(true);
+      setReplacePlan(false);
+      setEditingRole(null);
+      setNeedText('');
       focusPlanAfterUpdate();
       setStatus('Plan rejected. Nothing was saved. Your wardrobe was not changed.');
     }
@@ -267,7 +274,7 @@ export function StarterPlan() {
           <label>Plan weather<select value={values.weather} onChange={(event) => setValue('weather', z.enum(['warm', 'mild', 'cold', 'unknown']).parse(event.target.value))}><option value="unknown">I am not sure</option><option value="warm">Warm</option><option value="mild">Mild</option><option value="cold">Cold</option></select></label>
           <label>Plan dress code<select value={values.dressCode} onChange={(event) => setValue('dressCode', z.enum(['casual', 'smart-casual', 'formal', 'unknown']).parse(event.target.value))}><option value="unknown">I am not sure</option><option value="casual">Casual</option><option value="smart-casual">Smart casual</option><option value="formal">Formal</option></select></label>
         </div>
-        <label>What kind of outfit do you need?<select value={values.outfitType} onChange={(event) => { const outfitType = z.enum(['separates', 'one-piece']).parse(event.target.value); setValue('outfitType', outfitType); setValue('ownedRoles', values.ownedRoles.filter((role) => (outfitType === 'separates' ? roleOptions : ['one-piece', 'footwear']).includes(role))); }}><option value="separates">Top, bottom and footwear</option><option value="one-piece">One-piece garment and footwear</option></select></label>
+        <label>What kind of outfit do you need?<select value={values.outfitType} onChange={(event) => setValue('outfitType', z.enum(['separates', 'one-piece']).parse(event.target.value))}><option value="separates">Top, bottom and footwear</option><option value="one-piece">One-piece garment and footwear</option></select></label>
         <label>Any must-have or coverage requirement? <span className="starter-optional">Optional</span><input type="text" maxLength={160} value={values.mustHave} aria-describedby="starter-requirement-help" onChange={(event) => setValue('mustHave', event.target.value)} /></label>
         <p className="starter-form-note" id="starter-requirement-help">Add only a clothing requirement you want reflected in the text needs plan.</p>
         <fieldset className="starter-owned"><legend>Do you already have a suitable item for any of these needs?</legend><p>Only your confirmation can close a gap. This does not add a photo or garment to your owned wardrobe.</p>{eligibleRoles(values).map((role) => <label key={role}><input type="checkbox" checked={values.ownedRoles.includes(role)} onChange={(event) => setValue('ownedRoles', event.target.checked ? [...values.ownedRoles, role] : values.ownedRoles.filter((item) => item !== role))} /> I already have suitable {starterRoleName(role).toLowerCase()}</label>)}</fieldset>

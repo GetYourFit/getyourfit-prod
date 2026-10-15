@@ -157,7 +157,7 @@ test('R2 saving preserves edited draft needs and confirmations in both outfit fo
   }
 });
 
-test('R3/R6 changing only budget preserves confirmations before and after opening replacement', async t => {
+test('R3/R6/R8 ownership survives replacement timing and temporary outfit changes', async t => {
   const { context, page, builder } = await wearer(t);
   for (const timing of ['before', 'after']) {
     for (const outfitType of ['separates', 'one-piece']) {
@@ -214,6 +214,53 @@ test('R3/R6 changing only budget preserves confirmations before and after openin
     assert.deepEqual(replacement.input.ownedRoles, [pendingType === 'separates' ? 'top' : 'one-piece', 'footwear']);
     assert.equal(replacement.roles.find(role => role.role === 'footwear').state, 'confirmed-owned');
   }
+  for (const outfitType of ['separates', 'one-piece']) {
+    const alternate = outfitType === 'separates' ? 'one-piece' : 'separates';
+    const roles = outfitType === 'separates' ? ['top', 'bottom', 'footwear'] : ['one-piece', 'footwear'];
+    await page.goto('/wardrobe');
+    await builder.getByRole('button', { name: 'New plan', exact: true }).click();
+    await builder.getByLabel(/what is the occasion/i).fill('Draft with remembered ownership');
+    await builder.getByLabel(/spending ceiling/i).fill('1001');
+    const outfit = builder.getByLabel(/what kind of outfit/i);
+    await outfit.selectOption(outfitType);
+    for (const checkbox of await builder.getByRole('checkbox').all()) await checkbox.check();
+    await outfit.selectOption(alternate);
+    for (const checkbox of await builder.getByRole('checkbox').all()) await checkbox.check();
+    await outfit.selectOption(outfitType);
+    for (const checkbox of await builder.getByRole('checkbox').all()) assert(await checkbox.isChecked(), 'Draft ownership was lost after returning to its outfit form');
+    await builder.getByRole('checkbox').first().uncheck();
+    await outfit.selectOption(alternate);
+    await outfit.selectOption(outfitType);
+    assert.equal(await builder.getByRole('checkbox').first().isChecked(), false, 'An explicit ownership removal was undone');
+    await builder.getByRole('button', { name: 'Make my starter plan', exact: true }).click();
+    await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
+    await builder.getByText('Plan saved in your private GetYourFit account.', { exact: true }).waitFor();
+    const drafted = (await api(context, 'GET'))[0];
+    assert.deepEqual(drafted.input.ownedRoles, roles.slice(1));
+    assert.deepEqual(drafted.roles.filter(role => role.state === 'confirmed-owned').map(role => role.role), roles.slice(1));
+
+    for (const timing of ['before', 'while-hidden']) {
+      const saved = await api(context, 'POST', contract.starterPlans, { ...input, outfitType, ownedRoles: timing === 'before' ? roles : [] });
+      await page.goto('/wardrobe');
+      await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
+      await outfit.selectOption(alternate);
+      if (timing === 'while-hidden') {
+        for (const role of saved.roles) {
+          const label = role.role === 'one-piece' ? 'One-piece garment' : role.role[0].toUpperCase() + role.role.slice(1);
+          await roleRow(builder, label).getByRole('button', { name: 'I already have this', exact: true }).click();
+          await roleRow(builder, label).getByText(/you confirmed a suitable item/i).waitFor();
+        }
+      }
+      await outfit.selectOption(outfitType);
+      for (const checkbox of await builder.getByRole('checkbox').all()) assert(await checkbox.isChecked(), `${timing} ownership was lost after returning to its outfit form`);
+      await builder.getByLabel(/spending ceiling/i).fill('2000');
+      await builder.getByRole('button', { name: 'Replace with this plan', exact: true }).click();
+      await builder.getByText(/previous plan is marked replaced/i).waitFor();
+      const replacement = (await api(context, 'GET'))[0];
+      assert.deepEqual(replacement.input.ownedRoles, roles);
+      assert(replacement.roles.every(role => role.state === 'confirmed-owned' && role.allocation === 0));
+    }
+  }
 });
 
 test('R4 retrying saved-plan loading keeps the displayed draft as the mutation target', async t => {
@@ -243,7 +290,7 @@ test('R4 retrying saved-plan loading keeps the displayed draft as the mutation t
   assert.deepEqual(persisted.input.ownedRoles, ['top', 'footwear']);
 });
 
-test('R5 rejecting a draft returns to planning without touching saved plans or owned clothes', async t => {
+test('R5/R9 rejection returns drafts to planning and closes saved-plan replacement', async t => {
   const { context, page, builder } = await wearer(t);
   let saved = await api(context, 'POST', contract.starterPlans, input);
   saved = await api(context, 'PATCH', `${contract.starterPlans}/${saved.id}`, { action: 'confirm-owned', role: 'top' });
@@ -251,6 +298,8 @@ test('R5 rejecting a draft returns to planning without touching saved plans or o
   await builder.getByRole('button', { name: 'New plan', exact: true }).click();
   await draft(builder, { ...input, occasion: 'Discard this draft' });
   await roleRow(builder, 'Bottom').getByRole('button', { name: 'I already have this', exact: true }).click();
+  await roleRow(builder, 'Top').getByRole('button', { name: 'Replace need', exact: true }).click();
+  await builder.getByLabel(/replacement need/i).fill('Discard this draft edit');
   await builder.getByRole('button', { name: 'Reject plan', exact: true }).click();
   await builder.getByLabel(/what is the occasion/i).waitFor();
   await page.waitForFunction(() => globalThis.document.activeElement === globalThis.document.querySelector('#build-plan .starter-form h3'));
@@ -258,7 +307,34 @@ test('R5 rejecting a draft returns to planning without touching saved plans or o
   assert.deepEqual(await api(context, 'GET'), [saved]);
   assert.deepEqual(await api(context, 'GET', contract.wardrobe), []);
   await draft(builder, { ...input, occasion: 'Try another occasion' });
+  assert.equal(await builder.getByLabel(/replacement need/i).count(), 0, 'Rejected draft left an editor open on the next plan');
   await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
   await builder.getByText('Plan saved in your private GetYourFit account.', { exact: true }).waitFor();
   assert.deepEqual((await api(context, 'GET')).find(plan => plan.id === saved.id), saved);
+  const active = (await api(context, 'GET'))[0];
+  await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
+  await builder.getByLabel(/spending ceiling/i).fill('2000');
+  await roleRow(builder, 'Top').getByRole('button', { name: 'Replace need', exact: true }).click();
+  await builder.getByLabel(/replacement need/i).fill('Discard this saved-plan edit');
+  await context.route(`**${contract.starterPlans}/${active.id}`, route => route.abort('failed'));
+  await builder.getByRole('button', { name: 'Reject plan', exact: true }).click();
+  await builder.getByRole('alert').waitFor();
+  assert.equal(await builder.getByLabel(/spending ceiling/i).inputValue(), '2000', 'Failed rejection lost the pending replacement');
+  assert.equal(await builder.getByLabel(/replacement need/i).inputValue(), 'Discard this saved-plan edit', 'Failed rejection lost the pending need edit');
+  assert.equal((await api(context, 'GET')).find(plan => plan.id === active.id).status, 'active');
+  await context.unroute(`**${contract.starterPlans}/${active.id}`);
+  await builder.getByRole('button', { name: 'Reject plan', exact: true }).click();
+  await builder.getByRole('heading', { name: 'Plan rejected', exact: true }).waitFor();
+  assert.equal(await builder.getByRole('button', { name: 'Replace with this plan', exact: true }).count(), 0, 'Rejected saved plan still exposes replacement submission');
+  assert.equal(await builder.getByLabel(/spending ceiling/i).count(), 0, 'Rejected saved plan still shows its editing form');
+  const rejected = (await api(context, 'GET')).find(plan => plan.id === active.id);
+  assert.equal(rejected.status, 'rejected');
+  assert.deepEqual(rejected.roles, active.roles);
+  await builder.getByRole('button', { name: 'Start a new plan', exact: true }).click();
+  await draft(builder, { ...input, occasion: 'New plan after saved rejection' });
+  assert.equal(await builder.getByLabel(/replacement need/i).count(), 0, 'Rejected saved plan left an editor open on the next plan');
+  await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
+  await builder.getByText('Plan saved in your private GetYourFit account.', { exact: true }).waitFor();
+  assert.deepEqual((await api(context, 'GET')).find(plan => plan.id === saved.id), saved);
+  assert.deepEqual(await api(context, 'GET', contract.wardrobe), []);
 });
