@@ -562,7 +562,7 @@ async function verifyHostedPrivacyMutation(page, surface) {
   assert(claim, `Unknown privacy mutation surface: ${surface}`);
   await assertHostedPrivacy(page, surface);
   await page.locator('main').first().evaluate((main, text) => {
-    const notice = document.createElement('p');
+    const notice = globalThis.document.createElement('p');
     notice.dataset.acceptancePrivacyMutation = 'true';
     notice.textContent = text;
     main.append(notice);
