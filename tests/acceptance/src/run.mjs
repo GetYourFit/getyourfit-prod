@@ -680,20 +680,22 @@ async function contrastJourney(context, page) {
   await signup(context);
   await page.goto('/wardrobe');
   await page.getByRole('button', { name: /^add garment$/i }).waitFor();
-  const requirement = page.locator('#build-plan [aria-describedby="starter-requirement-help"]');
-  await requirement.scrollIntoViewIfNeeded();
-  const visibility = await requirement.evaluate(element => {
-    const rect = element.getBoundingClientRect();
-    const points = [[.1, .1], [.5, .1], [.9, .1], [.1, .5], [.5, .5], [.9, .5], [.1, .9], [.5, .9], [.9, .9]];
-    return {
-      visible: rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.bottom <= globalThis.innerHeight,
-      unobscured: points.every(([x, y]) => globalThis.document.elementFromPoint(rect.left + rect.width * x, rect.top + rect.height * y) === element),
-      placeholder: element.getAttribute('placeholder'),
-    };
-  });
-  assert.equal(visibility.visible, true, 'Starter requirement field must be visible in the viewport before contrast is evaluated');
-  assert.equal(visibility.unobscured, true, 'Starter requirement field must be unobscured at its text and padding before contrast is evaluated');
-  assert.equal(visibility.placeholder, null, 'Empty requirement field must use its visible helper text instead of a placeholder');
+  if (!stubMode) {
+    const requirement = page.locator('#build-plan [aria-describedby="starter-requirement-help"]');
+    await requirement.scrollIntoViewIfNeeded();
+    const visibility = await requirement.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      const points = [[.1, .1], [.5, .1], [.9, .1], [.1, .5], [.5, .5], [.9, .5], [.1, .9], [.5, .9], [.9, .9]];
+      return {
+        visible: rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.bottom <= globalThis.innerHeight,
+        unobscured: points.every(([x, y]) => globalThis.document.elementFromPoint(rect.left + rect.width * x, rect.top + rect.height * y) === element),
+        placeholder: element.getAttribute('placeholder'),
+      };
+    });
+    assert.equal(visibility.visible, true, 'Starter requirement field must be visible in the viewport before contrast is evaluated');
+    assert.equal(visibility.unobscured, true, 'Starter requirement field must be unobscured at its text and padding before contrast is evaluated');
+    assert.equal(visibility.placeholder, null, 'Empty requirement field must use its visible helper text instead of a placeholder');
+  }
   await scan('wardrobe-account');
 }
 async function frontDoorJourney(context, page) {

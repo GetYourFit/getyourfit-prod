@@ -130,6 +130,11 @@ export function StarterPlan() {
       await act(`owned-${role}`, async () => {
         const saved = await wardrobeRequest(`/starter-plans/${current.id}`, starterPlanSchema, { action: 'confirm-owned', role }, 'PATCH');
         setCurrent(saved);
+        if (replacePlan) {
+          setValues((previous) => eligibleRoles(previous).includes(role) && !previous.ownedRoles.includes(role)
+            ? { ...previous, ownedRoles: [...previous.ownedRoles, role] }
+            : previous);
+        }
         setPlans((items) => items.map((item) => item.id === saved.id ? saved : item));
         focusPlanAfterUpdate();
         setStatus(`You confirmed suitable ${starterRoleName(role).toLowerCase()} is yours. The owned wardrobe has not been changed.`);

@@ -157,27 +157,62 @@ test('R2 saving preserves edited draft needs and confirmations in both outfit fo
   }
 });
 
-test('R3 changing only budget preserves every current ownership confirmation', async t => {
+test('R3/R6 changing only budget preserves confirmations before and after opening replacement', async t => {
   const { context, page, builder } = await wearer(t);
+  for (const timing of ['before', 'after']) {
+    for (const outfitType of ['separates', 'one-piece']) {
+      const saved = await api(context, 'POST', contract.starterPlans, { ...input, outfitType });
+      await page.goto('/wardrobe');
+      await builder.getByRole('heading', { name: `Your starter plan for ${input.occasion}`, exact: true }).waitFor();
+      if (timing === 'after') {
+        await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
+        await builder.getByLabel(/spending ceiling/i).fill('2000');
+      }
+      for (const role of saved.roles) {
+        const label = role.role === 'one-piece' ? 'One-piece garment' : role.role[0].toUpperCase() + role.role.slice(1);
+        await roleRow(builder, label).getByRole('button', { name: 'I already have this', exact: true }).click();
+        await roleRow(builder, label).getByText(/you confirmed a suitable item/i).waitFor();
+        if (timing === 'after') assert(await builder.getByLabel(`I already have suitable ${label.toLowerCase()}`, { exact: false }).isChecked());
+      }
+      if (timing === 'before') await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
+      for (const checkbox of await builder.getByRole('checkbox').all()) assert(await checkbox.isChecked());
+      if (timing === 'after') assert.equal(await builder.getByLabel(/spending ceiling/i).inputValue(), '2000');
+      await builder.getByLabel(/spending ceiling/i).fill('2000');
+      await builder.getByRole('button', { name: 'Replace with this plan', exact: true }).click();
+      await builder.getByText(/previous plan is marked replaced/i).waitFor();
+      const replacement = (await api(context, 'GET')).find(plan => plan.status === 'active' && plan.input.outfitType === outfitType);
+      assert(replacement.roles.every(role => role.state === 'confirmed-owned' && role.allocation === 0));
+      assert.deepEqual(replacement.input.ownedRoles, saved.roles.map(role => role.role));
+      assert.equal(replacement.input.budget, 2000);
+      assert.deepEqual(await api(context, 'GET', contract.wardrobe), []);
+    }
+  }
   for (const outfitType of ['separates', 'one-piece']) {
+    const pendingType = outfitType === 'separates' ? 'one-piece' : 'separates';
     const saved = await api(context, 'POST', contract.starterPlans, { ...input, outfitType });
     await page.goto('/wardrobe');
-    await builder.getByRole('heading', { name: `Your starter plan for ${input.occasion}`, exact: true }).waitFor();
+    await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
+    await builder.getByLabel(/what kind of outfit/i).selectOption(pendingType);
+    const selected = pendingType === 'separates' ? 'top' : 'one-piece garment';
+    await builder.getByLabel(`I already have suitable ${selected}`, { exact: true }).check();
+    if (pendingType === 'one-piece') await builder.getByLabel('I already have suitable footwear', { exact: true }).check();
+    await builder.getByLabel(/spending ceiling/i).fill('2000');
+    await builder.getByLabel(/any must-have/i).fill('My pending coverage requirement');
     for (const role of saved.roles) {
       const label = role.role === 'one-piece' ? 'One-piece garment' : role.role[0].toUpperCase() + role.role.slice(1);
       await roleRow(builder, label).getByRole('button', { name: 'I already have this', exact: true }).click();
       await roleRow(builder, label).getByText(/you confirmed a suitable item/i).waitFor();
     }
-    await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
-    for (const checkbox of await builder.getByRole('checkbox').all()) assert(await checkbox.isChecked());
-    await builder.getByLabel(/spending ceiling/i).fill('2000');
+    assert(await builder.getByLabel('I already have suitable footwear', { exact: true }).isChecked());
+    assert(await builder.getByLabel(`I already have suitable ${selected}`, { exact: true }).isChecked());
     await builder.getByRole('button', { name: 'Replace with this plan', exact: true }).click();
     await builder.getByText(/previous plan is marked replaced/i).waitFor();
-    const replacement = (await api(context, 'GET')).find(plan => plan.status === 'active' && plan.input.outfitType === outfitType);
-    assert(replacement.roles.every(role => role.state === 'confirmed-owned' && role.allocation === 0));
-    assert.deepEqual(replacement.input.ownedRoles, saved.roles.map(role => role.role));
+    const replacement = (await api(context, 'GET')).find(plan => plan.status === 'active');
+    assert.equal(replacement.input.outfitType, pendingType);
     assert.equal(replacement.input.budget, 2000);
-    assert.deepEqual(await api(context, 'GET', contract.wardrobe), []);
+    assert.equal(replacement.input.mustHave, 'My pending coverage requirement');
+    assert.deepEqual(replacement.input.ownedRoles, [pendingType === 'separates' ? 'top' : 'one-piece', 'footwear']);
+    assert.equal(replacement.roles.find(role => role.role === 'footwear').state, 'confirmed-owned');
   }
 });
 
