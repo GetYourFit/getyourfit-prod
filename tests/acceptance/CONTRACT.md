@@ -39,17 +39,17 @@ The checker reads a garment through the owner's wardrobe collection and photo UR
 
 ## Zero-garment starter-plan precursor
 
-The wearer follows the public **Build my wardrobe** entry and the existing email/password account flow. The signed-in page offers that path beside **Add garment** and the owned-clothes outfit form. The person can plan without a garment photo or another service account. A new account's owned wardrobe remains empty during planning.
+The user-facing scope, workflow, allocation rules, and external-link disclosures are owned by [Build my wardrobe](../../README.md#build-my-wardrobe).
 
 The starter-plan API stays inside the authenticated wardrobe boundary:
 
 | Interface | Request | Observable response |
 | --- | --- | --- |
 | `GET /api/wardrobe/starter-plans` | Existing private session | Only that account's saved plans, including input, role states, allocations, and status |
-| `POST /api/wardrobe/starter-plans` | Occasion, outfit form, integer spending ceiling, currency, optional known weather/dress code/must-have, and wearer-declared owned roles | A saved active text plan with the complete selected roles, role allocations, and persisted timestamps |
+| `POST /api/wardrobe/starter-plans` | Input accepted by [starterSaveSchema](../../shared/starter-plan.ts), including optional edited needs | A saved active text plan with the complete selected roles, role allocations, edited need text, and persisted timestamps |
 | `PATCH /api/wardrobe/starter-plans/:id` | `confirm-owned`, `replace-need`, `replace-plan`, or `reject` action | Owner-scoped update; a replacement marks the prior plan replaced, a rejection remains in history, and confirmation changes only the plan role |
 
-Separates require top, bottom, and footwear; a one-piece outfit requires a one-piece garment and footwear. Allocations are whole currency units, split evenly over roles still marked as planned, and sum to the spending ceiling. Confirmed-owned roles receive zero allocation. This ceiling and breakdown are planning assumptions, not observed prices or a purchasable quote. No product, offer, image, stock, size, fit, delivery, tax, or checkout total is verified. Positive-budget roles link only to a generic external search with role terms; the URL contains no occasion, must-have, budget, account, or other plan fields. The adjacent disclosure names the external-search and tracking boundary. A zero budget offers reuse or borrowing as possibilities without promising availability.
+Role combinations and request validation are defined in [the starter-plan schemas](../../shared/starter-plan.ts). The checker verifies that allocations follow the README's rules. The starter-plan browser regressions also verify zero allocation when all roles are confirmed owned. An attempt to mutate a replaced or rejected saved plan returns 409. Requests that fail schema validation return 400, another account's plan ID returns 404, and anonymous requests require authentication.
 
 The production browser case starts from the public entry, completes signup, confirms the empty collection, enters and saves an occasion plan by keyboard, inspects unknown facts and budget arithmetic, exercises a failed replacement and retry, reloads, replaces a need, confirms existing ownership, replaces and rejects plans, and checks the zero-budget outcome. It verifies the collection remains empty throughout, generic links contain no private context, phone and desktop layouts do not overflow, and no external request occurs before an explicit link action. Invalid outfit-role combinations are refused. The test suite retains its current privacy, consent, contrast, account, and owned-outfit checks.
 

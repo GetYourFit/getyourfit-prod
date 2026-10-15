@@ -493,6 +493,7 @@ async function starterPlanJourney(context, page) {
   await page.keyboard.press('Enter');
   const needsHeading = builder.getByRole('heading', { name: /needs for acceptance ceremony/i });
   await needsHeading.waitFor();
+  await page.waitForFunction(() => globalThis.document.activeElement === globalThis.document.querySelector('#build-plan .starter-result h3'));
   assert(await needsHeading.evaluate(element => element === globalThis.document.activeElement), 'Keyboard plan creation did not move focus to the result');
   assert.match(await builder.innerText(), /text needs plan/i, 'The result claims to be a verified outfit instead of a needs plan');
   assert.match(await builder.innerText(), /size.*unknown|unknown.*size/i, 'The result hides size uncertainty');

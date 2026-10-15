@@ -14,7 +14,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | R6 | next | This slice asks only the questions required to complete its decision. Broader adaptive onboarding needs outcome evidence. |
 | R7 | slice1-local | One consented real photo is resized in the browser, classified on the server, reviewed, corrected, and stored with provenance. Additional ownership states and ingestion channels are deferred. |
 | R8 | next | Persisted user corrections are the first memory signal; the broader typed style memory and decay model need repeated outcomes. |
-| R9 | slice1-local | Explicit owned garment photos and facts only. Imports and other ownership states come later. |
+| R9 | slice1-local | Owned garment records require photos and confirmed facts. Separate starter-plan states are described in [Build my wardrobe](../README.md#build-my-wardrobe). Imports remain deferred. |
 | R10 | slice1-local | Store category, color, size, fit, availability, weather, and dress-code facts with source and inference provenance. Extended material, measurement, and commerce fields are deferred. |
 
 ## Intelligence
@@ -46,7 +46,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | --- | --- | --- |
 | R24 | next | SQLite garment records carry provenance and cascade deletion; a versioned event model waits for real outcomes and access patterns. |
 | R25 | next | Slice 1 has no model ranker. Explanations derive from the exact outfit decision state. |
-| R26 | slice1-local | Local-only data, explicit photo permission, secure sessions, export and deletion; no ethnicity inference, desirability ranking, body data, or data sale. Accounts require an 18+ confirmation. |
+| R26 | slice1-local | Private account data, explicit photo permission, secure sessions, export and deletion; no ethnicity inference, desirability ranking, body data, or data sale. Accounts require an 18+ confirmation. |
 | R27 | slice1-local | Bound local image size and types, decode before use, resize client-side, isolate temporary classifier files, enforce local origin and account ownership, and audit without raw personal data. |
 | R28 | next | Do not report fashion-decision metrics without wear or keep outcomes. This slice records no fake success metric. |
 | R29 | deferred-with-reason | No retailer commerce exists to measure retained margin. |
@@ -66,7 +66,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | Understand value, secure account, minimal onboarding | slice1-local | v0.1 email/password creation and sign-in, 18+ confirmation and local session; verification/recovery delivery remains v0.2. |
 | Real photo and correctable interpretation | slice1-local | Browser resize, explicit photo consent, server-side Apple Vision classification, persisted wearer correction, and private image load from the account. |
 | Wardrobe and outfit judgment | slice1-local | Complete outfit only from owned, available, fitting items matching known weather and dress code; one clarifying question or an abstention otherwise. |
-| Zero-garment starter-plan precursor | starter-plan-local | One occasion, explicit context and budget, a complete text needs plan, and budget allocations saved in the same private account without uploads. Needs and wearer-confirmed ownership stay separate from garment records; save, replace, reject, and reload are supported. No products, prices, images, fit, stock, delivery, or checkout total are verified. |
+| Zero-garment starter-plan precursor | starter-plan-local | Scope and usage: [Build my wardrobe](../README.md#build-my-wardrobe). Observable API behavior and acceptance coverage: [starter-plan contract](../tests/acceptance/CONTRACT.md#zero-garment-starter-plan-precursor). |
 | Model-driven taste, look adaptation, fit advice, commerce, try-on | deferred-with-reason | No evaluated taste model, licensed look corpus, fit evidence, commerce, or validated try-on model is available for slice 1. |
 | Persistent correction, export, deletion | slice1-local | Saved context-specific corrections, archive export, and account cascade deletion. |
 | All states, accessibility, responsive behavior, security, and visual review | slice1-pending | Verify against `slice-1-acceptance.md`; do not claim accessibility or performance conformance until the named checks are recorded there. |
@@ -74,4 +74,4 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 
 ## Slice 1 outcome
 
-Proven locally for v0.1: a wearer can sign in, add real garment photos with consent, confirm or correct facts, inspect their small wardrobe, and get one complete explained occasion outfit from owned items. Missing required facts produce one question; hard constraints that prevent completeness produce an abstention. The outcome removes guesswork about whether an owned set satisfies the wearer's stated facts; it makes no taste or fit prediction and introduces no shopping, creator or merchant surfaces. Every wider requirement remains listed above. Real-provider verification/recovery, deployment and broader conformance remain outside this local proof.
+Proven locally for v0.1: a wearer can sign in, add real garment photos with consent, confirm or correct facts, inspect their small wardrobe, and get one complete explained occasion outfit from owned items. Missing required facts produce one question; hard constraints that prevent completeness produce an abstention. The outcome removes guesswork about whether an owned set satisfies the wearer's stated facts; it makes no taste or fit prediction and introduces no checkout, creator or merchant integration. The separate [starter-plan precursor](../README.md#build-my-wardrobe) supports people starting without garments. Every wider requirement remains listed above. Real-provider verification/recovery, deployment and broader conformance remain outside this local proof.
