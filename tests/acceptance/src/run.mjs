@@ -15,6 +15,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const suiteRoot = path.resolve(here, '..');
 const projectRoot = path.resolve(suiteRoot, '../..');
 const stubMode = process.argv.includes('--stub');
+const privacyMutationMode = process.argv.includes('--privacy-mutations');
 const appPort = await freePort();
 let mailPort;
 const baseURL = `http://127.0.0.1:${appPort}`;
@@ -34,6 +35,7 @@ const garments = await Promise.all(samples.map(async sample => ({ ...sample, pho
 const shirt = garments[0];
 const facts = { occasion: 'dinner', weather: 'mild', dressCode: 'smart-casual' };
 const secrets = new Set();
+const privacyMutationProof = [];
 const cases = [
   [caseNames.contrast, ['A-1'], contrastJourney],
   [caseNames.browser, ['R4', 'R5', 'R7', 'R26', 'A-1'], browserJourney],
@@ -74,6 +76,8 @@ function safeEnv() {
 
 await mkdir(path.join(output, 'screenshots'), { recursive: true });
 try {
+  assert(!privacyMutationMode || !stubMode, 'Privacy mutation verification requires the production service');
+  assert(!privacyMutationMode || only === undefined, 'Privacy mutation verification selects its production cases');
   assert(stubMode || only === undefined, 'Selective cases are restricted to stub verification');
   assert(only === undefined || cases.some(([name]) => name === only), 'Unknown selected case');
   const revision = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: projectRoot, encoding: 'utf8' });
@@ -125,6 +129,7 @@ try {
     browser = await chromium.launch({ headless: true });
     for (const [name, ids, check] of cases) {
       if (only && name !== only) continue;
+      if (privacyMutationMode && ![caseNames.browser, caseNames.frontDoor].includes(name)) continue;
       const item = { name, requirement_ids: ids, status: 'passed' };
       const caseStart = Date.now();
       const context = await browser.newContext({ baseURL, ...([caseNames.browser, caseNames.frontDoor].includes(name) ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {}) });
@@ -157,7 +162,14 @@ try {
 }
 
 const source = stubMode ? 'contract-stub' : runtime === 'production-start-missing' ? 'missing-production-service' : 'production-build';
-const report = { schema: 'gyf-acceptance-report/v2', release: 'v0.1', head_sha: head, worktree_clean: worktreeClean, source, runtime, base_url: baseURL, started_at: new Date(started).toISOString(), duration_ms: Date.now() - started, summary: { total: results.length, passed: results.filter(x => x.status === 'passed').length, failed: results.filter(x => x.status === 'failed').length, skipped: 0 }, cases: results };
+if (privacyMutationMode && results.every(result => result.status === 'passed')) {
+  const expected = ['wardrobe/account', 'garment consent', 'saved garment/outfit'].sort();
+  const detected = privacyMutationProof.map(proof => proof.surface).sort();
+  if (JSON.stringify(detected) !== JSON.stringify(expected)) {
+    results.push({ name: 'privacy mutation coverage', requirement_ids: ['A-1'], status: 'failed', error: `Expected production privacy mutation proofs for ${expected.join(', ')}; detected ${detected.join(', ')}` });
+  }
+}
+const report = { schema: 'gyf-acceptance-report/v2', release: 'v0.1', head_sha: head, worktree_clean: worktreeClean, source, runtime, base_url: baseURL, started_at: new Date(started).toISOString(), duration_ms: Date.now() - started, summary: { total: results.length, passed: results.filter(x => x.status === 'passed').length, failed: results.filter(x => x.status === 'failed').length, skipped: 0 }, cases: results, privacy_mutation_proof: privacyMutationProof };
 await writeFile(path.join(output, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify({ ...report.summary, report: path.join(output, 'report.json') }));
 process.exitCode = report.summary.failed ? 1 : 0;
@@ -534,10 +546,39 @@ async function frontDoorJourney(context, page) {
   const garments = await jsonOK(await api(context, 'GET', contract.wardrobe), 'New wardrobe');
   assert.deepEqual(garments, [], 'Example garments were inserted into the private wardrobe');
   await assertHostedPrivacy(page, 'wardrobe/account');
+  if (!stubMode) await verifyHostedPrivacyMutation(page, 'wardrobe/account');
 }
 async function assertHostedPrivacy(page, surface) {
   const claims = await page.locator('body').innerText();
   assert.doesNotMatch(claims, /\b(?:sav(?:ed|ing|e)|stor(?:ed|ing|e)|kept|private|stays?|remains?)[^,.;!?\n]{0,80}\b(?:on|in)\s+(?:this|your|the)\s+(?:device|phone|browser)\b|\bno (?:image|photo) leaves (?:this|your|the) device\b/i, `False on-device storage claim on ${surface}`);
+}
+async function verifyHostedPrivacyMutation(page, surface) {
+  const claims = {
+    'wardrobe/account': 'Your wardrobe stays on this device.',
+    'garment consent': 'Your photo is stored on this device.',
+    'saved garment/outfit': 'Garment saved on this device.',
+  };
+  const claim = claims[surface];
+  assert(claim, `Unknown privacy mutation surface: ${surface}`);
+  await assertHostedPrivacy(page, surface);
+  await page.locator('main').first().evaluate((main, text) => {
+    const notice = document.createElement('p');
+    notice.dataset.acceptancePrivacyMutation = 'true';
+    notice.textContent = text;
+    main.append(notice);
+  }, claim);
+  const mutation = page.locator('[data-acceptance-privacy-mutation="true"]');
+  let failure;
+  try {
+    assert(await mutation.isVisible(), `Injected privacy claim is not visible on ${surface}`);
+    await assertHostedPrivacy(page, surface);
+  } catch (error) { failure = error; }
+  finally { await page.locator('[data-acceptance-privacy-mutation="true"]').evaluateAll(notices => notices.forEach(notice => notice.remove())); }
+  assert(failure, `Privacy verifier accepted the injected device-only claim on ${surface}`);
+  assert.equal(failure.code, 'ERR_ASSERTION', `Privacy verifier failed outside an assertion on ${surface}`);
+  assert.equal(failure.message, `False on-device storage claim on ${surface}`, `Privacy verifier failed at the wrong assertion on ${surface}`);
+  await assertHostedPrivacy(page, surface);
+  privacyMutationProof.push({ surface, claim, cleanControl: 'passed', injectedClaim: 'detected', assertion: failure.message });
 }
 async function signupSubmission(page, action, input) {
   try {
@@ -603,6 +644,7 @@ async function browserJourney(context, page) {
   await input.waitFor();
   const consent = page.getByRole('checkbox', { name: /photo|process/i });
   await assertHostedPrivacy(page, 'garment consent');
+  if (!stubMode) await verifyHostedPrivacyMutation(page, 'garment consent');
   assert.equal(await consent.isChecked(), false, 'Photo consent was preselected');
   await consent.check();
   await input.setInputFiles(path.join(suiteRoot, 'fixtures', shirt.filename));
@@ -660,6 +702,7 @@ async function browserJourney(context, page) {
   const image = page.getByRole('img', { name: /garment|shirt/i }).first();
   await image.waitFor();
   await assertHostedPrivacy(page, 'saved garment/outfit');
+  if (!stubMode) await verifyHostedPrivacyMutation(page, 'saved garment/outfit');
   const uploadedPhoto = await renderedPhoto('Uploaded garment');
   await page.reload();
   await session(context, user.email);
