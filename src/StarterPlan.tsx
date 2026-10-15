@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { ArrowUpRight } from 'lucide-react';
-import { starterInputSchema, starterPlanSchema, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
+import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
 import { wardrobeRequest } from './wardrobe-api';
 
 type FormValues = Omit<StarterInput, 'budget'> & { budget: string };
@@ -48,8 +48,10 @@ export function StarterPlan() {
     void wardrobeRequest('/starter-plans', planListSchema, undefined, 'GET').then((items) => {
       if (!mounted) return;
       setPlans(items);
-      setCurrent(items.find((item) => item.status === 'active') ?? items[0] ?? null);
-      setFormOpen(items.length === 0);
+      if (loadAttempt === 0) {
+        setCurrent(items.find((item) => item.status === 'active') ?? items[0] ?? null);
+        setFormOpen(items.length === 0);
+      }
       setLoadFailed(false);
     }).catch((cause: unknown) => {
       if (mounted) {
@@ -62,7 +64,7 @@ export function StarterPlan() {
 
 
   function focusPlanAfterUpdate() {
-    globalThis.requestAnimationFrame(() => globalThis.document.querySelector<HTMLElement>('#build-plan .starter-result h3')?.focus());
+    globalThis.requestAnimationFrame(() => globalThis.document.querySelector<HTMLElement>('#build-plan .starter-result h3, #build-plan .starter-form h3')?.focus());
   }
 
   function setValue<Key extends keyof FormValues>(key: Key, value: FormValues[Key]) {
@@ -102,6 +104,7 @@ export function StarterPlan() {
         setStatus('The previous plan is marked replaced. Your new plan is ready to review.');
       } else {
         const roles = buildStarterRoles(input, new Date().toISOString());
+        setCurrent(null);
         setDraft({ input, roles });
         setFormOpen(false);
         focusPlanAfterUpdate();
@@ -113,7 +116,7 @@ export function StarterPlan() {
   async function saveDraft() {
     if (!draft) return;
     await act('save', async () => {
-      const saved = await wardrobeRequest('/starter-plans', starterPlanSchema, draft.input);
+      const saved = await wardrobeRequest('/starter-plans', starterPlanSchema, { ...draft.input, needs: draft.roles.map(({ role, need }) => ({ role, need })) });
       setPlans((items) => [saved, ...items]);
       setCurrent(saved);
       setDraft(null);
@@ -144,7 +147,7 @@ export function StarterPlan() {
   async function replaceNeed(role: StarterRole, input: StarterInput, roles: StarterRoleState[]) {
     if (!needText.trim()) { setError('Describe the replacement need before saving.'); return; }
     await act('replace-need', async () => {
-      const need = z.string().trim().min(1).max(240).parse(needText);
+      const need = starterNeedSchema.parse(needText);
       if (current) {
         const saved = await wardrobeRequest(`/starter-plans/${current.id}`, starterPlanSchema, { action: 'replace-need', role, need }, 'PATCH');
         setCurrent(saved);
@@ -170,6 +173,7 @@ export function StarterPlan() {
       });
     } else {
       setDraft(null);
+      setFormOpen(true);
       focusPlanAfterUpdate();
       setStatus('Plan rejected. Nothing was saved. Your wardrobe was not changed.');
     }
@@ -177,7 +181,7 @@ export function StarterPlan() {
 
   function startReplacement() {
     if (!current) return;
-    setValues({ ...current.input, budget: String(current.input.budget) });
+    setValues({ ...current.input, budget: String(current.input.budget), ownedRoles: current.roles.filter((role) => role.state === 'confirmed-owned').map((role) => role.role) });
     setDraft(null);
     setReplacePlan(true);
     setFormOpen(true);
@@ -217,7 +221,7 @@ export function StarterPlan() {
             <button className="text-button" disabled={busy !== ''} onClick={() => { setEditingRole(role.role); setNeedText(role.need); }}>Replace need</button>
             <button className="text-button" disabled={busy !== ''} onClick={() => void confirmOwned(role.role, input, roles)}>I already have this</button>
             {editingRole === role.role && <form className="starter-replace-form" onSubmit={(event) => { event.preventDefault(); void replaceNeed(role.role, input, roles); }}>
-              <label>Replacement need<textarea value={needText} maxLength={240} required onChange={(event) => setNeedText(event.target.value)} /></label>
+              <label>Replacement need<textarea value={needText} maxLength={STARTER_NEED_MAX_LENGTH} required onChange={(event) => setNeedText(event.target.value)} /></label>
               <button className="button button-secondary" disabled={busy !== ''}>{busy === 'replace-need' ? 'Saving…' : 'Save replacement'}</button>
               <button className="text-button" type="button" onClick={() => { setEditingRole(null); setNeedText(''); }}>Cancel</button>
             </form>}
@@ -229,7 +233,7 @@ export function StarterPlan() {
       <div className="starter-plan-actions">
         {planStatus === 'draft' && <button className="button button-primary" disabled={busy !== ''} onClick={() => void saveDraft()}>{busy === 'save' ? 'Saving plan…' : 'Save plan'}</button>}
         {saved && planStatus === 'active' && <button className="button button-secondary" disabled={busy !== ''} onClick={startReplacement}>Replace plan</button>}
-        {planStatus === 'active' && <button className="text-button starter-reject" disabled={busy !== ''} onClick={() => void rejectCurrent()}>{busy === 'reject' ? 'Rejecting…' : 'Reject plan'}</button>}
+        {actionable && <button className="text-button starter-reject" disabled={busy !== ''} onClick={() => void rejectCurrent()}>{busy === 'reject' ? 'Rejecting…' : 'Reject plan'}</button>}
         {planStatus === 'rejected' && <button className="button button-primary" onClick={startNewPlan}>Start a new plan</button>}
       </div>
     </div>;
@@ -247,7 +251,7 @@ export function StarterPlan() {
       {draft && renderPlan(draft.input, draft.roles, false, 'draft')}
       {!draft && current?.status === 'replaced' && <button className="button button-primary" onClick={startNewPlan}>Start a new plan</button>}
       {formOpen && <form className="starter-form" onSubmit={(event) => void submit(event)}>
-        <h3>{replacePlan ? 'Change this plan' : current ? 'Plan another occasion' : 'Start with one occasion'}</h3>
+        <h3 tabIndex={-1}>{replacePlan ? 'Change this plan' : current ? 'Plan another occasion' : 'Start with one occasion'}</h3>
         <p>Tell us what the outfit needs to cover. Unknown details stay unknown.</p>
         <label>What is the occasion?<input required maxLength={120} value={values.occasion} placeholder="For example, a family celebration" onChange={(event) => setValue('occasion', event.target.value)} /></label>
         <div className="starter-form-row">

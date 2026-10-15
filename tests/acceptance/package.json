@@ -5,6 +5,7 @@
   "scripts": {
     "acceptance": "node src/run.mjs",
     "acceptance:stubs": "node src/verify-stubs.mjs",
+    "acceptance:starter-regressions": "node --test src/starter-regressions.test.mjs",
     "acceptance:privacy-mutations": "node src/run.mjs --privacy-mutations"
   },
   "devDependencies": {

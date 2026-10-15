@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const starterRoleSchema = z.enum(['top', 'bottom', 'footwear', 'one-piece']);
+export const STARTER_NEED_MAX_LENGTH = 512;
+export const starterNeedSchema = z.string().trim().min(1).max(STARTER_NEED_MAX_LENGTH);
 export const starterInputSchema = z.strictObject({
   occasion: z.string().trim().min(1).max(120),
   outfitType: z.enum(['separates', 'one-piece']),
@@ -20,17 +22,28 @@ export const starterInputSchema = z.strictObject({
   }
 });
 
+export const starterSaveSchema = starterInputSchema.safeExtend({
+  needs: z.array(z.strictObject({ role: starterRoleSchema, need: starterNeedSchema })).min(2).max(3).optional(),
+}).superRefine((input, context) => {
+  const { needs } = input;
+  if (!needs) return;
+  const roles = input.outfitType === 'separates' ? ['top', 'bottom', 'footwear'] : ['one-piece', 'footwear'];
+  if (needs.length !== roles.length || roles.some((role) => needs.filter((need) => need.role === role).length !== 1)) {
+    context.addIssue({ code: 'custom', path: ['needs'], message: 'Provide exactly one need for each role in the selected outfit form.' });
+  }
+});
+
 const plannedRoleSchema = z.strictObject({
   role: starterRoleSchema,
   state: z.literal('planned'),
   allocation: z.number().int().nonnegative(),
-  need: z.string().trim().min(1).max(240),
+  need: starterNeedSchema,
 });
 const ownedRoleSchema = z.strictObject({
   role: starterRoleSchema,
   state: z.literal('confirmed-owned'),
   allocation: z.literal(0),
-  need: z.string().trim().min(1).max(240),
+  need: starterNeedSchema,
   confirmedAt: z.iso.datetime(),
 });
 export const starterRoleStateSchema = z.discriminatedUnion('state', [plannedRoleSchema, ownedRoleSchema]);
@@ -46,7 +59,7 @@ export const starterPlanSchema = z.strictObject({
 
 export const starterPlanActionSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('confirm-owned'), role: starterRoleSchema }),
-  z.strictObject({ action: z.literal('replace-need'), role: starterRoleSchema, need: z.string().trim().min(1).max(240) }),
+  z.strictObject({ action: z.literal('replace-need'), role: starterRoleSchema, need: starterNeedSchema }),
   z.strictObject({ action: z.literal('replace-plan'), input: starterInputSchema }),
   z.strictObject({ action: z.literal('reject') }),
 ]);

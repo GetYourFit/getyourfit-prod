@@ -9,7 +9,7 @@ import express from 'express';
 import sharp from 'sharp';
 import { database } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
-import { buildStarterRoles, confirmStarterRole, starterInputSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
+import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
 
 const execute = promisify(execFile);
 const classifyScript = fileURLToPath(new URL('./classify.swift', import.meta.url));
@@ -66,18 +66,18 @@ export function exportWardrobe(userId) {
 }
 
 function insertStarterPlan(userId, input, roles, status = 'active') {
-  const id = crypto.randomUUID();
   const now = new Date().toISOString();
+  const plan = starterPlanSchema.parse({ id: crypto.randomUUID(), status, input, roles, createdAt: now, updatedAt: now });
   database.prepare('INSERT INTO starter_plans (id, user_id, status, input, roles, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(id, userId, status, JSON.stringify(input), JSON.stringify(roles), now, now);
-  return starterPlan(database.prepare('SELECT * FROM starter_plans WHERE id = ? AND user_id = ?').get(id, userId));
+    .run(plan.id, userId, plan.status, JSON.stringify(plan.input), JSON.stringify(plan.roles), plan.createdAt, plan.updatedAt);
+  return plan;
 }
 
 function updateStarterPlan(userId, plan) {
-  const updatedAt = new Date().toISOString();
+  const updated = starterPlanSchema.parse({ ...plan, updatedAt: new Date().toISOString() });
   database.prepare('UPDATE starter_plans SET status = ?, input = ?, roles = ?, updated_at = ? WHERE id = ? AND user_id = ?')
-    .run(plan.status, JSON.stringify(plan.input), JSON.stringify(plan.roles), updatedAt, plan.id, userId);
-  return starterPlan(database.prepare('SELECT * FROM starter_plans WHERE id = ? AND user_id = ?').get(plan.id, userId));
+    .run(updated.status, JSON.stringify(updated.input), JSON.stringify(updated.roles), updated.updatedAt, updated.id, userId);
+  return updated;
 }
 
 async function decodePhoto(body) {
@@ -178,9 +178,11 @@ export function wardrobeRouter(requireUser) {
   });
   router.get('/starter-plans', (request, response) => response.json(listStarterPlans(request.user.id)));
   router.post('/starter-plans', (request, response) => {
-    const parsed = starterInputSchema.safeParse(request.body);
+    const parsed = starterSaveSchema.safeParse(request.body);
     if (!parsed.success) return response.status(400).json({ error: 'Check the occasion, budget, and outfit needs, then try again.' });
-    response.status(201).json(insertStarterPlan(request.user.id, parsed.data, buildStarterRoles(parsed.data, new Date().toISOString())));
+    const { needs, ...input } = parsed.data;
+    const roles = buildStarterRoles(input, new Date().toISOString()).map((role) => ({ ...role, need: needs?.find((need) => need.role === role.role)?.need ?? role.need }));
+    response.status(201).json(insertStarterPlan(request.user.id, input, roles));
   });
   router.patch('/starter-plans/:id', (request, response) => {
     const action = starterPlanActionSchema.safeParse(request.body);
@@ -202,9 +204,11 @@ export function wardrobeRouter(requireUser) {
     if (action.data.action === 'confirm-owned') {
       const role = current.roles.find((item) => item.role === action.data.role);
       if (!role || role.state === 'confirmed-owned') return response.status(409).json({ error: 'That need has already been confirmed or is not in this plan.' });
+      const roles = confirmStarterRole(current.roles, action.data.role, current.input.budget, new Date().toISOString());
       return response.json(updateStarterPlan(request.user.id, {
         ...current,
-        roles: confirmStarterRole(current.roles, action.data.role, current.input.budget, new Date().toISOString()),
+        input: { ...current.input, ownedRoles: roles.filter((item) => item.state === 'confirmed-owned').map((item) => item.role) },
+        roles,
       }));
     }
     const role = current.roles.find((item) => item.role === action.data.role);
