@@ -337,4 +337,109 @@ test('R5/R9 rejection returns drafts to planning and closes saved-plan replaceme
   await builder.getByText('Plan saved in your private GetYourFit account.', { exact: true }).waitFor();
   assert.deepEqual((await api(context, 'GET')).find(plan => plan.id === saved.id), saved);
   assert.deepEqual(await api(context, 'GET', contract.wardrobe), []);
+  await t.test('R10 need editors are cleared on every displayed-plan transition', async () => {
+    for (const outfitType of ['separates', 'one-piece']) {
+      const labels = outfitType === 'separates' ? ['Top', 'Bottom', 'Footwear'] : ['One-piece garment', 'Footwear'];
+      for (const label of labels) {
+        const source = await api(context, 'POST', contract.starterPlans, { ...input, outfitType, occasion: `Editor source ${outfitType} ${label}` });
+        const destination = await api(context, 'POST', contract.starterPlans, { ...input, outfitType, occasion: `Editor destination ${outfitType} ${label}` });
+        await page.goto('/wardrobe');
+        await builder.locator('.starter-history summary').click();
+        await builder.getByRole('button', { name: `${source.input.occasion} · active`, exact: true }).click();
+        await roleRow(builder, label).getByRole('button', { name: 'Replace need', exact: true }).click();
+        await builder.getByLabel(/replacement need/i).fill('Pending text belongs only to the source');
+        await builder.getByRole('button', { name: `${destination.input.occasion} · active`, exact: true }).click();
+        assert.equal(await builder.getByLabel(/replacement need/i).count(), 0, 'History selection carried another plan’s pending editor');
+        assert.deepEqual((await api(context, 'GET')).find(plan => plan.id === destination.id), destination);
+        await roleRow(builder, label).getByRole('button', { name: 'Replace need', exact: true }).click();
+        await builder.getByLabel(/replacement need/i).fill('Discard this edit when starting a new plan');
+        await builder.getByRole('button', { name: 'New plan', exact: true }).click();
+        await draft(builder, { ...input, outfitType });
+        assert.equal(await builder.getByLabel(/replacement need/i).count(), 0, 'New draft inherited an editor');
+        await roleRow(builder, label).getByRole('button', { name: 'Replace need', exact: true }).click();
+        await builder.getByLabel(/replacement need/i).fill('Discard this unaccepted edit when saving');
+        await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
+        await builder.getByText('Plan saved in your private GetYourFit account.', { exact: true }).waitFor();
+        assert.equal(await builder.getByLabel(/replacement need/i).count(), 0, 'Saved plan inherited a draft editor');
+        await roleRow(builder, label).getByRole('button', { name: 'Replace need', exact: true }).click();
+        await builder.getByLabel(/replacement need/i).fill('Discard this edit when replacing the whole plan');
+        await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
+        await builder.getByLabel(/spending ceiling/i).fill('2000');
+        await builder.getByRole('button', { name: 'Replace with this plan', exact: true }).click();
+        await builder.getByText(/previous plan is marked replaced/i).waitFor();
+        assert.equal(await builder.getByLabel(/replacement need/i).count(), 0, 'Whole-plan replacement inherited an editor');
+        const replacement = (await api(context, 'GET'))[0];
+        await roleRow(builder, label).getByRole('button', { name: 'Replace need', exact: true }).click();
+        assert.equal(await builder.getByLabel(/replacement need/i).inputValue(), replacement.roles.find(role => role.role === (label === 'One-piece garment' ? 'one-piece' : label.toLowerCase())).need);
+        await builder.locator('.starter-replace-form').getByRole('button', { name: 'Cancel', exact: true }).click();
+      }
+    }
+  });
+  await t.test('R11 pending mutations keep navigation and cancel disabled until completion', async () => {
+    for (const outfitType of ['separates', 'one-piece']) {
+      for (const action of ['save', 'save-load-failed', 'confirm-owned', 'replace-need', 'replace-plan', 'reject']) {
+        const target = await api(context, 'POST', contract.starterPlans, { ...input, outfitType, occasion: `Pending ${outfitType} ${action}` });
+        if (action === 'save-load-failed') await context.route(`**${contract.starterPlans}`, route => route.request().method() === 'GET' ? route.abort('failed') : route.continue());
+        await page.goto('/wardrobe');
+        if (action.startsWith('save')) {
+          if (action === 'save-load-failed') await builder.getByRole('button', { name: 'Try loading saved plans again', exact: true }).waitFor();
+          else await builder.getByRole('button', { name: 'New plan', exact: true }).click();
+          await draft(builder, { ...input, outfitType });
+        } else if (action !== 'replace-need') {
+          await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
+          await builder.getByLabel(/spending ceiling/i).fill('2000');
+        }
+        if (action === 'save-load-failed') await context.unroute(`**${contract.starterPlans}`);
+        if (await builder.locator('.starter-history summary').count()) await builder.locator('.starter-history summary').click();
+        const label = outfitType === 'separates' ? 'Top' : 'One-piece garment';
+        await roleRow(builder, label).getByRole('button', { name: 'Replace need', exact: true }).click();
+        await builder.getByLabel(/replacement need/i).fill('Pending need replacement');
+        const saving = action.startsWith('save');
+        const endpoint = saving ? contract.starterPlans : `${contract.starterPlans}/${target.id}`;
+        const method = saving ? 'POST' : 'PATCH';
+        const failing = action === 'replace-plan' && outfitType === 'one-piece';
+        let release;
+        const gate = new Promise(resolve => { release = resolve; });
+        await context.route(`**${endpoint}`, async route => {
+          if (route.request().method() !== method) return route.continue();
+          await gate;
+          if (failing) await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Pending replacement failed. Try again.' }) });
+          else await route.continue();
+        });
+        const trigger = saving ? builder.getByRole('button', { name: 'Save plan', exact: true })
+          : action === 'confirm-owned' ? roleRow(builder, label).getByRole('button', { name: 'I already have this', exact: true })
+            : action === 'replace-need' ? builder.getByRole('button', { name: 'Save replacement', exact: true })
+              : action === 'replace-plan' ? builder.getByRole('button', { name: 'Replace with this plan', exact: true })
+                : builder.getByRole('button', { name: 'Reject plan', exact: true });
+        const triggerHandle = await trigger.elementHandle();
+        assert(triggerHandle);
+        try {
+          await trigger.click();
+          assert(await triggerHandle.isDisabled(), 'Mutation did not enter its pending state');
+          for (const button of await builder.getByRole('button').all()) {
+            assert(await button.isDisabled(), `${action} left ${await button.textContent()} enabled`);
+            await button.evaluate(element => element.click());
+          }
+          for (const control of await builder.locator('input, select, textarea').all()) assert(await control.isDisabled(), 'Pending mutation left an editable field enabled');
+          assert.equal(await builder.getByLabel(/replacement need/i).inputValue(), 'Pending need replacement');
+        } finally {
+          const response = page.waitForResponse(item => new URL(item.url()).pathname === endpoint && item.request().method() === method);
+          release();
+          await response;
+          await context.unroute(`**${endpoint}`);
+          await triggerHandle.dispose();
+        }
+        if (failing) {
+          await builder.getByRole('alert').waitFor();
+          assert.equal(await builder.getByLabel(/spending ceiling/i).inputValue(), '2000');
+          assert(await builder.locator('.starter-form').getByRole('button', { name: 'Cancel', exact: true }).isEnabled());
+        } else {
+          const message = saving ? /plan saved in your private/i : action === 'confirm-owned' ? /you confirmed suitable/i
+            : action === 'replace-need' ? /need was replaced in this plan/i : action === 'replace-plan' ? /previous plan is marked replaced/i : /plan rejected and recorded/i;
+          await builder.getByRole('status').filter({ hasText: message }).waitFor();
+        }
+        for (const button of await builder.getByRole('button').all()) assert(await button.isEnabled(), 'Mutation left a control disabled after completion');
+      }
+    }
+  });
 });
