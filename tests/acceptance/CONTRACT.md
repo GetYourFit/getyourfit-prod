@@ -36,3 +36,21 @@ Every complete outfit has top, bottom and footwear categories. Every suggested r
 With only one owned shirt, or when weather or dress code is unknown, the API asks one question or abstains without an outfit. The checker requires the public question to identify the missing fact, or requires a nonempty abstention explanation. Its complete-set proof uses three licensed real image fixtures, reusing those fixtures for fact variations; the browser journey separately proves the one-shirt alternative. It checks factual constraints, not fashion quality or ranking.
 
 The checker reads a garment through the owner's wardrobe collection and photo URL; it does not assume a per-item GET route. No exact inference label, internal database structure, component name, scoring implementation or model provider is asserted. A future transport change must be reconciled against public browser/API behavior while retaining the same requirement outcomes and their bad-variant proofs.
+
+## Zero-garment starter-plan precursor
+
+The user-facing scope, workflow, allocation rules, and external-link disclosures are owned by [Build my wardrobe](../../README.md#build-my-wardrobe).
+
+The starter-plan API stays inside the authenticated wardrobe boundary:
+
+| Interface | Request | Observable response |
+| --- | --- | --- |
+| `GET /api/wardrobe/starter-plans` | Existing private session | Only that account's saved plans, including input, role states, allocations, and status |
+| `POST /api/wardrobe/starter-plans` | Input accepted by [starterSaveSchema](../../shared/starter-plan.ts), including optional edited needs | A saved active text plan with the complete selected roles, role allocations, edited need text, and persisted timestamps |
+| `PATCH /api/wardrobe/starter-plans/:id` | `confirm-owned`, `replace-need`, `replace-plan`, or `reject` action | Owner-scoped update; a replacement marks the prior plan replaced, a rejection remains in history, and confirmation changes only the plan role |
+
+Role combinations and request validation are defined in [the starter-plan schemas](../../shared/starter-plan.ts). The checker verifies that allocations follow the README's rules. The starter-plan browser regressions also verify zero allocation when all roles are confirmed owned. An attempt to mutate a replaced or rejected saved plan returns 409. Requests that fail schema validation return 400, another account's plan ID returns 404, and anonymous requests require authentication.
+
+The production browser case starts from the public entry, completes signup, confirms the empty collection, enters and saves an occasion plan by keyboard, inspects unknown facts and budget arithmetic, exercises a failed replacement and retry, reloads, replaces a need, confirms existing ownership, replaces and rejects plans, and checks the zero-budget outcome. It verifies the collection remains empty throughout, generic links contain no private context, phone and desktop layouts do not overflow, and no external request occurs before an explicit link action. Invalid outfit-role combinations are refused. The test suite retains its current privacy, consent, contrast, account, and owned-outfit checks.
+
+The independent good and deliberately broken controls reject fake in-stock or delivery claims, wrong allocation totals, contradictory outfit/ownership constraints, and planned-role leakage into the owned collection. The production suite also verifies the new account export contains saved starter plans; account deletion removes plans through the existing user ownership boundary.

@@ -23,7 +23,7 @@ Use an exact `main` revision with successful `quality` and `acceptance` checks. 
 
 Retain the secret with the database across releases and restores. Changing it invalidates sessions and makes existing authenticator secrets unreadable. Real-mail credentials are unnecessary for v0.1.
 
-`getyourfit.sqlite` holds accounts, wardrobe records, and garment photos as BLOBs. Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), and [database](../server/database.mjs).
+`getyourfit.sqlite` holds accounts, wardrobe records, garment photos as BLOBs, and private starter plans. Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
 
 ## Public request boundary
 
@@ -36,3 +36,11 @@ Set `GYF_TRUSTED_PROXIES` only to the addresses of controlled ingress hops, neve
 `npm test` exercises the real production HTTP service on free ports with disposable databases and per-run credentials: loopback and public requests, foreign rejection, secure signup cookies, forwarding spoof resistance, separate ingress clients, and invalid startup configuration.
 
 Verify signup, session continuity, real photo upload and refresh, an owned-outfit result, cross-user isolation, and no mail through the public HTTPS browser path. `npm run acceptance` starts its own isolated local service and cannot verify a deployed URL. Keep both required checks bound to the release revision; [workflow-kit.md](workflow-kit.md) records protection.
+
+## Starter-plan release handoff
+
+The starter plan uses the existing SQLite database and account session. Its new table is additive and references the account with cascade deletion. It creates no merchant, search, AI, email, or payment integration. The owned-clothes path remains beside the new path.
+
+After this change is reviewed and merged, the existing deployment owner can build the exact approved `main` revision with `npm ci`, `npm run build`, and `npm run acceptance`, then use the established `npm start` service process and runtime inputs above. The acceptance command builds and runs a disposable production service; it does not deploy or prove a public host. Keep the same database, `BETTER_AUTH_SECRET`, and service configuration. Before an authorized rollout, take the deployment owner's normal consistent database backup and record the prior release revision.
+
+After an authorized deployment to `app.getyourfit.co`, the deployment owner must use a real browser and the public API to verify the new zero-garment entry, save/reload, replace/reject, ownership confirmation, account isolation, and empty owned collection, then bind the evidence to the deployed revision. Do not call the feature live before that proof. If the release must be rolled back, restore the prior application revision using the existing service process and retain the same database and secret. The additive plan table and saved rows remain in the database for a later forward release; the prior owned-clothes journey remains available. Account deletion continues to cascade through plans.

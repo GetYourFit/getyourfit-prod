@@ -4,6 +4,7 @@ import { Plus, ArrowUpRight } from 'lucide-react';
 import { contextSchema, decisionSchema, dressCodeSchema, garmentSchema, wardrobeSchema, weatherSchema, type Context, type Decision, type Garment } from '../shared/wardrobe';
 import { GarmentForm, InterpretationNote } from './GarmentForm';
 import { wardrobeRequest } from './wardrobe-api';
+import { StarterPlan } from './StarterPlan';
 
 type Editor = { kind: 'closed' } | { kind: 'add' } | { kind: 'edit'; garment: Garment };
 const savedSchema = z.object({ saved: z.literal(true) });
@@ -39,7 +40,7 @@ export function Wardrobe() {
 
   return <div className="wardrobe-content">
     <section aria-labelledby="wardrobe-title">
-      <div className="section-heading wardrobe-heading"><div><p className="eyebrow">YOUR OWN CLOTHES, FIRST</p><h1 id="wardrobe-title" ref={titleRef} tabIndex={-1}>A wardrobe worth knowing.</h1><p className="lede">Keep the clothes you own close. Make one clear decision about what to wear.</p></div>{editor.kind === 'closed' && <button className="button button-primary" disabled={busy || garments === null || garments.length >= 50} onClick={() => setEditor({ kind: 'add' })}><Plus size={16} /> Add garment</button>}</div>
+      <div className="section-heading wardrobe-heading"><div><p className="eyebrow">YOUR OWN CLOTHES, FIRST</p><h1 id="wardrobe-title" ref={titleRef} tabIndex={-1}>A wardrobe worth knowing.</h1><p className="lede">Keep the clothes you own close. Make one clear decision about what to wear.</p></div>{editor.kind === 'closed' && <div className="wardrobe-entry-actions"><a className="button button-secondary" href="#build-plan">Build my wardrobe</a><button className="button button-primary" disabled={busy || garments === null || garments.length >= 50} onClick={() => setEditor({ kind: 'add' })}><Plus size={16} /> Add garment</button></div>}</div>
       {error && <p className="inline-error" role="alert">{error}</p>}
       {editor.kind !== 'closed' && <GarmentForm key={editor.kind === 'edit' ? editor.garment.id : 'add'} garment={editor.kind === 'edit' ? editor.garment : null} onCancel={() => setEditor({ kind: 'closed' })} onSaved={async () => { await refresh(); setDecision(null); setEditor({ kind: 'closed' }); }} />}
       {garments === null ? <p role="status">{error ? 'Your wardrobe is unavailable. Check your connection and reload to try again.' : 'Opening your wardrobe…'}</p> : garments.length === 0 ? <div className="wardrobe-empty"><span className="empty-number">01</span><div><h2>Start with something you own.</h2><p>One real photo, then the facts only you can confirm. For a complete outfit, add a top and bottom (or one-piece) and footwear.</p></div></div> : <>
@@ -52,6 +53,7 @@ export function Wardrobe() {
         </article>)}</div>
       </>}
     </section>
+    <StarterPlan />
     <section className="outfit-section" id="outfit" aria-labelledby="outfit-title">
       <div className="section-heading"><div><p className="eyebrow">ONE DECISION</p><h2 id="outfit-title">What are you dressing for?</h2><p className="lede">You set the context. We check your confirmed facts, then show a complete set you already own.</p></div><ArrowUpRight size={24} aria-hidden="true" /></div>
       <form className="context-form" onSubmit={(event) => { event.preventDefault(); void act(decide); }}>

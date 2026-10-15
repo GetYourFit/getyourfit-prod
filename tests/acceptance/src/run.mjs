@@ -46,6 +46,7 @@ const cases = [
   [caseNames.outfit, ['R4', 'R5', 'R9', 'R10', 'R11', 'R19', 'A-1'], outfitJourney],
   [caseNames.singleShirt, ['R5', 'R9', 'R11', 'R19', 'A-1'], singleShirtJourney],
   [caseNames.missingFacts, ['R5', 'R11', 'R19', 'A-1'], missingFactsJourney],
+  [caseNames.starterPlan, ['R4', 'R9', 'R26', 'A-1', 'S1'], starterPlanJourney],
   [caseNames.isolation, ['R26', 'R27'], isolation],
 ];
 const started = Date.now();
@@ -132,7 +133,7 @@ try {
       if (privacyMutationMode && ![caseNames.browser, caseNames.frontDoor].includes(name)) continue;
       const item = { name, requirement_ids: ids, status: 'passed' };
       const caseStart = Date.now();
-      const context = await browser.newContext({ baseURL, ...([caseNames.browser, caseNames.frontDoor].includes(name) ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {}) });
+      const context = await browser.newContext({ baseURL, ...([caseNames.browser, caseNames.frontDoor, caseNames.starterPlan].includes(name) ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {}) });
       context.setDefaultTimeout(6000);
       activePage = await context.newPage();
       try {
@@ -186,6 +187,13 @@ async function requiredControl(locator, message) {
     if (error?.name === 'TimeoutError') throw new Error(message);
     throw error;
   }
+}
+function isExpectedReplacementFailure(response, planId) {
+  const action = typeof response.action === 'string' ? response.action : response.action?.action;
+  return response.method === 'PATCH'
+    && new URL(response.url).pathname === `${contract.starterPlans}/${planId}`
+    && action === 'replace-need'
+    && response.status === 503;
 }
 
 async function waitForServer() {
@@ -393,6 +401,215 @@ async function missingFactsJourney(context) {
   const unknownDressCode = await jsonOK(await api(context, 'POST', contract.outfits, { ...facts, dressCode: 'unknown' }), 'Unknown-dress-code outfit request');
   requireQuestionOrAbstention(unknownDressCode, 'Unknown dress code', 'dressCode');
 }
+async function starterPlanJourney(context, page) {
+  if (stubMode) {
+    await signup(context);
+    const input = { occasion: 'Acceptance ceremony', outfitType: 'separates', budget: 1001, currency: 'INR', weather: 'unknown', dressCode: 'formal', mustHave: 'covered shoulders', ownedRoles: ['footwear'] };
+    const impossible = await api(context, 'POST', contract.starterPlans, { ...input, outfitType: 'one-piece', ownedRoles: ['top'] });
+    assert.equal(impossible.status(), 400, 'Contradictory outfit needs were accepted instead of rejected');
+    let saved = await jsonOK(await api(context, 'POST', contract.starterPlans, input), 'Starter plan save');
+    assert.equal(saved.input.occasion, input.occasion);
+    assert.equal(saved.roles.length, 3, 'Starter plan must describe a complete outfit need');
+    assert(saved.roles.every(role => role.state === 'planned' || role.state === 'confirmed-owned'), 'Starter plan mixed unknown role states');
+    assert.equal(saved.roles.filter(role => role.state === 'confirmed-owned').length, 1, 'Only wearer-confirmed ownership may close a role');
+    assert.equal(saved.roles.filter(role => role.state === 'planned').reduce((sum, role) => sum + role.allocation, 0), input.budget, 'Budget allocation does not equal the spending ceiling for planned needs');
+    assert(saved.roles.every(role => !/\b(?:in stock|available to buy|buy now|delivery tomorrow|checkout total)\b/i.test(role.need)), 'Starter plan contains a fake purchasability claim');
+    assert(saved.roles.every(role => role.state !== 'planned' || role.need.length > 0), 'Starter plan contains an empty need');
+    assert.deepEqual(await jsonOK(await api(context, 'GET', contract.wardrobe), 'Owned wardrobe after starter plan'), [], 'A planned need was added to the owned wardrobe');
+    saved = await jsonOK(await api(context, 'PATCH', `${contract.starterPlans}/${saved.id}`, { action: 'replace-need', role: 'top', need: 'A different top need for this occasion' }), 'Replace starter need');
+    assert.equal(saved.roles.find(role => role.role === 'top').need, 'A different top need for this occasion');
+    saved = await jsonOK(await api(context, 'PATCH', `${contract.starterPlans}/${saved.id}`, { action: 'confirm-owned', role: 'top' }), 'Confirm owned starter role');
+    assert.equal(saved.roles.find(role => role.role === 'top').state, 'confirmed-owned');
+    assert.equal(saved.roles.filter(role => role.state === 'planned').reduce((sum, role) => sum + role.allocation, 0), input.budget, 'Ownership confirmation did not rebalance the remaining plan allocation');
+    const reloaded = await jsonOK(await api(context, 'GET', contract.starterPlans), 'Reload saved starter plans');
+    assert.equal(reloaded.find(plan => plan.id === saved.id).roles.find(role => role.role === 'top').state, 'confirmed-owned', 'Ownership confirmation did not persist');
+    const replacementInput = { ...input, occasion: 'Acceptance reception', budget: 2000 };
+    const replacement = await jsonOK(await api(context, 'PATCH', `${contract.starterPlans}/${saved.id}`, { action: 'replace-plan', input: replacementInput }), 'Replace starter plan');
+    assert.equal(replacement.status, 'active');
+    const history = await jsonOK(await api(context, 'GET', contract.starterPlans), 'Replaced starter plan history');
+    assert.equal(history.find(plan => plan.id === saved.id).status, 'replaced');
+    const rejected = await jsonOK(await api(context, 'PATCH', `${contract.starterPlans}/${replacement.id}`, { action: 'reject' }), 'Reject starter plan');
+    assert.equal(rejected.status, 'rejected');
+    const finalHistory = await jsonOK(await api(context, 'GET', contract.starterPlans), 'Rejected starter plan history');
+    assert.equal(finalHistory.find(plan => plan.id === replacement.id).status, 'rejected', 'Rejected plan did not persist');
+    return;
+  }
+
+  const errors = [], expectedConsoleErrors = [], outsideRequests = [];
+  let savedPlanId = '', injectedReplacementFailures = 0, expectedReplacementResponses = 0, expectReplacementFailure = false;
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => {
+    if (message.type() !== 'error') return;
+    if (/status of 503 \(Service Unavailable\)/i.test(message.text()) && expectReplacementFailure && expectedReplacementResponses === 1) expectedConsoleErrors.push(message.text());
+    else errors.push(message.text());
+  });
+  page.on('response', response => {
+    if (response.status() !== 503) return;
+    const request = response.request();
+    let action;
+    try { action = request.postDataJSON()?.action; } catch { action = undefined; }
+    if (savedPlanId && isExpectedReplacementFailure({ method: request.method(), url: request.url(), action, status: response.status() }, savedPlanId)) expectedReplacementResponses += 1;
+    else errors.push(`Unexpected HTTP ${response.status()} for ${request.method()} ${new URL(request.url()).pathname}`);
+  });
+  page.on('request', request => { if (new URL(request.url()).origin !== baseURL) outsideRequests.push(request.url()); });
+  let releasePlans;
+  const planListGate = new Promise(resolve => { releasePlans = resolve; });
+  await context.route('**/api/wardrobe/starter-plans', async route => {
+    if (route.request().method() === 'GET') { await planListGate; await route.continue(); }
+    else await route.continue();
+  });
+  await page.goto(baseURL);
+  await page.getByRole('link', { name: /^build my wardrobe/i }).click();
+  const user = credentials();
+  await page.getByLabel(/your name/i).fill(user.name);
+  await page.getByLabel(/^email/i).fill(user.email);
+  await page.getByLabel(/^password/i).fill(user.password);
+  await page.getByRole('checkbox', { name: /18|age/i }).check();
+  const [registered] = await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname === contract.register),
+    page.getByRole('button', { name: /create account/i }).click(),
+  ]);
+  assert(registered.ok(), `Signup from the wardrobe entry returned HTTP ${registered.status()}`);
+  await page.getByRole('heading', { name: /a wardrobe worth knowing/i }).waitFor();
+  await page.locator('#build-plan').getByText('Opening your saved plans…', { exact: true }).waitFor();
+  const planListResponse = page.waitForResponse(response => new URL(response.url()).pathname === contract.starterPlans && response.request().method() === 'GET');
+  releasePlans();
+  await planListResponse;
+  await context.unroute('**/api/wardrobe/starter-plans');
+  assert.deepEqual(await jsonOK(await api(context, 'GET', contract.wardrobe), 'Zero-garment wardrobe'), [], 'Starter journey did not begin with an empty owned wardrobe');
+  assert.equal(await page.locator('input[type=file]:visible').count(), 0, 'Starter planning requires a visible garment upload');
+  const impossible = await api(context, 'POST', contract.starterPlans, { occasion: 'Acceptance ceremony', outfitType: 'one-piece', budget: 1000, currency: 'INR', weather: 'unknown', dressCode: 'formal', mustHave: '', ownedRoles: ['top'] });
+  assert.equal(impossible.status(), 400, 'Contradictory outfit needs were accepted instead of rejected');
+  await page.getByRole('link', { name: /^build my wardrobe$/i }).last().focus();
+  await page.keyboard.press('Enter');
+  const builder = page.locator('#build-plan');
+  await builder.getByLabel(/what is the occasion/i).fill('Acceptance ceremony');
+  await builder.getByLabel(/spending ceiling/i).fill('1001');
+  await builder.getByLabel(/^plan weather/i).selectOption('unknown');
+  await builder.getByLabel(/^plan dress code/i).selectOption('formal');
+  await builder.getByLabel(/any must-have/i).fill('covered shoulders');
+  await builder.getByLabel(/i already have suitable footwear/i).check();
+  await builder.getByRole('button', { name: /make my starter plan/i }).focus();
+  await page.keyboard.press('Enter');
+  const needsHeading = builder.getByRole('heading', { name: /needs for acceptance ceremony/i });
+  await needsHeading.waitFor();
+  await page.waitForFunction(() => globalThis.document.activeElement === globalThis.document.querySelector('#build-plan .starter-result h3'));
+  assert(await needsHeading.evaluate(element => element === globalThis.document.activeElement), 'Keyboard plan creation did not move focus to the result');
+  assert.match(await builder.innerText(), /text needs plan/i, 'The result claims to be a verified outfit instead of a needs plan');
+  assert.match(await builder.innerText(), /size.*unknown|unknown.*size/i, 'The result hides size uncertainty');
+  assert.match(await builder.innerText(), /delivery cost.*checkout|checkout total.*unknown/i, 'The result hides delivery or checkout uncertainty');
+  assert.match(await builder.innerText(), /covered shoulders/i, 'The result dropped the wearer requirement');
+  const resultText = await builder.innerText();
+  assert.doesNotMatch(resultText, /\b(?:in stock|available to buy|buy now|delivery tomorrow|verified price)\b/i, 'The result invents a purchasability claim');
+  const searches = await builder.locator('a.starter-search').evaluateAll(links => links.map(link => ({ href: link.href, rel: link.rel, label: link.innerText })));
+  assert(searches.length > 0, 'Positive budget needs have no ordinary destination link');
+  for (const link of searches) {
+    const url = new URL(link.href);
+    assert.equal(url.hostname, 'www.google.com', 'Destination is not an ordinary external search');
+    assert.doesNotMatch(url.search, /acceptance|1001|shoulders|formal/i, 'A destination link leaks private plan details');
+    assert.match(link.rel, /noopener/);
+  }
+  const candidate = await page.evaluate(() => ({ width: globalThis.innerWidth, height: globalThis.document.documentElement.scrollHeight }));
+  assert(candidate.height > 0);
+  await page.evaluate(axe.source);
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    assert(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth + 1), `Starter plan overflows at ${width}px`);
+    const violations = await page.evaluate(async () => (await globalThis.axe.run(globalThis.document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } })).violations.map(({ id, nodes }) => ({ id, targets: nodes.map(node => node.target) })));
+    assert.deepEqual(violations, [], `Starter plan fails automated WCAG AA at ${width}px: ${JSON.stringify(violations)}`);
+    await page.screenshot({ path: path.join(output, 'screenshots', `starter-plan-${width}.png`), fullPage: true, mask: [page.locator('input[type=email], input[type=password]'), ...[...secrets].map(secret => page.getByText(secret, { exact: false }))] });
+  }
+  await builder.getByRole('button', { name: /save plan/i }).click();
+  await builder.getByText(/plan saved in your private getyourfit account/i).waitFor();
+  let saved = (await jsonOK(await api(context, 'GET', contract.starterPlans), 'Persisted starter plan')).find(plan => plan.status === 'active');
+  assert(saved, 'Saved starter plan is missing');
+  savedPlanId = saved.id;
+  assert.equal(saved.roles.filter(role => role.state === 'planned').reduce((sum, role) => sum + role.allocation, 0), 1001, 'Budget allocation does not equal the spending ceiling for planned needs');
+  assert(saved.roles.every(role => !/\b(?:in stock|available to buy|buy now|delivery tomorrow|verified price)\b/i.test(role.need)), 'Saved plan contains a fake purchasability claim');
+  assert.deepEqual(await jsonOK(await api(context, 'GET', contract.wardrobe), 'Owned clothes after saving a plan'), [], 'A planned item was added to the owned wardrobe');
+  const exported = await jsonOK(await api(context, 'GET', '/api/data/export'), 'Account export with starter plan');
+  assert(exported.starterPlans.some(plan => plan.id === saved.id), 'Account export omitted a private starter plan');
+  const other = await browser.newContext({ baseURL });
+  try {
+    await signup(other);
+    assert.deepEqual(await jsonOK(await api(other, 'GET', contract.starterPlans), 'Other account starter plans'), [], 'Starter plan leaked into another account');
+    const intruder = await api(other, 'PATCH', `${contract.starterPlans}/${saved.id}`, { action: 'reject' });
+    assert.equal(intruder.status(), 404, 'Another account could change a private starter plan');
+  } finally { await other.close(); }
+  await page.reload();
+  await builder.getByRole('heading', { name: /your starter plan for acceptance ceremony/i }).waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  let failNextSave = true;
+  await context.route('**/api/wardrobe/starter-plans/**', async route => {
+    const request = route.request();
+    let action;
+    try { action = request.postDataJSON()?.action; } catch { action = undefined; }
+    if (failNextSave && isExpectedReplacementFailure({ method: request.method(), url: request.url(), action, status: 503 }, saved.id)) {
+      failNextSave = false;
+      injectedReplacementFailures += 1;
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable. Try again.' }) });
+      return;
+    }
+    await route.continue();
+  });
+  const topNeed = builder.locator('.starter-needs > li').filter({ hasText: /^Top/ });
+  await topNeed.getByRole('button', { name: /replace need/i }).click();
+  const replacementField = builder.getByLabel(/replacement need/i);
+  await replacementField.fill('A different top need for this occasion');
+  expectReplacementFailure = true;
+  await topNeed.getByRole('button', { name: /save replacement/i }).click();
+  const replacementError = builder.getByRole('alert');
+  await replacementError.waitFor();
+  assert.match(await replacementError.innerText(), /temporarily unavailable/i, 'The failed replacement did not expose its recoverable error');
+  expectReplacementFailure = false;
+  assert.equal(injectedReplacementFailures, 1, 'The targeted replacement failure route was not used exactly once');
+  assert.equal(expectedReplacementResponses, 1, 'The expected replacement failure response was not observed exactly once');
+  assert.equal(expectedConsoleErrors.length, 1, 'Chromium did not report exactly one console error for the injected replacement failure');
+  assert.equal(isExpectedReplacementFailure({ method: 'GET', url: `${baseURL}${contract.starterPlans}/${saved.id}`, action: 'replace-need', status: 503 }, saved.id), false, 'Unexpected method passed the failure control');
+  assert.equal(isExpectedReplacementFailure({ method: 'PATCH', url: `${baseURL}/api/auth/sign-in`, action: 'replace-need', status: 503 }, saved.id), false, 'Unexpected URL passed the failure control');
+  assert.equal(isExpectedReplacementFailure({ method: 'PATCH', url: `${baseURL}${contract.starterPlans}/${saved.id}`, action: 'reject', status: 503 }, saved.id), false, 'Unexpected action passed the failure control');
+  assert.equal(isExpectedReplacementFailure({ method: 'PATCH', url: `${baseURL}${contract.starterPlans}/${saved.id}`, action: 'replace-need', status: 500 }, saved.id), false, 'Unexpected status passed the failure control');
+  await page.screenshot({ path: path.join(output, 'screenshots', 'starter-plan-error-390.png'), fullPage: true, mask: [page.locator('input[type=email], input[type=password]'), ...[...secrets].map(secret => page.getByText(secret, { exact: false }))] });
+  assert.equal(await replacementField.inputValue(), 'A different top need for this occasion', 'A failed replacement lost its input');
+  await topNeed.getByRole('button', { name: /save replacement/i }).click();
+  await builder.getByText(/need was replaced in this plan/i).waitFor();
+  await context.unroute('**/api/wardrobe/starter-plans/**');
+  await page.reload();
+  await builder.getByText('A different top need for this occasion', { exact: true }).waitFor();
+  await builder.getByRole('button', { name: /i already have this/i }).first().click();
+  await builder.getByText(/you confirmed suitable top is yours/i).waitFor();
+  saved = (await jsonOK(await api(context, 'GET', contract.starterPlans), 'Plan after ownership confirmation')).find(plan => plan.status === 'active');
+  assert.equal(saved.roles.find(role => role.role === 'top').state, 'confirmed-owned');
+  assert.equal(saved.roles.find(role => role.role === 'top').allocation, 0);
+  assert.deepEqual(await jsonOK(await api(context, 'GET', contract.wardrobe), 'Owned clothes after wearer confirmation'), [], 'A plan confirmation created an owned garment');
+  await builder.getByRole('button', { name: /^replace plan$/i }).click();
+  await builder.getByLabel(/what is the occasion/i).fill('Acceptance reception');
+  await builder.getByLabel(/spending ceiling/i).fill('2000');
+  await builder.getByRole('button', { name: /replace with this plan/i }).click();
+  await builder.getByRole('heading', { name: /your starter plan for acceptance reception/i }).waitFor();
+  const history = await jsonOK(await api(context, 'GET', contract.starterPlans), 'Plan replacement history');
+  assert.equal(history.find(plan => plan.id === saved.id).status, 'replaced', 'Replace did not mark the prior plan replaced');
+  await page.reload();
+  await builder.getByRole('button', { name: /reject plan/i }).click();
+  await builder.getByRole('heading', { name: /plan rejected/i }).waitFor();
+  await page.reload();
+  await builder.getByRole('heading', { name: /plan rejected/i }).waitFor();
+  const rejected = await jsonOK(await api(context, 'GET', contract.starterPlans), 'Rejected plan after reload');
+  assert.equal(rejected.find(plan => plan.status === 'rejected')?.status, 'rejected', 'Reject did not persist');
+  assert.deepEqual(await jsonOK(await api(context, 'GET', contract.wardrobe), 'Final owned clothes collection'), [], 'Starter planning or ownership confirmation changed owned clothes');
+  await jsonOK(await api(context, 'DELETE', '/api/data', { confirm: 'delete my account' }), 'Delete account and starter plans');
+  const deletedPlans = await api(context, 'GET', contract.starterPlans);
+  assert.equal(deletedPlans.status(), 401, 'Deleted account retained access to saved plans');
+  await builder.getByRole('button', { name: /start a new plan/i }).click();
+  await builder.getByLabel(/what is the occasion/i).fill('Acceptance with no cash');
+  await builder.getByLabel(/spending ceiling/i).fill('0');
+  await builder.getByRole('button', { name: /make my starter plan/i }).click();
+  await builder.getByText(/zero spending ceiling/i).waitFor();
+  assert.equal(await builder.locator('a.starter-search').count(), 0, 'Zero-budget plan sends the wearer toward product shopping');
+  assert.match(await builder.innerText(), /borrow|lend|reuse/i, 'Zero-budget plan gives no no-cost next step');
+  assert.deepEqual(errors, [], 'Starter plan caused browser errors');
+  assert.deepEqual(outsideRequests, [], 'Starter plan sends requests to an external service before the wearer opens a link');
+}
 async function isolation(context) {
   await signup(context);
   const item = await garment(context);
@@ -435,8 +652,14 @@ async function contrastJourney(context, page) {
       await page.evaluate(axe.source);
       const result = await page.evaluate(async () => {
         const { violations, incomplete, passes } = await globalThis.axe.run(globalThis.document, { runOnly: ['color-contrast'] });
-        const findings = items => items.map(({ id, nodes }) => ({ id, nodes: nodes.map(({ target, any }) => ({ target, checks: any.map(({ message, data }) => ({ message, data })) })) }));
-        return { violations: findings(violations), incomplete: findings(incomplete), checked_nodes: passes.reduce((sum, rule) => sum + rule.nodes.length, 0) };
+        const findings = items => items.map(({ id, nodes }) => ({ id, nodes: nodes.map(({ target, html, any }) => ({ target, html, checks: any.map(({ message, data, relatedNodes }) => ({ message, data, relatedNodes })) })) }));
+        const requirementFields = [...globalThis.document.querySelectorAll('#build-plan [aria-describedby="starter-requirement-help"]')].map(element => {
+          const rect = element.getBoundingClientRect();
+          const top = globalThis.document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          const style = globalThis.getComputedStyle(element);
+          return { rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, hit: top?.outerHTML.slice(0, 180), background: style.backgroundColor, color: style.color, opacity: style.opacity };
+        });
+        return { violations: findings(violations), incomplete: findings(incomplete), checked_nodes: passes.reduce((sum, rule) => sum + rule.nodes.length, 0), requirementFields };
       });
       scans.push({ surface, width, ...result });
       await writeFile(path.join(output, 'contrast.json'), `${JSON.stringify(scans, null, 2)}\n`);
@@ -458,6 +681,22 @@ async function contrastJourney(context, page) {
   await signup(context);
   await page.goto('/wardrobe');
   await page.getByRole('button', { name: /^add garment$/i }).waitFor();
+  if (!stubMode) {
+    const requirement = page.locator('#build-plan [aria-describedby="starter-requirement-help"]');
+    await requirement.scrollIntoViewIfNeeded();
+    const visibility = await requirement.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      const points = [[.1, .1], [.5, .1], [.9, .1], [.1, .5], [.5, .5], [.9, .5], [.1, .9], [.5, .9], [.9, .9]];
+      return {
+        visible: rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.bottom <= globalThis.innerHeight,
+        unobscured: points.every(([x, y]) => globalThis.document.elementFromPoint(rect.left + rect.width * x, rect.top + rect.height * y) === element),
+        placeholder: element.getAttribute('placeholder'),
+      };
+    });
+    assert.equal(visibility.visible, true, 'Starter requirement field must be visible in the viewport before contrast is evaluated');
+    assert.equal(visibility.unobscured, true, 'Starter requirement field must be unobscured at its text and padding before contrast is evaluated');
+    assert.equal(visibility.placeholder, null, 'Empty requirement field must use its visible helper text instead of a placeholder');
+  }
   await scan('wardrobe-account');
 }
 async function frontDoorJourney(context, page) {
@@ -667,8 +906,8 @@ async function browserJourney(context, page) {
   ]);
   const item = await jsonOK(uploaded, 'Browser garment upload');
   assertGarmentFacts(item, shirt, 'Browser upload');
-  const outfitForm = page.locator('form').filter({ has: page.getByLabel(/occasion/i) });
-  await outfitForm.getByLabel(/occasion/i).fill(facts.occasion);
+  const outfitForm = page.locator('form').filter({ has: page.getByLabel('Occasion', { exact: true }) });
+  await outfitForm.getByLabel('Occasion', { exact: true }).fill(facts.occasion);
   await selectByText(outfitForm.getByLabel(/weather/i), /^mild$/i);
   await selectByText(outfitForm.getByLabel(/dress.?code/i), /^smart[ -]casual$/i);
   const [suggested] = await Promise.all([
