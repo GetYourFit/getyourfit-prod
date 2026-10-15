@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "acceptance": "node src/run.mjs",
-    "acceptance:stubs": "node src/verify-stubs.mjs"
+    "acceptance:stubs": "node src/verify-stubs.mjs",
+    "acceptance:privacy-mutations": "node src/run.mjs --privacy-mutations"
   },
   "devDependencies": {
     "axe-core": "4.11.0",

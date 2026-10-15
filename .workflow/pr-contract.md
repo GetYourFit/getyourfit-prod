@@ -1,25 +1,25 @@
 ## Intent
 
-Show what GetYourFit does before requiring an account, with honest privacy and a usable phone signup journey.
+Enforce truthful hosted-storage claims and restore the wardrobe verifier after the public first screen and consent copy changed.
 
 ## Observable result
 
-The public first screen displays a labeled complete example with licensed real garment photographs and reasons. Build my wardrobe opens signup. Tap and Enter create a usable account with an empty private wardrobe. Loading and failures are announced; focus follows entry, error, and success. Hosted storage is described accurately.
+The wardrobe verifier enters the current account routes and finds the consent that states photos are reviewed and stored on GetYourFit's server. The independent browser suite rejects false on-device storage claims in public and signed-in screens, including photo consent and saved garment status.
 
 ## Check
 
-`npm run acceptance` builds and drives the production service. The independent verifier requires ten good cases and detects 47 deliberately broken variants. Quality runs build, lint, and unit tests. See `docs/product-quality-proof.md` for matched Lighthouse audits and screenshots at 390, 768, and 1440px.
+`npm run verify:wardrobe` drives the production UI through consent, review, private wardrobe, export, and deletion. `npm run acceptance` drives the independent production journeys. The stub verifier requires ten good cases and 51 intentionally broken variants to fail at their intended assertion. Required acceptance and quality remain green.
 
 ## Enforcement matrix row
 
-| Requirement | Observable behavior | Required check | Evidence |
+| Requirement | Behavior | Required check | Evidence |
 | --- | --- | --- | --- |
-| A-1 / R4 / R5 / R7 / R9 / R10 / R11 / R19 / R26 / R27 | Public explained example, truthful storage, touch and keyboard signup, empty private wardrobe, rendered AA contrast | acceptance and quality | report.json, contrast.json, public screenshots, stub-mutations.json |
+| R4 / R7 / R9 / R10 / R11 | Hosted storage is described honestly throughout entry, consent, wardrobe, and saved/photo states | acceptance and quality | report.json, masked screenshots, stub-mutations.json; production wardrobe verifier |
 
 ## Known-bad test
 
-Existing 32 variants remain. Fifteen additions remove the public example, photo, reasons, illustrative-facts disclosure, honest privacy, action touch area, or public compression; break loading announcement, entry focus, password description, phone input size, Enter, alert focus, wardrobe focus, or tap submission. Each must fail its intended assertion and exit 1. The original low-contrast paragraph must still fail AA.
+Four new variants inject Saved on this device in the signed-in account and saved-garment states, wardrobe stays on this device, and the former on-device consent. Each must fail the corresponding visible-copy assertion and exit 1. All existing 47 variants remain. The original verifier failed against the current public entry; its stale consent was also incompatible with the new UI.
 
 ## Deletes or replaces
 
-Replaces the login wall with a public value moment; lazy-loads the account application behind it. Replaces release jargon and false device-storage claims. Replaces account-entry typography and focus behavior. Compresses public static responses and serves responsive real photographs. Private outfit composition, shared controls, recovery, and classifier performance remain sequenced increments.
+Replaces obsolete login-wall navigation and consent expectations in the existing verifier. Its textbox lookup accepts associated helper text in accessible names. Extends browser checks beyond the public privacy paragraph. Changes no product UI or API behavior; the legacy internal consent scope remains the server's existing transport field.
