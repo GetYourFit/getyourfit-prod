@@ -652,13 +652,13 @@ async function contrastJourney(context, page) {
       const result = await page.evaluate(async () => {
         const { violations, incomplete, passes } = await globalThis.axe.run(globalThis.document, { runOnly: ['color-contrast'] });
         const findings = items => items.map(({ id, nodes }) => ({ id, nodes: nodes.map(({ target, html, any }) => ({ target, html, checks: any.map(({ message, data, relatedNodes }) => ({ message, data, relatedNodes })) })) }));
-        const textareas = [...globalThis.document.querySelectorAll('textarea')].map(element => {
+        const requirementFields = [...globalThis.document.querySelectorAll('#build-plan [aria-describedby="starter-requirement-help"]')].map(element => {
           const rect = element.getBoundingClientRect();
           const top = globalThis.document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
           const style = globalThis.getComputedStyle(element);
           return { rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }, hit: top?.outerHTML.slice(0, 180), background: style.backgroundColor, color: style.color, opacity: style.opacity };
         });
-        return { violations: findings(violations), incomplete: findings(incomplete), checked_nodes: passes.reduce((sum, rule) => sum + rule.nodes.length, 0), textareas };
+        return { violations: findings(violations), incomplete: findings(incomplete), checked_nodes: passes.reduce((sum, rule) => sum + rule.nodes.length, 0), requirementFields };
       });
       scans.push({ surface, width, ...result });
       await writeFile(path.join(output, 'contrast.json'), `${JSON.stringify(scans, null, 2)}\n`);
@@ -680,7 +680,7 @@ async function contrastJourney(context, page) {
   await signup(context);
   await page.goto('/wardrobe');
   await page.getByRole('button', { name: /^add garment$/i }).waitFor();
-  const requirement = page.locator('#build-plan textarea');
+  const requirement = page.locator('#build-plan [aria-describedby="starter-requirement-help"]');
   await requirement.scrollIntoViewIfNeeded();
   const visibility = await requirement.evaluate(element => {
     const rect = element.getBoundingClientRect();

@@ -231,9 +231,9 @@ select:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); 
 .starter-form > p { margin: -10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
 .starter-form label, .starter-replace-form label { display: grid; gap: 8px; color: var(--ink); font-size: 14px; font-weight: 600; }
 .starter-form input:not([type=checkbox]), .starter-form select, .starter-form textarea, .starter-replace-form textarea { width: 100%; min-height: 48px; border: 1px solid #7f8f85; border-radius: 8px; padding: 10px 12px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 400; }
-.starter-form input::placeholder, .starter-form textarea::placeholder, .starter-replace-form textarea::placeholder { color: var(--muted); opacity: 1; }
-.starter-form textarea, .starter-replace-form textarea { min-height: 82px; resize: vertical; }
-.starter-form input:focus-visible, .starter-form select:focus-visible, .starter-form textarea:focus-visible, .starter-replace-form textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.starter-form input::placeholder, .starter-replace-form textarea::placeholder { color: var(--muted); opacity: 1; }
+.starter-replace-form textarea { min-height: 82px; resize: vertical; }
+.starter-form input:focus-visible, .starter-form select:focus-visible, .starter-replace-form textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .starter-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .starter-optional { color: var(--muted); font-size: 12px; font-weight: 400; }
 .starter-owned { display: grid; gap: 10px; min-width: 0; border: 0; border-top: 1px solid var(--rule); margin: 0; padding: 18px 0 0; }
