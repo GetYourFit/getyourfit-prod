@@ -9,6 +9,7 @@ import express from 'express';
 import sharp from 'sharp';
 import { database } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
+import { buildStarterRoles, confirmStarterRole, starterInputSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
 
 const execute = promisify(execFile);
 const classifyScript = fileURLToPath(new URL('./classify.swift', import.meta.url));
@@ -32,6 +33,16 @@ export function ensureWardrobeSchema() {
       recorded_at TEXT NOT NULL,
       PRIMARY KEY (user_id, garment_id, context)
     );
+    CREATE TABLE IF NOT EXISTS starter_plans (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK (status IN ('active', 'replaced', 'rejected')),
+      input TEXT NOT NULL,
+      roles TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS starter_plans_owner ON starter_plans(user_id, created_at DESC);
   `);
 }
 
@@ -41,10 +52,32 @@ function garment(row) {
 }
 
 const listRows = (userId) => database.prepare('SELECT * FROM garments WHERE user_id = ? ORDER BY created_at, id').all(userId);
+function starterPlan(row) {
+  return starterPlanSchema.parse({ id: row.id, status: row.status, input: JSON.parse(row.input), roles: JSON.parse(row.roles),
+    createdAt: row.created_at, updatedAt: row.updated_at });
+}
+const listStarterPlans = (userId) => database.prepare('SELECT * FROM starter_plans WHERE user_id = ? ORDER BY created_at DESC, id DESC').all(userId).map(starterPlan);
+
 export function exportWardrobe(userId) {
   return { wardrobe: listRows(userId).map((row) => ({ ...garment(row), photo: { mediaType: 'image/jpeg', base64: row.photo.toString('base64') } })),
     outfitCorrections: database.prepare('SELECT garment_id AS garmentId, context, recorded_at AS recordedAt FROM outfit_exclusions WHERE user_id = ? ORDER BY recorded_at').all(userId)
-      .map((row) => ({ ...row, context: JSON.parse(row.context), source: 'wearer-correction', modelVersion: null, confidence: 1 })) };
+      .map((row) => ({ ...row, context: JSON.parse(row.context), source: 'wearer-correction', modelVersion: null, confidence: 1 })),
+    starterPlans: listStarterPlans(userId) };
+}
+
+function insertStarterPlan(userId, input, roles, status = 'active') {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  database.prepare('INSERT INTO starter_plans (id, user_id, status, input, roles, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(id, userId, status, JSON.stringify(input), JSON.stringify(roles), now, now);
+  return starterPlan(database.prepare('SELECT * FROM starter_plans WHERE id = ? AND user_id = ?').get(id, userId));
+}
+
+function updateStarterPlan(userId, plan) {
+  const updatedAt = new Date().toISOString();
+  database.prepare('UPDATE starter_plans SET status = ?, input = ?, roles = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+    .run(plan.status, JSON.stringify(plan.input), JSON.stringify(plan.roles), updatedAt, plan.id, userId);
+  return starterPlan(database.prepare('SELECT * FROM starter_plans WHERE id = ? AND user_id = ?').get(plan.id, userId));
 }
 
 async function decodePhoto(body) {
@@ -142,6 +175,42 @@ export function wardrobeRouter(requireUser) {
     if (excluded) database.prepare('INSERT OR IGNORE INTO outfit_exclusions (user_id, garment_id, context, recorded_at) VALUES (?, ?, ?, ?)').run(request.user.id, garmentId, contextKey(context), new Date().toISOString());
     else database.prepare('DELETE FROM outfit_exclusions WHERE user_id = ? AND garment_id = ? AND context = ?').run(request.user.id, garmentId, contextKey(context));
     response.json({ saved: true });
+  });
+  router.get('/starter-plans', (request, response) => response.json(listStarterPlans(request.user.id)));
+  router.post('/starter-plans', (request, response) => {
+    const parsed = starterInputSchema.safeParse(request.body);
+    if (!parsed.success) return response.status(400).json({ error: 'Check the occasion, budget, and outfit needs, then try again.' });
+    response.status(201).json(insertStarterPlan(request.user.id, parsed.data, buildStarterRoles(parsed.data, new Date().toISOString())));
+  });
+  router.patch('/starter-plans/:id', (request, response) => {
+    const action = starterPlanActionSchema.safeParse(request.body);
+    if (!action.success) return response.status(400).json({ error: 'That plan change is incomplete. Review it and try again.' });
+    const row = database.prepare('SELECT * FROM starter_plans WHERE id = ? AND user_id = ?').get(request.params.id, request.user.id);
+    if (!row) return response.status(404).json({ error: 'This saved plan is no longer available.' });
+    const current = starterPlan(row);
+    if (current.status !== 'active') return response.status(409).json({ error: 'Only an active plan can be changed.' });
+    if (action.data.action === 'reject') {
+      return response.json(updateStarterPlan(request.user.id, { ...current, status: 'rejected' }));
+    }
+    if (action.data.action === 'replace-plan') {
+      const created = database.transaction(() => {
+        updateStarterPlan(request.user.id, { ...current, status: 'replaced' });
+        return insertStarterPlan(request.user.id, action.data.input, buildStarterRoles(action.data.input, new Date().toISOString()));
+      })();
+      return response.status(201).json(created);
+    }
+    if (action.data.action === 'confirm-owned') {
+      const role = current.roles.find((item) => item.role === action.data.role);
+      if (!role || role.state === 'confirmed-owned') return response.status(409).json({ error: 'That need has already been confirmed or is not in this plan.' });
+      return response.json(updateStarterPlan(request.user.id, {
+        ...current,
+        roles: confirmStarterRole(current.roles, action.data.role, current.input.budget, new Date().toISOString()),
+      }));
+    }
+    const role = current.roles.find((item) => item.role === action.data.role);
+    if (!role || role.state !== 'planned') return response.status(409).json({ error: 'Only a planned need can be replaced.' });
+    const roles = current.roles.map((item) => item.role === action.data.role ? { ...item, need: action.data.need } : item);
+    response.json(updateStarterPlan(request.user.id, { ...current, roles }));
   });
   router.use((error, _request, response, next) => {
     if (response.headersSent) return next(error);

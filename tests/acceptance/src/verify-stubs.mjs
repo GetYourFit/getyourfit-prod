@@ -61,6 +61,10 @@ const mutations = [
   ['misfit-outfit', caseNames.outfit, /without confirmed fit/],
   ['weather-outfit', caseNames.outfit, /does not match known weather/],
   ['dress-code-outfit', caseNames.outfit, /does not match known dress code/],
+  ['starter-budget-arithmetic', caseNames.starterPlan, /Budget allocation does not equal the spending ceiling/],
+  ['starter-fake-purchasability', caseNames.starterPlan, /Starter plan contains a fake purchasability claim/],
+  ['starter-impossible-constraints', caseNames.starterPlan, /Contradictory outfit needs were accepted instead of rejected/],
+  ['starter-owned-plan-mixing', caseNames.starterPlan, /A planned need was added to the owned wardrobe/],
 ];
 const detections = [];
 await mkdir(output, { recursive: true });

@@ -8,12 +8,36 @@ const port = Number(process.env.PORT);
 const origin = `http://127.0.0.1:${port}`;
 const mutation = process.env.MUTATION || '';
 const photos = new Map(await Promise.all(['garment-photo.jpg', 'bottom.jpg', 'footwear.jpg'].map(async filename => [filename, await readFile(fileURLToPath(new URL(`../fixtures/${filename}`, import.meta.url)))])));
-const users = new Map(), sessions = new Map(), garments = new Map(), garmentPhotos = new Map();
+const users = new Map(), sessions = new Map(), garments = new Map(), garmentPhotos = new Map(), starterPlans = new Map();
 const json = (res, status, data, headers = {}) => { res.writeHead(status, { 'content-type': 'application/json', ...headers }); res.end(JSON.stringify(data)); };
 const page = (res, content) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GetYourFit</title><style>body{font:18px sans-serif;margin:16px;color:#222}input,button{display:block;max-width:100%;box-sizing:border-box;margin:8px 0;font-size:16px}button,a{min-height:44px}a{display:inline-flex;align-items:center}img{max-width:100%;width:240px}label{display:block}</style></head><body><main>${content}</main><script type="module" src="/assets/public.js"></script></body></html>`); };
 const authenticated = req => sessions.get((req.headers.cookie || '').match(/gyf_session=([^;]+)/)?.[1]);
 const owns = (email, item) => item?.email === email;
 const publicItem = item => { const result = { ...item }; delete result.email; return result; };
+const starterRoles = input => {
+  const roles = input.outfitType === 'separates' ? ['top', 'bottom', 'footwear'] : ['one-piece', 'footwear'];
+  const planned = roles.filter(role => !input.ownedRoles.includes(role));
+  let remainder = planned.length ? input.budget % planned.length : 0;
+  return roles.map(role => {
+    const need = `A ${role} need for ${input.occasion}${input.mustHave ? `, considering ${input.mustHave}` : ''}.`;
+    if (input.ownedRoles.includes(role)) return { role, state: 'confirmed-owned', allocation: 0, need, confirmedAt: new Date().toISOString() };
+    const allocation = planned.length ? Math.floor(input.budget / planned.length) + (remainder > 0 ? 1 : 0) : 0;
+    remainder = Math.max(0, remainder - 1);
+    return { role, state: 'planned', allocation, need };
+  });
+};
+const publicPlan = plan => { const result = { ...plan }; delete result.email; return result; };
+const createStarterPlan = (email, input) => {
+  const now = new Date().toISOString();
+  const plan = { id: randomUUID(), email, status: 'active', input, roles: starterRoles(input), createdAt: now, updatedAt: now };
+  if (mutation === 'starter-budget-arithmetic') {
+    const role = plan.roles.find(item => item.state === 'planned');
+    if (role) role.allocation += 1;
+  }
+  if (mutation === 'starter-fake-purchasability') plan.roles[0].need = 'This item is in stock and available to buy now with delivery tomorrow.';
+  starterPlans.set(plan.id, plan);
+  return publicPlan(plan);
+};
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, origin);
@@ -89,12 +113,48 @@ const server = http.createServer(async (req, res) => {
       if (mutation === 'anonymous-list-isolation') return json(res, 200, [...garments.values()].map(publicItem));
       return json(res, 401, { error: 'sign in required' });
     }
-    return json(res, 200, [...garments.values()].filter(item => mutation === 'list-isolation' || owns(email, item)).map(item => {
+    const owned = [...garments.values()].filter(item => mutation === 'list-isolation' || owns(email, item));
+    if (mutation === 'starter-owned-plan-mixing' && [...starterPlans.values()].some(plan => plan.email === email)) owned.push({ id: 'planned-item', facts: { category: 'top', owned: true } });
+    return json(res, 200, owned.map(item => {
       const value = publicItem(item);
       return mutation === 'refresh-photo-render' && owns(email, item) ? { ...value, photoUrl: `${value.photoUrl}?wrong=1` } : value;
     }));
   }
   if (!email) return json(res, 401, { error: 'sign in required' });
+  if (url.pathname === '/api/wardrobe/starter-plans' && req.method === 'GET') {
+    return json(res, 200, [...starterPlans.values()].filter(plan => plan.email === email).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(publicPlan));
+  }
+  if (url.pathname === '/api/wardrobe/starter-plans' && req.method === 'POST') {
+    const allowedRoles = body.outfitType === 'separates' ? ['top', 'bottom', 'footwear'] : ['one-piece', 'footwear'];
+    const incompatible = !Array.isArray(body.ownedRoles) || body.ownedRoles.some(role => !allowedRoles.includes(role)) || new Set(body.ownedRoles).size !== body.ownedRoles.length;
+    if (incompatible && mutation !== 'starter-impossible-constraints') return json(res, 400, { error: 'outfit needs conflict' });
+    return json(res, 201, createStarterPlan(email, body));
+  }
+  const starterMatch = url.pathname.match(/^\/api\/wardrobe\/starter-plans\/([^/]+)$/);
+  if (starterMatch && req.method === 'PATCH') {
+    const plan = starterPlans.get(starterMatch[1]);
+    if (!plan || plan.email !== email) return json(res, 404, { error: 'plan not found' });
+    if (plan.status !== 'active') return json(res, 409, { error: 'plan is no longer active' });
+    if (body.action === 'reject') plan.status = 'rejected';
+    else if (body.action === 'replace-plan') {
+      plan.status = 'replaced';
+      plan.updatedAt = new Date().toISOString();
+      return json(res, 201, createStarterPlan(email, body.input));
+    } else if (body.action === 'replace-need') {
+      const role = plan.roles.find(item => item.role === body.role);
+      if (!role || role.state !== 'planned') return json(res, 409, { error: 'need is not planned' });
+      role.need = body.need;
+    } else if (body.action === 'confirm-owned') {
+      const role = plan.roles.find(item => item.role === body.role);
+      if (!role || role.state !== 'planned') return json(res, 409, { error: 'role is not planned' });
+      Object.assign(role, { state: 'confirmed-owned', allocation: 0, confirmedAt: new Date().toISOString() });
+      const planned = plan.roles.filter(item => item.state === 'planned');
+      let remainder = planned.length ? plan.input.budget % planned.length : 0;
+      planned.forEach(item => { item.allocation = planned.length ? Math.floor(plan.input.budget / planned.length) + (remainder > 0 ? 1 : 0) : 0; remainder = Math.max(0, remainder - 1); });
+    } else return json(res, 400, { error: 'unknown plan action' });
+    plan.updatedAt = new Date().toISOString();
+    return json(res, 200, publicPlan(plan));
+  }
   if (url.pathname === '/api/wardrobe' && req.method === 'POST') {
     if (!body.consent && mutation !== 'consent') return json(res, 422, { error: 'consent required' });
     const image = Buffer.from(body.image || '', 'base64');

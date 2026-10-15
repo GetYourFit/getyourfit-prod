@@ -6,6 +6,7 @@ export const contract = {
   session: '/api/session',
   wardrobe: '/api/wardrobe',
   outfits: '/api/wardrobe/outfit',
+  starterPlans: '/api/wardrobe/starter-plans',
 };
 
 export const caseNames = {
@@ -18,6 +19,7 @@ export const caseNames = {
   outfit: 'V01 API explicit facts return a complete explained outfit from owned garments',
   singleShirt: 'V01 one owned shirt does not fabricate a complete outfit',
   missingFacts: 'V01 unknown weather or dress code requests one fact or abstains',
+  starterPlan: 'V03 zero-garment starter plan saves honest needs, replaces and rejects separately from owned clothes',
   isolation: 'V01 users and anonymous sessions cannot access private garments or photos',
 };
 
