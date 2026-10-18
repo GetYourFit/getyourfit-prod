@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -82,6 +81,7 @@ async function startMailReceiver({ certificate, noStartTls = false } = {}) {
           const parsed = await simpleParser(Buffer.concat(chunks));
           const message = {
             subject: parsed.subject || '',
+            from: parsed.from?.value?.[0]?.address,
             recipients: parsed.to?.value?.map(({ address }) => address?.trim().toLowerCase()).filter(Boolean) ?? [],
             text: parsed.text || '',
           };
@@ -108,21 +108,6 @@ async function startMailReceiver({ certificate, noStartTls = false } = {}) {
   receivers.push(receiver);
   return result;
 }
-
-const mailApiToken = randomBytes(24).toString('base64url');
-const mailApiRequests = [];
-let mailApiStatus = 202;
-const mailApi = http.createServer((request, response) => {
-  const chunks = [];
-  request.on('data', (chunk) => chunks.push(chunk));
-  request.on('end', () => {
-    const authorized = request.headers.authorization === `Bearer ${mailApiToken}`;
-    if (request.method === 'POST' && request.url === '/v1/send' && authorized) {
-      try { mailApiRequests.unshift(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch { /* an unreadable body is refused below */ }
-    }
-    response.writeHead(authorized ? mailApiStatus : 401, { 'Content-Type': 'application/json' }).end('{}');
-  });
-});
 
 async function startService(smtpPort, serviceDataDir, extraEnv = {}) {
   fs.mkdirSync(serviceDataDir, { recursive: true });
@@ -180,14 +165,9 @@ async function api(pathname, body, options = {}) {
   };
 }
 
-async function mailFor(subject) {
-  await waitUntil(() => receivedMessages.some((message) => message.subject === subject && message.recipients.includes(email)), `No ${subject} email reached the configured SMTP server.`);
-  return receivedMessages.find((message) => message.subject === subject && message.recipients.includes(email));
-}
-
-async function apiMailFor(subject, address) {
-  await waitUntil(() => mailApiRequests.some((message) => message.subject === subject && message.to.includes(address)), `No ${subject} email reached the configured mail API.`);
-  return mailApiRequests.find((message) => message.subject === subject && message.to.includes(address));
+async function mailFor(subject, address = email) {
+  await waitUntil(() => receivedMessages.some((message) => message.subject === subject && message.recipients.includes(address)), `No ${subject} email reached the configured SMTP server.`);
+  return receivedMessages.find((message) => message.subject === subject && message.recipients.includes(address));
 }
 
 function linkFrom(message) {
@@ -291,40 +271,37 @@ async function signInInBrowser() {
   assert.ok(browserSnapshot().includes('Verification and recovery messages are sent by email.'), 'The account page did not describe SMTP delivery accurately.');
 }
 
-async function verifyHttpApi() {
-  await new Promise((resolve, reject) => { mailApi.once('error', reject); mailApi.listen(0, '127.0.0.1', resolve); });
-  const apiUrl = `http://127.0.0.1:${mailApi.address().port}/v1/send`;
-  const httpEmail = `http-${Date.now()}@example.test`;
+async function verifySmtpAccountFlow(smtpPort, certificatePath) {
+  const flowEmail = `smtp-browser-${Date.now()}@example.test`;
   const newPassword = `Renewed-${randomBytes(32).toString('base64url')}!`;
-  const httpEnv = { GYF_MAIL_TRANSPORT: 'http', MAIL_API_URL: apiUrl, MAIL_API_TOKEN: mailApiToken, MAIL_FROM: 'GetYourFit <wardrobe@example.test>' };
   try {
-    await startService(0, path.join(dataDir, 'http-api'), httpEnv);
+    await startService(smtpPort, path.join(dataDir, 'browser-flow'), { NODE_EXTRA_CA_CERTS: certificatePath });
     const signedOut = await api('/api/session', undefined, { method: 'GET' });
-    assert.deepEqual(signedOut.body, { signedIn: false, emailDeliveryMode: 'http' }, 'The signed-out session exposed incorrect HTTP delivery state.');
+    assert.deepEqual(signedOut.body, { signedIn: false, emailDeliveryMode: 'smtp' }, 'The signed-out session exposed incorrect SMTP delivery state.');
 
     browser(['stop']);
     browser(['open', `${origin}/sign-up`]);
     await browserWait('Make it yours.');
-    assert.ok(browserSnapshot().includes('Verification and recovery messages are sent by email.'), 'The signup page did not describe HTTP delivery accurately.');
-    browserFill('YOUR NAME', 'HTTP delivery verification');
-    browserFill('EMAIL ADDRESS', httpEmail);
+    assert.ok(browserSnapshot().includes('Verification and recovery messages are sent by email.'), 'The signup page did not describe SMTP delivery accurately.');
+    browserFill('YOUR NAME', 'SMTP delivery verification');
+    browserFill('EMAIL ADDRESS', flowEmail);
     browserFill('PASSWORD', password);
     browserClick('checkbox', 'I confirm I am at least 18 years old. GetYourFit does not create an account for minors.');
     browserClick('button', 'Create account');
     await browserWait('Request received.');
-    assert.ok(browserSnapshot().includes('We could not confirm delivery.'), 'The signup sent state overstated HTTP delivery.');
+    assert.ok(browserSnapshot().includes('We could not confirm delivery.'), 'The signup sent state overstated SMTP delivery.');
 
-    const verificationMail = await apiMailFor('Verify your GetYourFit email', httpEmail);
-    assert.equal(verificationMail.from, 'GetYourFit <wardrobe@example.test>', 'The verification email used the wrong sender.');
-    const unverified = await api('/api/auth/sign-in/email', { email: httpEmail, password });
+    const verificationMail = await mailFor('Verify your GetYourFit email', flowEmail);
+    assert.equal(verificationMail.from, 'wardrobe@example.test', 'The verification email used the wrong sender.');
+    const unverified = await api('/api/auth/sign-in/email', { email: flowEmail, password });
     assert.equal(unverified.status, 403, 'An unverified account could sign in.');
-    const verificationMailsFor = () => mailApiRequests.filter((message) => message.subject === verificationMail.subject && message.to.includes(httpEmail));
+    const verificationMailsFor = () => receivedMessages.filter((message) => message.subject === verificationMail.subject && message.recipients.includes(flowEmail));
     await waitUntil(() => verificationMailsFor().length >= 2, 'Signing in before verification did not send a fresh verification link.');
     browser(['open', linkFrom(verificationMailsFor()[0])]);
-    const httpDb = new Database(path.join(dataDir, 'http-api', 'getyourfit.sqlite'), { readonly: true });
+    const flowDb = new Database(path.join(dataDir, 'browser-flow', 'getyourfit.sqlite'), { readonly: true });
     try {
-      await waitUntil(() => httpDb.prepare('SELECT emailVerified FROM user WHERE email = ?').get(httpEmail)?.emailVerified === 1, 'The emailed verification link did not verify the account.');
-    } finally { httpDb.close(); }
+      await waitUntil(() => flowDb.prepare('SELECT emailVerified FROM user WHERE email = ?').get(flowEmail)?.emailVerified === 1, 'The emailed verification link did not verify the account.');
+    } finally { flowDb.close(); }
 
     browser(['open', `${origin}/account`]);
     await browserWait('Your account, in your hands.');
@@ -334,38 +311,21 @@ async function verifyHttpApi() {
     await browserWait('Welcome back.');
     browserClick('button', 'Forgot password?');
     await browserWait('Find your way back.');
-    browserFill('EMAIL ADDRESS', httpEmail);
+    browserFill('EMAIL ADDRESS', flowEmail);
     browserClick('button', 'Send reset link');
     await browserWait('Request received.');
-    const resetMail = await apiMailFor('Reset your GetYourFit password', httpEmail);
-    browser(['open', linkFrom({ subject: resetMail.subject, text: resetMail.text })]);
+    const resetMail = await mailFor('Reset your GetYourFit password', flowEmail);
+    browser(['open', linkFrom(resetMail)]);
     await browserWait('Choose a new password.');
     browserFill('NEW PASSWORD', newPassword);
     browserClick('button', 'Save new password');
     await browserWait('Welcome back.');
-    browserFill('EMAIL ADDRESS', httpEmail);
+    browserFill('EMAIL ADDRESS', flowEmail);
     browserFill('PASSWORD', newPassword);
     browserClick('button', 'Sign in');
     await browserWait('Your account, in your hands.');
-    assert.equal((await api('/api/auth/sign-in/email', { email: httpEmail, password })).status, 401, 'The replaced password still signed in.');
-    assert.ok(mailApiRequests.every((message) => Array.isArray(message.to) && message.to.length === 1 && typeof message.text === 'string' && message.text.length > 0), 'The mail API received a malformed message.');
-
-    const unauthorized = await fetch(apiUrl, { method: 'POST', headers: { Authorization: 'Bearer wrong', 'Content-Type': 'application/json' }, body: '{}' });
-    await unauthorized.arrayBuffer();
-    assert.equal(unauthorized.status, 401, 'The mail API stub accepted an unauthenticated request.');
-
-    mailApiStatus = 500;
-    const refusedEmail = `refused-${Date.now()}@example.test`;
-    const refused = await api('/api/auth/sign-up/email', { name: 'Refused delivery', email: refusedEmail, password, adultConfirmed: true, callbackURL: origin });
-    assert.equal(refused.status, 200, 'A mail API outage broke account creation.');
-    const db = new Database(path.join(dataDir, 'http-api', 'getyourfit.sqlite'));
-    try {
-      await waitUntil(() => db.prepare("SELECT count(*) AS count FROM auth_audit WHERE action = 'mail-delivery-failed'").get().count > 0, 'The application did not record the refused mail API delivery.');
-    } finally { db.close(); }
-    const stillUp = await api('/api/session', undefined, { method: 'GET' });
-    assert.equal(stillUp.status, 200, 'The service stopped after the mail API refused a message.');
+    assert.equal((await api('/api/auth/sign-in/email', { email: flowEmail, password })).status, 401, 'The replaced password still signed in.');
   } finally {
-    mailApiStatus = 202;
     await stopService();
     browser(['stop']);
   }
@@ -464,8 +424,8 @@ async function main() {
     browser(['stop']);
   }
 
-  await verifyHttpApi();
-  process.stdout.write('verify:mail-delivery passed: STARTTLS enforcement, SMTP delivery UI, safe session mode, private mailbox isolation, non-enumerating reset response, deletion waiting for an accepted in-flight delivery, and HTTP mail API signup verification, password reset, bearer authentication and outage tolerance through the real browser.\n');
+  await verifySmtpAccountFlow(smtpPort, certificate.certificatePath);
+  process.stdout.write('verify:mail-delivery passed: STARTTLS enforcement, SMTP delivery UI, safe session mode, private mailbox isolation, non-enumerating reset response, deletion waiting for an accepted in-flight delivery, and SMTP signup verification, forgot-password and reset through the real browser.\n');
 }
 
 try {
@@ -476,7 +436,6 @@ try {
 } finally {
   releaseHeldDelivery();
   if (server && server.exitCode === null) await stopService();
-  if (mailApi.listening) await new Promise((resolve) => mailApi.close(resolve));
   for (const receiver of receivers) {
     if (receiver.server.listening) await new Promise((resolve) => receiver.close(resolve));
   }

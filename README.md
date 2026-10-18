@@ -41,12 +41,11 @@ The application supports these `GYF_MAIL_TRANSPORT` values:
 
 - `disabled` (default): no mail is sent.
 - `smtp`: set `SMTP_HOST` and `SMTP_FROM`. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Non-implicit TLS connections require STARTTLS. Set both `SMTP_USER` and `SMTP_PASS` when authentication is required.
-- `http`: set `MAIL_API_URL`, `MAIL_API_TOKEN` and `MAIL_FROM`. The service POSTs `{"from","to":[address],"subject","text"}` as JSON with `Authorization: Bearer <MAIL_API_TOKEN>` and treats any non-2xx response as a failed delivery. The URL must be HTTPS (HTTP is allowed only for loopback). This shape is accepted by Resend and Cloudflare Email Service; other providers need a compatible relay.
 - `local`: development and test only. It starts an in-memory SMTP catcher and exposes messages at `/__mail` to the holder of `GYF_MAILBOX_RUNNER_TOKEN`.
 
-With any mail transport enabled, signup requires a verified address and password recovery is available. A failed delivery is recorded in the audit log and never blocks signup or reveals whether an account exists. No provider credentials are configured in this repository. Browser requests to `/__mail` return no messages in default, SMTP or HTTP mode.
+With any mail transport enabled, signup requires a verified address and password recovery is available. A failed delivery is recorded in the audit log and never blocks signup or reveals whether an account exists. No provider credentials are configured in this repository. Browser requests to `/__mail` return no messages in default or SMTP mode.
 
-`npm run verify:mail-delivery` exercises SMTP and HTTP delivery against controlled local receivers through the real browser: STARTTLS enforcement, signup verification, forgot-password and reset, bearer authentication, provider outage tolerance, and deletion waiting for in-flight mail. `npm test` covers transport selection and startup validation. `npm run verify:auth` uses the local catcher. None of these send real email or prove provider delivery.
+`npm run verify:mail-delivery` exercises SMTP delivery against controlled local receivers through the real browser: STARTTLS enforcement, signup verification, forgot-password and reset, insecure relay rejection, and deletion waiting for in-flight mail. `npm test` covers transport selection and startup validation. `npm run verify:auth` uses the local catcher. None of these send real email or prove provider delivery.
 
 ## Check
 

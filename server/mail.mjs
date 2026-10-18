@@ -11,23 +11,13 @@ function parsedRecipients(addresses = []) {
 }
 
 const mailTransport = process.env.GYF_MAIL_TRANSPORT || 'disabled';
-if (!['disabled', 'local', 'smtp', 'http'].includes(mailTransport)) throw new Error('GYF_MAIL_TRANSPORT must be disabled, local, smtp or http.');
+if (!['disabled', 'local', 'smtp'].includes(mailTransport)) throw new Error('GYF_MAIL_TRANSPORT must be disabled, local or smtp.');
 export const emailEnabled = mailTransport !== 'disabled';
 const localMailboxEnabled = mailTransport === 'local';
 export const emailDeliveryMode = localMailboxEnabled ? 'local-test' : mailTransport;
 const runnerToken = process.env.GYF_MAILBOX_RUNNER_TOKEN;
 if (localMailboxEnabled && process.env.NODE_ENV === 'production') throw new Error('The local mail catcher is available only in development and test mode.');
 if (localMailboxEnabled && !runnerToken) throw new Error('GYF_MAILBOX_RUNNER_TOKEN is required for the local mail catcher.');
-
-function httpMailEndpoint(value) {
-  let url;
-  try { url = new URL(value ?? ''); } catch { throw new Error('MAIL_API_URL must contain an absolute HTTPS URL.'); }
-  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if (!['http:', 'https:'].includes(url.protocol) || (url.protocol === 'http:' && !loopback) || url.username || url.password || url.hash) {
-    throw new Error('MAIL_API_URL must be an HTTPS URL (HTTP is allowed only for loopback) without credentials or a fragment.');
-  }
-  return url;
-}
 
 let deliver;
 let mailFrom;
@@ -88,23 +78,6 @@ if (localMailboxEnabled) {
     ...(user ? { auth: { user, pass: password } } : {}),
   });
   deliver = (message) => mailer.sendMail(message);
-} else if (mailTransport === 'http') {
-  const endpoint = httpMailEndpoint(process.env.MAIL_API_URL?.trim());
-  const token = process.env.MAIL_API_TOKEN?.trim();
-  mailFrom = process.env.MAIL_FROM?.trim();
-  if (!mailFrom) throw new Error('MAIL_FROM is required when GYF_MAIL_TRANSPORT is http.');
-  if (!token) throw new Error('MAIL_API_TOKEN is required when GYF_MAIL_TRANSPORT is http.');
-  deliver = async ({ from, to, subject, text }) => {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      redirect: 'error',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, text }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    await response.arrayBuffer();
-    if (!response.ok) throw new Error(`The mail API refused the message with status ${response.status}.`);
-  };
 }
 
 const pendingMail = new Map();

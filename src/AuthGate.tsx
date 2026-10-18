@@ -3,17 +3,15 @@ import { ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react';
 import type { EmailDeliveryMode } from './api';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot' | 'reset' | 'sent';
-const sentByEmail = {
-  sent: 'Check your inbox for the next step. We could not confirm delivery.',
-  privacy: 'Verification and recovery messages are sent by email.',
-};
 const deliveryCopy: Record<EmailDeliveryMode, { sent: string; privacy: string }> = {
   disabled: {
     sent: "Email delivery isn't available here.",
     privacy: "Email is unverified. Password reset isn't available here; keep your password safe.",
   },
-  smtp: sentByEmail,
-  http: sentByEmail,
+  smtp: {
+    sent: 'Check your inbox for the next step. We could not confirm delivery.',
+    privacy: 'Verification and recovery messages are sent by email.',
+  },
   'local-test': {
     sent: 'Email delivery is configured for a test environment.',
     privacy: 'Email delivery is configured for a test environment.',
