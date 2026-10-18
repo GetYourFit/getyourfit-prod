@@ -233,7 +233,7 @@ test('concurrent wardrobe refreshes and edits preserve confirmed facts', async (
           const top = current.body.find((item) => item.facts.category === 'top');
           expect.soft(top.facts.name).toBe('Renamed tee');
           expect.soft(top.facts.fit).toBe('fits');
-          await expect.soft(page.getByRole('heading', { name: 'Renamed tee', exact: true })).toBeVisible();
+          await expect.soft(page.getByRole('article', { name: 'Renamed tee' })).toBeVisible();
         } else {
           expect(current.body.some((item) => item.facts.category === 'footwear')).toBe(false);
           await expect.soft(page.getByRole('heading', { name: 'Black trainers', exact: true })).toHaveCount(0);
