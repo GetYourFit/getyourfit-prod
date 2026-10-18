@@ -1,14 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { ArrowUpRight } from 'lucide-react';
-import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, starterStyleSchema, buildCapsule, starterOccasions, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
+import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
 import { wardrobeRequest } from './wardrobe-api';
 
 type FormValues = Omit<StarterInput, 'budget'> & { budget: string };
 type Draft = { input: StarterInput; roles: StarterRoleState[] };
 
 const emptyValues: FormValues = {
-  occasion: '', outfitType: 'separates', budget: '', currency: 'INR', weather: 'unknown', dressCode: 'unknown', style: 'unknown', mustHave: '', ownedRoles: [],
+  occasion: '', outfitType: 'separates', budget: '', currency: 'INR', weather: 'unknown', dressCode: 'unknown', mustHave: '', ownedRoles: [],
 };
 const planListSchema = z.array(starterPlanSchema);
 const roleOptions: StarterRole[] = ['top', 'bottom', 'footwear'];
@@ -16,9 +16,6 @@ const roleOptions: StarterRole[] = ['top', 'bottom', 'footwear'];
 function eligibleRoles(input: FormValues): StarterRole[] {
   return input.outfitType === 'separates' ? roleOptions : ['one-piece', 'footwear'];
 }
-
-const weatherLabel = { 'hot-humid': 'hot and humid', warm: 'warm and dry', monsoon: 'rainy season', mild: 'mild', cold: 'cold' } as const;
-const styleLabel = { indian: 'Indian everyday', classic: 'classic', relaxed: 'relaxed', minimal: 'minimal' } as const;
 
 function displayBudget(value: number, currency: StarterInput['currency']): string {
   const locale = currency === 'INR' ? 'en-IN' : currency === 'GBP' ? 'en-GB' : 'en-US';
@@ -223,12 +220,12 @@ export function StarterPlan() {
     const actionable = planStatus === 'active' || planStatus === 'draft';
     const heading = planStatus === 'rejected' ? 'Plan rejected' : planStatus === 'replaced' ? 'Replaced plan' : planStatus === 'draft' ? `Needs for ${input.occasion}` : `Your starter plan for ${input.occasion}`;
     return <div className="starter-result" key={`${planStatus}-${input.occasion}`}>
-      <div className="starter-result-heading"><div><h3 tabIndex={-1}>{heading}</h3><p>{input.outfitType === 'separates' ? 'Top, bottom and footwear' : 'One-piece garment and footwear'} for {starterOccasions(input).length > 1 ? 'your occasions' : 'one occasion'}.</p></div><span className={`starter-state starter-state-${planStatus}`}>{planStatus === 'active' ? 'Active plan' : planStatus === 'draft' ? 'Not saved yet' : planStatus}</span></div>
+      <div className="starter-result-heading"><div><h3 tabIndex={-1}>{heading}</h3><p>{input.outfitType === 'separates' ? 'Top, bottom and footwear' : 'One-piece garment and footwear'} for one occasion.</p></div><span className={`starter-state starter-state-${planStatus}`}>{planStatus === 'active' ? 'Active plan' : planStatus === 'draft' ? 'Not saved yet' : planStatus}</span></div>
       {planStatus === 'active' && <p className="starter-explanation">This is a text needs plan, not a verified outfit or catalogue. No item images, prices, size charts, stock, shipping, or checkout amounts are available here. Your selected context is a starting point; no garment fit or availability is predicted.</p>}
       {planStatus !== 'active' && planStatus !== 'draft' && <p className="starter-explanation">This plan remains in your account history. Its needs are separate from your owned clothes.</p>}
       {planStatus === 'draft' && <p className="starter-explanation">One explained set of clothing needs for your occasion. You do not need to add garments or upload photos. Save the plan when it looks right.</p>}
-      <div className="starter-context"><p><strong>Occasion:</strong> {input.occasion}</p><p><strong>Weather:</strong> {input.weather === 'unknown' ? 'Not provided' : weatherLabel[input.weather]} · <strong>Style:</strong> {input.style === 'unknown' ? 'Not provided' : styleLabel[input.style]} · <strong>Dress code:</strong> {input.dressCode === 'unknown' ? 'Not provided' : input.dressCode}</p>{input.mustHave && <p><strong>Your requirement:</strong> {input.mustHave}</p>}</div>
-      {(input.weather === 'unknown' || input.dressCode === 'unknown' || input.style === 'unknown' || input.mustHave) && <p className="starter-limit">Your plan records these constraints but cannot verify a garment against them.</p>}
+      <div className="starter-context"><p><strong>Occasion:</strong> {input.occasion}</p><p><strong>Weather:</strong> {input.weather === 'unknown' ? 'Not provided' : input.weather} · <strong>Dress code:</strong> {input.dressCode === 'unknown' ? 'Not provided' : input.dressCode}</p>{input.mustHave && <p><strong>Your requirement:</strong> {input.mustHave}</p>}</div>
+      {(input.weather === 'unknown' || input.dressCode === 'unknown' || input.mustHave) && <p className="starter-limit">Your plan records these constraints but cannot verify a garment against them.</p>}
       <div className="starter-budget" aria-label="Budget allocation breakdown">
         <p><strong>Spending ceiling:</strong> {displayBudget(input.budget, input.currency)}</p>
         <p><strong>Allocated across planned needs:</strong> {displayBudget(allocated, input.currency)}</p>
@@ -283,18 +280,17 @@ export function StarterPlan() {
       {draft && renderPlan(draft.input, draft.roles, false, 'draft')}
       {!draft && current?.status === 'replaced' && <button className="button button-primary" disabled={busy !== ''} onClick={startNewPlan}>Start a new plan</button>}
       {formOpen && <form className="starter-form" onSubmit={(event) => void submit(event)}>
-        <h3 tabIndex={-1}>{replacePlan ? 'Change this plan' : current ? 'Plan another capsule' : 'Start with your occasions'}</h3>
+        <h3 tabIndex={-1}>{replacePlan ? 'Change this plan' : current ? 'Plan another capsule' : 'Start with your occasion'}</h3>
         <p>Tell us what the outfit needs to cover. Unknown details stay unknown.</p>
-        <label>What occasions is this for? <span className="starter-optional">Separate up to 4 with commas</span><input disabled={busy !== ''} required maxLength={120} value={values.occasion} placeholder="For example: office, family functions, weekends" onChange={(event) => setValue('occasion', event.target.value)} /></label>
+        <label>What is the occasion?<input disabled={busy !== ''} required maxLength={120} value={values.occasion} placeholder="For example: a family function" onChange={(event) => setValue('occasion', event.target.value)} /></label>
         <div className="starter-form-row">
           <label>Spending ceiling<input disabled={busy !== ''} required type="number" min="0" max="1000000" step="1" inputMode="numeric" value={values.budget} onChange={(event) => setValue('budget', event.target.value)} /></label>
           <label>Currency<select disabled={busy !== ''} value={values.currency} onChange={(event) => setValue('currency', z.enum(['INR', 'USD', 'GBP']).parse(event.target.value))}><option value="INR">INR · Indian rupee</option><option value="USD">USD · US dollar</option><option value="GBP">GBP · British pound</option></select></label>
         </div>
         <div className="starter-form-row">
-          <label>Plan weather<select disabled={busy !== ''} value={values.weather} onChange={(event) => setValue('weather', starterWeatherSchema.parse(event.target.value))}><option value="unknown">I am not sure</option><option value="hot-humid">Hot and humid</option><option value="warm">Warm and dry</option><option value="monsoon">Rainy season</option><option value="mild">Mild</option><option value="cold">Cold</option></select></label>
+          <label>Plan weather<select disabled={busy !== ''} value={values.weather} onChange={(event) => setValue('weather', starterWeatherSchema.parse(event.target.value))}><option value="unknown">I am not sure</option><option value="warm">Warm</option><option value="mild">Mild</option><option value="cold">Cold</option></select></label>
           <label>Plan dress code<select disabled={busy !== ''} value={values.dressCode} onChange={(event) => setValue('dressCode', z.enum(['casual', 'smart-casual', 'formal', 'unknown']).parse(event.target.value))}><option value="unknown">I am not sure</option><option value="casual">Casual</option><option value="smart-casual">Smart casual</option><option value="formal">Formal</option></select></label>
         </div>
-        <label>Plan style<select disabled={busy !== ''} value={values.style} onChange={(event) => setValue('style', starterStyleSchema.parse(event.target.value))}><option value="unknown">I am not sure</option><option value="indian">Indian everyday (kurta, churidar)</option><option value="classic">Classic (shirt, chinos)</option><option value="relaxed">Relaxed (tee, easy trousers)</option><option value="minimal">Minimal (plain, one-colour)</option></select></label>
         <label>What kind of outfit do you need?<select disabled={busy !== ''} value={values.outfitType} onChange={(event) => setValue('outfitType', z.enum(['separates', 'one-piece']).parse(event.target.value))}><option value="separates">Top, bottom and footwear</option><option value="one-piece">One-piece garment and footwear</option></select></label>
         <label>Any must-have or coverage requirement? <span className="starter-optional">Optional</span><input disabled={busy !== ''} type="text" maxLength={160} value={values.mustHave} aria-describedby="starter-requirement-help" onChange={(event) => setValue('mustHave', event.target.value)} /></label>
         <p className="starter-form-note" id="starter-requirement-help">Add only a clothing requirement you want reflected in the text needs plan.</p>

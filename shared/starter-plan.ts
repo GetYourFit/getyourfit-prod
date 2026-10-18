@@ -3,9 +3,7 @@ import { z } from 'zod';
 export const starterRoleSchema = z.enum(['top', 'bottom', 'footwear', 'one-piece']);
 export const STARTER_NEED_MAX_LENGTH = 512;
 export const starterNeedSchema = z.string().trim().min(1).max(STARTER_NEED_MAX_LENGTH);
-export const starterWeatherSchema = z.enum(['hot-humid', 'warm', 'monsoon', 'mild', 'cold', 'unknown']);
-export const starterStyleSchema = z.enum(['indian', 'classic', 'relaxed', 'minimal', 'unknown']);
-export const STARTER_MAX_OCCASIONS = 4;
+export const starterWeatherSchema = z.enum(['warm', 'mild', 'cold', 'unknown']);
 export const starterInputSchema = z.strictObject({
   occasion: z.string().trim().min(1).max(120),
   outfitType: z.enum(['separates', 'one-piece']),
@@ -13,7 +11,6 @@ export const starterInputSchema = z.strictObject({
   currency: z.enum(['INR', 'USD', 'GBP']),
   weather: starterWeatherSchema,
   dressCode: z.enum(['casual', 'smart-casual', 'formal', 'unknown']),
-  style: starterStyleSchema.default('unknown'),
   mustHave: z.string().trim().max(160),
   ownedRoles: z.array(starterRoleSchema).max(4),
 }).superRefine((input, context) => {
@@ -85,32 +82,17 @@ export function starterRoleName(role: StarterRole): string {
   return roleNames[role];
 }
 
-const styleExamples: Record<Exclude<StarterInput['style'], 'unknown'>, Record<StarterRole, string>> = {
-  indian: { top: 'a kurta or an easy shirt', bottom: 'straight trousers, churidar or pyjama', footwear: 'mojari, kolhapuri or closed sandals', 'one-piece': 'a kurta set or a dress' },
-  classic: { top: 'a plain shirt or polo', bottom: 'chinos or tailored trousers', footwear: 'loafers or leather sneakers', 'one-piece': 'a shirt dress or a jumpsuit' },
-  relaxed: { top: 'a cotton tee or an overshirt', bottom: 'relaxed trousers or shorts', footwear: 'clean sneakers or sandals', 'one-piece': 'a loose dress or a co-ord set' },
-  minimal: { top: 'a solid-colour tee or shirt', bottom: 'plain straight trousers', footwear: 'simple low-profile sneakers', 'one-piece': 'a plain one-colour dress' },
-};
-
 const climateGuidance: Record<Exclude<StarterInput['weather'], 'unknown'>, string> = {
-  'hot-humid': 'For hot and humid weather, breathable cotton or linen-blend fabrics in lighter colours are the usual choice.',
   warm: 'For warm weather, light, breathable fabrics are the usual choice.',
-  monsoon: 'For the rains, quick-drying fabrics and closed footwear with good grip are the usual choice; avoid hems that trail on wet ground.',
   mild: 'For mild weather, mid-weight fabrics that you can layer up or down are the usual choice.',
   cold: 'For cold weather, plan a layer such as a sweater or jacket in addition to the pieces below.',
 };
 
-export function starterOccasions(input: StarterInput): string[] {
-  const parts = input.occasion.split(/[,;\n]/).map((part) => part.trim()).filter(Boolean);
-  return (parts.length ? parts : [input.occasion]).slice(0, STARTER_MAX_OCCASIONS);
-}
-
 function needFor(role: StarterRole, input: StarterInput): string {
   const context = input.mustHave ? ` that considers your requirement: ${input.mustHave}` : '';
-  const weather = input.weather === 'unknown' ? '' : ` for your stated ${input.weather.replace('-', ' and ')} weather`;
+  const weather = input.weather === 'unknown' ? '' : ` for your stated ${input.weather} weather`;
   const dressCode = input.dressCode === 'unknown' ? '' : ` for your stated ${input.dressCode} dress code`;
-  const style = input.style === 'unknown' ? '' : ` (for example ${styleExamples[input.style][role]})`;
-  return `A ${roleNames[role].toLowerCase()}${style} for ${input.occasion}${weather}${dressCode}${context}.`;
+  return `A ${roleNames[role].toLowerCase()} for ${input.occasion}${weather}${dressCode}${context}.`;
 }
 
 const pieceCounts: Record<StarterRole, number> = { top: 2, bottom: 2, footwear: 1, 'one-piece': 2 };
@@ -136,18 +118,15 @@ export function buildCapsule(input: StarterInput, roles: StarterRoleState[]): Ca
   })));
   let combos: CapsulePiece[][] = [[]];
   for (const group of labelled) combos = combos.flatMap((combo) => group.map((piece) => [...combo, piece]));
-  const occasions = starterOccasions(input);
   const climate = input.weather === 'unknown' ? 'Climate was not provided, so no fabric guidance is given.' : climateGuidance[input.weather];
-  const styleNote = input.style === 'unknown' ? '' : ` Your ${input.style === 'indian' ? 'Indian everyday' : input.style} style choice shapes the examples in each need.`;
   const chosen = combos.slice(0, 4);
   const reuse = (label: string) => chosen.filter((combo) => combo.some((piece) => piece.label === label)).length;
   const outfits = chosen.map((combo, index): CapsuleOutfit => {
-    const occasion = occasions[index % occasions.length]!;
     const reused = combo.find((piece) => !piece.owned && reuse(piece.label) > 1);
     return {
-      name: `Look ${index + 1}: ${occasion}`,
+      name: `Look ${index + 1}: ${input.occasion}`,
       pieces: combo.map((piece) => piece.label),
-      why: `A starting suggestion for ${occasion}.${reused ? ` ${reused.label} also appears in other looks, so one purchase works harder.` : ''}${styleNote}`,
+      why: `A starting suggestion for ${input.occasion}.${reused ? ` ${reused.label} also appears in other looks, so one purchase works harder.` : ''}`,
     };
   });
   return { pieces, outfits, climate };
