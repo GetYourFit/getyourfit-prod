@@ -19,9 +19,9 @@ Use an exact `main` revision with successful `quality` and `acceptance` checks. 
 | `GYF_PORT` | A chosen loopback port from 1 through 65535, matching the ingress upstream; the default is 4174 |
 | `GYF_DATA_DIR` | A persistent directory outside the release checkout, writable by the service identity |
 | `BETTER_AUTH_SECRET` | A stable random key of at least 32 characters, injected from the vault; supply the vault reference and workload access, never a literal value in Git or logs |
-| `GYF_MAIL_TRANSPORT` | `disabled`; signup signs in immediately, while email verification and password recovery are unavailable |
+| `GYF_MAIL_TRANSPORT` | `disabled` (default; signup signs in immediately, while email verification and password recovery are unavailable), `smtp` (`SMTP_HOST`, `SMTP_FROM`, optional `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER` with `SMTP_PASS`) or `http` (`MAIL_API_URL`, `MAIL_API_TOKEN`, `MAIL_FROM`); inject credentials from the vault, never Git or logs |
 
-Retain the secret with the database across releases and restores. Changing it invalidates sessions and makes existing authenticator secrets unreadable. Real-mail credentials are unnecessary for v0.1.
+Retain the secret with the database across releases and restores. Changing it invalidates sessions and makes existing authenticator secrets unreadable. Real-mail credentials are unnecessary while mail stays `disabled`. To enable real verification and reset mail, supply an `smtp` relay or an `http` mail API with a sender address on a domain the operator controls and has authorized for sending (SPF/DKIM published by that domain's owner); the application cannot prove provider delivery itself.
 
 `getyourfit.sqlite` holds accounts, wardrobe records, garment photos as BLOBs, and private starter plans. Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
 
