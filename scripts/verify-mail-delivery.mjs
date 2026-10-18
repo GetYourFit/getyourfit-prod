@@ -11,12 +11,21 @@ import { SMTPServer } from 'smtp-server';
 import Database from 'better-sqlite3';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const origin = 'http://127.0.0.1:4174';
+const portProbe = net.createServer();
+await new Promise((resolve, reject) => { portProbe.once('error', reject); portProbe.listen(0, '127.0.0.1', resolve); });
+const port = portProbe.address().port;
+await new Promise((resolve, reject) => portProbe.close((error) => error ? reject(error) : resolve()));
+const origin = `http://127.0.0.1:${port}`;
 const email = `delivery-${Date.now()}@example.test`;
 const insecureEmail = `insecure-${Date.now()}@example.test`;
 const password = `Verify-${randomBytes(32).toString('base64url')}!`;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-mail-delivery-'));
 const browserSession = `gyf-smtp-mail-${process.pid}`;
+const proofDir = process.env.GYF_PROOF_DIR;
+if (proofDir) fs.mkdirSync(proofDir, { recursive: true, mode: 0o700 });
+function recordProof(event) {
+  if (proofDir) fs.appendFileSync(path.join(proofDir, 'smtp-observations.jsonl'), `${JSON.stringify(event)}\n`);
+}
 const receivedMessages = [];
 const receivers = [];
 let server;
@@ -77,6 +86,7 @@ async function startMailReceiver({ certificate, noStartTls = false } = {}) {
           const parsed = await simpleParser(Buffer.concat(chunks));
           const message = {
             subject: parsed.subject || '',
+            from: parsed.from?.value?.[0]?.address,
             recipients: parsed.to?.value?.map(({ address }) => address?.trim().toLowerCase()).filter(Boolean) ?? [],
             text: parsed.text || '',
           };
@@ -85,6 +95,7 @@ async function startMailReceiver({ certificate, noStartTls = false } = {}) {
             await deliveryGate;
           }
           receivedMessages.unshift(message);
+          recordProof({ event: 'received-mail', subject: message.subject, from: message.from, recipients: message.recipients, secure: _session.secure });
           callback();
         } catch {
           callback(new Error('The test mail receiver could not read this message.'));
@@ -117,7 +128,7 @@ async function startService(smtpPort, serviceDataDir, extraEnv = {}) {
       NODE_ENV: 'production',
       GYF_MAIL_TRANSPORT: 'smtp',
       GYF_DATA_DIR: serviceDataDir,
-      GYF_PORT: '4174',
+      GYF_PORT: String(port),
       BETTER_AUTH_URL: origin,
       BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
       SMTP_HOST: '127.0.0.1',
@@ -153,6 +164,10 @@ async function api(pathname, body, options = {}) {
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const responseText = await response.text();
+  recordProof({ event: 'http-response', path: pathname, status: response.status,
+    ...(['/api/session', '/api/auth/request-password-reset', '/api/auth/reset-password', '/api/data'].includes(pathname)
+      ? { body: responseText ? JSON.parse(responseText) : null } : {}),
+  });
   return {
     status: response.status,
     body: responseText ? JSON.parse(responseText) : null,
@@ -160,9 +175,9 @@ async function api(pathname, body, options = {}) {
   };
 }
 
-async function mailFor(subject) {
-  await waitUntil(() => receivedMessages.some((message) => message.subject === subject && message.recipients.includes(email)), `No ${subject} email reached the configured SMTP server.`);
-  return receivedMessages.find((message) => message.subject === subject && message.recipients.includes(email));
+async function mailFor(subject, address = email) {
+  await waitUntil(() => receivedMessages.some((message) => message.subject === subject && message.recipients.includes(address)), `No ${subject} email reached the configured SMTP server.`);
+  return receivedMessages.find((message) => message.subject === subject && message.recipients.includes(address));
 }
 
 function linkFrom(message) {
@@ -195,7 +210,7 @@ function browserSnapshot() {
 }
 
 function browserRef(role, name) {
-  const entry = browserSnapshot().split('\n').find((line) => line.includes(` ${role} "${name}"`));
+  const entry = browserSnapshot().split('\n').find((line) => line.includes(` ${role} "${name}"`) || line.includes(` ${role} "${name} `));
   assert.ok(entry, `Browser did not show ${role} "${name}".`);
   return entry.match(/uid=([^ ]+)/)?.[1];
 }
@@ -213,7 +228,10 @@ async function browserWait(phrase) {
   let snapshot = '';
   while (Date.now() < deadline) {
     snapshot = browserSnapshot();
-    if (snapshot.includes(phrase)) return snapshot;
+    if (snapshot.includes(phrase)) {
+      if (proofDir) browser(['screenshot', path.join(proofDir, `${phrase.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`)]);
+      return snapshot;
+    }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`Browser did not show the expected account state: ${phrase}. ${snapshot.slice(-500)}`);
@@ -238,14 +256,14 @@ function verifyCliDefaultView() {
 
 async function verifySmtpUi() {
   browser(['stop']);
-  browser(['open', origin]);
+  browser(['open', `${origin}/account`]);
   await browserWait('Welcome back.');
   const session = browserResult(browser(['eval', 'async () => await (await fetch("/api/session")).json()']));
   assert.deepEqual(session, { signedIn: false, emailDeliveryMode: 'smtp' }, 'The signed-out browser did not receive the safe SMTP delivery mode.');
-  assert.ok(browserSnapshot().includes('Email delivery uses the configured SMTP service.'), 'The sign-in privacy note did not describe SMTP delivery accurately.');
+  assert.ok(browserSnapshot().includes('Verification and recovery messages are sent by email.'), 'The sign-in privacy note did not describe SMTP delivery accurately.');
   browserClick('button', 'Create an account');
   await browserWait('Make it yours.');
-  assert.ok(browserSnapshot().includes('Email delivery uses the configured SMTP service.'), 'The signup page did not describe SMTP delivery accurately.');
+  assert.ok(browserSnapshot().includes('Verification and recovery messages are sent by email.'), 'The signup page did not describe SMTP delivery accurately.');
   browserClick('button', 'Already have an account? Sign in');
   await browserWait('Welcome back.');
   browserClick('button', 'Forgot password?');
@@ -253,24 +271,80 @@ async function verifySmtpUi() {
   browserFill('EMAIL ADDRESS', `unknown-${Date.now()}@example.test`);
   browserClick('button', 'Send reset link');
   await browserWait('Request received.');
-  assert.ok(browserSnapshot().includes('This response does not confirm delivery.'), 'The sent state overstated SMTP delivery.');
+  assert.ok(browserSnapshot().includes('We could not confirm delivery.'), 'The sent state overstated SMTP delivery.');
 }
 
 async function signInInBrowser() {
-  browser(['open', origin]);
+  browser(['open', `${origin}/account`]);
   await browserWait('Welcome back.');
   browserFill('EMAIL ADDRESS', email);
   browserFill('PASSWORD', password);
   browserClick('button', 'Sign in');
   await browserWait('Your account, in your hands.');
-  assert.ok(browserSnapshot().includes('Email delivery uses the configured SMTP service.'), 'The account page did not describe SMTP delivery accurately.');
+  assert.ok(browserSnapshot().includes('Verification and recovery messages are sent by email.'), 'The account page did not describe SMTP delivery accurately.');
+}
+
+async function verifySmtpAccountFlow(smtpPort, certificatePath) {
+  const flowEmail = `smtp-browser-${Date.now()}@example.test`;
+  const newPassword = `Renewed-${randomBytes(32).toString('base64url')}!`;
+  try {
+    await startService(smtpPort, path.join(dataDir, 'browser-flow'), { NODE_EXTRA_CA_CERTS: certificatePath });
+    const signedOut = await api('/api/session', undefined, { method: 'GET' });
+    assert.deepEqual(signedOut.body, { signedIn: false, emailDeliveryMode: 'smtp' }, 'The signed-out session exposed incorrect SMTP delivery state.');
+
+    browser(['stop']);
+    browser(['open', `${origin}/sign-up`]);
+    await browserWait('Make it yours.');
+    assert.ok(browserSnapshot().includes('Verification and recovery messages are sent by email.'), 'The signup page did not describe SMTP delivery accurately.');
+    browserFill('YOUR NAME', 'SMTP delivery verification');
+    browserFill('EMAIL ADDRESS', flowEmail);
+    browserFill('PASSWORD', password);
+    browserClick('checkbox', 'I confirm I am at least 18 years old. GetYourFit does not create an account for minors.');
+    browserClick('button', 'Create account');
+    await browserWait('Request received.');
+    assert.ok(browserSnapshot().includes('We could not confirm delivery.'), 'The signup sent state overstated SMTP delivery.');
+
+    const verificationMail = await mailFor('Verify your GetYourFit email', flowEmail);
+    assert.equal(verificationMail.from, 'wardrobe@example.test', 'The verification email used the wrong sender.');
+    const unverified = await api('/api/auth/sign-in/email', { email: flowEmail, password });
+    assert.equal(unverified.status, 403, 'An unverified account could sign in.');
+    const verificationMailsFor = () => receivedMessages.filter((message) => message.subject === verificationMail.subject && message.recipients.includes(flowEmail));
+    await waitUntil(() => verificationMailsFor().length >= 2, 'Signing in before verification did not send a fresh verification link.');
+    browser(['open', linkFrom(verificationMailsFor()[0])]);
+    const flowDb = new Database(path.join(dataDir, 'browser-flow', 'getyourfit.sqlite'), { readonly: true });
+    try {
+      await waitUntil(() => flowDb.prepare('SELECT emailVerified FROM user WHERE email = ?').get(flowEmail)?.emailVerified === 1, 'The emailed verification link did not verify the account.');
+    } finally { flowDb.close(); }
+
+    browser(['open', `${origin}/account`]);
+    await browserWait('Your account, in your hands.');
+    browserClick('button', 'Sign out');
+    await waitUntil(() => !browserSnapshot().includes('Your account, in your hands.'), 'Sign out did not leave the account page.');
+    browser(['open', `${origin}/account`]);
+    await browserWait('Welcome back.');
+    browserClick('button', 'Forgot password?');
+    await browserWait('Find your way back.');
+    browserFill('EMAIL ADDRESS', flowEmail);
+    browserClick('button', 'Send reset link');
+    await browserWait('Request received.');
+    const resetMail = await mailFor('Reset your GetYourFit password', flowEmail);
+    browser(['open', linkFrom(resetMail)]);
+    await browserWait('Choose a new password.');
+    browserFill('NEW PASSWORD', newPassword);
+    browserClick('button', 'Save new password');
+    await browserWait('Welcome back.');
+    browserFill('EMAIL ADDRESS', flowEmail);
+    browserFill('PASSWORD', newPassword);
+    browserClick('button', 'Sign in');
+    await browserWait('Your account, in your hands.');
+    assert.equal((await api('/api/auth/sign-in/email', { email: flowEmail, password })).status, 401, 'The replaced password still signed in.');
+  } finally {
+    await stopService();
+    browser(['stop']);
+  }
 }
 
 async function main() {
-  const portProbe = net.createServer();
-  await new Promise((resolve, reject) => portProbe.once('error', reject).listen(4174, '127.0.0.1', resolve));
-  await new Promise((resolve) => portProbe.close(resolve));
-
   const insecureRelay = await startMailReceiver({ noStartTls: true });
   try {
     await startService(insecureRelay.port, path.join(dataDir, 'insecure-relay'));
@@ -288,6 +362,7 @@ async function main() {
       await waitUntil(() => insecureDb.prepare("SELECT count(*) AS count FROM auth_audit WHERE action = 'mail-delivery-failed'").get().count > 0, 'The application did not report rejecting the insecure relay.');
     } finally { insecureDb.close(); }
     assert.equal(insecureRelay.observations.acceptedMessages, 0, 'The app sent account mail through SMTP without STARTTLS.');
+    recordProof({ event: 'insecure-relay-rejected', ...insecureRelay.observations });
   } finally {
     await stopService();
   }
@@ -357,12 +432,14 @@ async function main() {
     const reusedAfterDeletion = await api('/api/auth/reset-password', { token: resetToken, newPassword: `${password}A` });
     assert.equal(reusedAfterDeletion.status, 400, 'A reset link remained usable after its account was deleted.');
 
-    process.stdout.write('verify:mail-delivery passed: STARTTLS enforcement, SMTP delivery UI, safe session mode, private mailbox isolation, non-enumerating reset response, and deletion waiting for an accepted in-flight delivery.\n');
   } finally {
     releaseHeldDelivery();
     await stopService();
     browser(['stop']);
   }
+
+  await verifySmtpAccountFlow(smtpPort, certificate.certificatePath);
+  process.stdout.write('verify:mail-delivery passed: STARTTLS enforcement, SMTP delivery UI, safe session mode, private mailbox isolation, non-enumerating reset response, deletion waiting for an accepted in-flight delivery, and SMTP signup verification, forgot-password and reset through the real browser.\n');
 }
 
 try {
