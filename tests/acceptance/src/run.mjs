@@ -1021,6 +1021,7 @@ async function browserJourney(context, page) {
   ]);
   const item = await jsonOK(uploaded, 'Browser garment upload');
   assertGarmentFacts(item, shirt, 'Browser upload');
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
   const outfitForm = page.locator('form').filter({ has: page.getByLabel('Occasion', { exact: true }) });
   await outfitForm.getByLabel('Occasion', { exact: true }).fill(facts.occasion);
   await selectByText(outfitForm.getByLabel(/weather/i), /^mild$/i);
