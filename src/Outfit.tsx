@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Check } from 'lucide-react';
 import { contextSchema, decisionSchema, dressCodeSchema, garmentSchema, weatherSchema, type Context, type Decision, type Garment } from '../shared/wardrobe';
@@ -15,6 +15,8 @@ export function Outfit({ garments, disabled, revision, onGarmentsChanged }: { ga
   const [error, setError] = useState('');
   const resultRef = useRef<HTMLDivElement>(null);
   const focusResult = useRef(false);
+  const latestRevision = useRef(revision);
+  useLayoutEffect(() => { latestRevision.current = revision; }, [revision]);
 
   const [seenRevision, setSeenRevision] = useState(revision);
   if (revision !== seenRevision) { setSeenRevision(revision); setDecision(null); }
@@ -31,7 +33,9 @@ export function Outfit({ garments, disabled, revision, onGarmentsChanged }: { ga
     finally { setBusy(false); }
   }
   async function decide() {
+    const requestedRevision = latestRevision.current;
     const next = await wardrobeRequest('/outfit', decisionSchema, context);
+    if (requestedRevision !== latestRevision.current) return;
     focusResult.current = true;
     setDecision(next);
   }

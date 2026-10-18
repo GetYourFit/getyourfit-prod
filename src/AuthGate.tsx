@@ -4,6 +4,9 @@ import type { EmailDeliveryMode } from './api';
 import { Brand, Field, Notice } from './ui';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot' | 'reset' | 'sent';
+function authTitle(mode: Mode, needsCode: boolean) {
+  return mode === 'sign-up' ? 'Create your account' : mode === 'forgot' ? 'Reset your password' : mode === 'reset' ? 'Choose a new password' : mode === 'sent' ? 'Check your email' : needsCode ? 'Enter your code' : 'Sign in';
+}
 const deliveryCopy: Record<EmailDeliveryMode, { sent: string; privacy: string }> = {
   disabled: {
     sent: "Email delivery isn't available here.",
@@ -70,6 +73,7 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
   const errorRef = useRef<HTMLDivElement>(null);
   const [ageMissing, setAgeMissing] = useState(false);
 
+  useEffect(() => { document.title = `${authTitle(mode, needsCode)} · GetYourFit`; }, [mode, needsCode]);
   useEffect(() => { formRef.current?.querySelector<HTMLInputElement>('input')?.focus(); }, [mode, needsCode]);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
@@ -139,7 +143,7 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
     if (next === 'sign-in' || next === 'sign-up') window.history.replaceState({}, '', `/${next}`);
   }
 
-  const title = mode === 'sign-up' ? 'Create your account' : mode === 'forgot' ? 'Reset your password' : mode === 'reset' ? 'Choose a new password' : mode === 'sent' ? 'Check your email' : needsCode ? 'Enter your code' : 'Sign in';
+  const title = authTitle(mode, needsCode);
   const intro = mode === 'sign-up' ? 'Use an email address you can access. Your wardrobe is private to your account.' : mode === 'forgot' ? 'We’ll send a single-use reset link if this address has an account.' : mode === 'reset' ? 'Use a long, unique password you do not use elsewhere.' : mode === 'sent' ? 'If this request can be completed, follow the link sent to your email address.' : needsCode ? 'Enter the six-digit code from your authenticator app.' : 'Welcome back. Sign in to see your wardrobe.';
   const showCredential = mode === 'sign-up' || mode === 'sign-in' || mode === 'forgot';
   const submitLabel = mode === 'sign-up' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : mode === 'reset' ? 'Save new password' : 'Sign in';

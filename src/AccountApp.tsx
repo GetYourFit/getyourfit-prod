@@ -11,7 +11,7 @@ export type SignedInSession = { signedIn: true; email: string; twoFactorEnabled:
 type SessionState = { signedIn: false; emailDeliveryMode: EmailDeliveryMode } | SignedInSession;
 type Route = '/wardrobe' | '/account';
 
-const titles: Record<Route | 'sign-in' | 'sign-up', string> = { '/wardrobe': 'Wardrobe', '/account': 'Account', 'sign-in': 'Sign in', 'sign-up': 'Create your account' };
+const titles: Record<Route, string> = { '/wardrobe': 'Wardrobe', '/account': 'Account' };
 const routeOf = (pathname: string): Route => pathname === '/account' ? '/account' : '/wardrobe';
 
 export default function AccountApp() {
@@ -42,9 +42,8 @@ export default function AccountApp() {
   }, []);
 
   useEffect(() => {
-    if (!session) return;
-    const key = session.signedIn ? route : window.location.pathname === '/sign-up' ? 'sign-up' : 'sign-in';
-    document.title = `${titles[key]} · GetYourFit`;
+    if (!session?.signedIn) return;
+    document.title = `${titles[route]} · GetYourFit`;
   }, [session, route]);
 
   function navigate(event: MouseEvent<HTMLAnchorElement>) {
@@ -54,9 +53,10 @@ export default function AccountApp() {
     window.history.pushState({}, '', `${target.pathname}${target.hash}`);
     setRoute(routeOf(target.pathname));
     globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(() => {
-      const heading = document.querySelector<HTMLElement>(target.hash ? `${target.hash} h2` : 'h1');
+      const section = target.hash ? document.querySelector<HTMLElement>(target.hash) : null;
+      const heading = target.hash ? section?.querySelector<HTMLElement>('h2') : document.querySelector<HTMLElement>('h1');
       if (!heading) return;
-      if (target.hash) heading.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0);
+      if (section) section.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0);
       if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
     }));

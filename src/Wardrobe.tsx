@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { z } from 'zod';
 import { Pencil, Plus, Shirt, Trash2 } from 'lucide-react';
 import { wardrobeSchema, type Garment } from '../shared/wardrobe';
@@ -31,7 +32,10 @@ export function Wardrobe() {
     return () => { mounted = false; };
   }, []);
 
-  async function refresh() { setGarments(await wardrobeRequest('', wardrobeSchema, undefined, 'GET')); setRevision((value) => value + 1); }
+  async function refresh() {
+    const items = await wardrobeRequest('', wardrobeSchema, undefined, 'GET');
+    flushSync(() => { setGarments(items); setRevision((value) => value + 1); });
+  }
   async function act(callback: () => Promise<void>) {
     setBusy(true); setError('');
     try { await callback(); }
