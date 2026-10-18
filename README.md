@@ -35,7 +35,7 @@ Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
 Run `npm run verify:local-account` to prove the default account path in a production build with a disposable database and random key. It checks consent, signup without mail, wrong-password failure, restart continuity, export, and deletion through real browser controls.
 
-This release is infrastructure-only preparation. The chosen delivery path is SMTP through the captain's existing Gmail account, `gyf1ltd@gmail.com`, using a Google app password. Cost is zero, subject to Gmail's daily send cap for a personal account. Mail stays disabled until the vault references exist and are wired into the runtime. [Mail release handoff](docs/deploy-inputs.md#mail-release-handoff) records the exact vault mappings and activation settings. No new account, paid plan, or DNS change is authorized, and no literal secret belongs in the repository.
+Mail delivery is infrastructure-only preparation. The [mail release handoff](docs/deploy-inputs.md#mail-release-handoff) owns the chosen provider, sender, cost, vault mappings, and activation requirements.
 
 The application supports these `GYF_MAIL_TRANSPORT` values:
 
@@ -43,9 +43,9 @@ The application supports these `GYF_MAIL_TRANSPORT` values:
 - `smtp`: set `SMTP_HOST` and `SMTP_FROM`. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Non-implicit TLS connections require STARTTLS. Set both `SMTP_USER` and `SMTP_PASS` when authentication is required.
 - `local`: development and test only. It starts an in-memory SMTP catcher and exposes messages at `/__mail` to the holder of `GYF_MAILBOX_RUNNER_TOKEN`.
 
-With any mail transport enabled, signup requires a verified address and password recovery is available. A failed delivery is recorded in the audit log and never blocks signup or reveals whether an account exists. No provider credentials are configured in this repository. Browser requests to `/__mail` return no messages in default or SMTP mode.
+With any mail transport enabled, signup requires email verification before sign-in, and password recovery is available. A failed delivery is recorded in the audit log without failing the signup request or revealing whether an account exists. Sign-in still requires verification. No provider credentials are configured in this repository. Browser requests to `/__mail` return no messages in default or SMTP mode.
 
-`npm run verify:mail-delivery` exercises SMTP delivery against controlled local receivers through the real browser: STARTTLS enforcement, signup verification, forgot-password and reset, insecure relay rejection, and deletion waiting for in-flight mail. `npm test` covers transport selection and startup validation. `npm run verify:auth` uses the local catcher. None of these send real email or prove provider delivery.
+`npm run verify:mail-delivery` exercises SMTP delivery against controlled local receivers through the real browser: STARTTLS enforcement, signup verification, forgot-password and reset, insecure relay rejection, and deletion waiting for in-flight mail. `npm test` covers transport selection and startup validation. `npm run verify:auth` runs the broader account checks with the local catcher, then runs the SMTP verifier. None of these send real email or prove provider delivery.
 
 ## Check
 

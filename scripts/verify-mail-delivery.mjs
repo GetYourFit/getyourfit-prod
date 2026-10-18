@@ -21,6 +21,11 @@ const insecureEmail = `insecure-${Date.now()}@example.test`;
 const password = `Verify-${randomBytes(32).toString('base64url')}!`;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-mail-delivery-'));
 const browserSession = `gyf-smtp-mail-${process.pid}`;
+const proofDir = process.env.GYF_PROOF_DIR;
+if (proofDir) fs.mkdirSync(proofDir, { recursive: true, mode: 0o700 });
+function recordProof(event) {
+  if (proofDir) fs.appendFileSync(path.join(proofDir, 'smtp-observations.jsonl'), `${JSON.stringify(event)}\n`);
+}
 const receivedMessages = [];
 const receivers = [];
 let server;
@@ -90,6 +95,7 @@ async function startMailReceiver({ certificate, noStartTls = false } = {}) {
             await deliveryGate;
           }
           receivedMessages.unshift(message);
+          recordProof({ event: 'received-mail', subject: message.subject, from: message.from, recipients: message.recipients, secure: _session.secure });
           callback();
         } catch {
           callback(new Error('The test mail receiver could not read this message.'));
@@ -158,6 +164,10 @@ async function api(pathname, body, options = {}) {
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const responseText = await response.text();
+  recordProof({ event: 'http-response', path: pathname, status: response.status,
+    ...(['/api/session', '/api/auth/request-password-reset', '/api/auth/reset-password', '/api/data'].includes(pathname)
+      ? { body: responseText ? JSON.parse(responseText) : null } : {}),
+  });
   return {
     status: response.status,
     body: responseText ? JSON.parse(responseText) : null,
@@ -218,7 +228,10 @@ async function browserWait(phrase) {
   let snapshot = '';
   while (Date.now() < deadline) {
     snapshot = browserSnapshot();
-    if (snapshot.includes(phrase)) return snapshot;
+    if (snapshot.includes(phrase)) {
+      if (proofDir) browser(['screenshot', path.join(proofDir, `${phrase.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`)]);
+      return snapshot;
+    }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`Browser did not show the expected account state: ${phrase}. ${snapshot.slice(-500)}`);
@@ -349,6 +362,7 @@ async function main() {
       await waitUntil(() => insecureDb.prepare("SELECT count(*) AS count FROM auth_audit WHERE action = 'mail-delivery-failed'").get().count > 0, 'The application did not report rejecting the insecure relay.');
     } finally { insecureDb.close(); }
     assert.equal(insecureRelay.observations.acceptedMessages, 0, 'The app sent account mail through SMTP without STARTTLS.');
+    recordProof({ event: 'insecure-relay-rejected', ...insecureRelay.observations });
   } finally {
     await stopService();
   }

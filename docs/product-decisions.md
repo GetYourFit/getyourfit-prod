@@ -4,7 +4,7 @@ Date: 2026-10-12
 
 ## Delivery scope
 
-The 2026-10-12 version ladder targets v0.1: email/password signup without real mail, real licensed garment photo upload, and one outfit suggestion in a browser. After the account increment landed, this increment adds photo review, wardrobe facts, outfit checks, correction, and garment data control. Verification and reset email delivery move to v0.2, retaining their existing implementation as an opt-in path. Deployment remains a separate task.
+The 2026-10-12 version ladder targets v0.1: email/password signup without real mail, real licensed garment photo upload, and one outfit suggestion in a browser. After the account increment landed, this increment adds photo review, wardrobe facts, outfit checks, correction, and garment data control. The current [mail release handoff](deploy-inputs.md#mail-release-handoff) supersedes the earlier v0.2 email delivery plan. Deployment remains a separate task.
 
 The foundation delivered the buildable app shell, and the next increment delivered accounts and account-level data controls. This increment implements the local wardrobe-to-outfit path. The earlier shell-only and account-only rulings remain historical boundaries for those changes. Results recorded here are local-runtime evidence, not deployment proof.
 
@@ -28,9 +28,9 @@ React, TypeScript, and Vite serve the browser UI. A loopback Node.js service use
 
 ## Account and privacy decisions
 
-The default account mode now disables email delivery, immediately signs in a new adult account, and preserves an honest unverified status in exports. It hides password recovery and rejects reset requests instead of claiming mail was sent. Both runtime modes require the same retained authentication key across restarts. Existing SMTP verification/recovery and restricted test-mailbox code remain available for v0.2 validation.
+The default account mode now disables email delivery, immediately signs in a new adult account, and preserves an honest unverified status in exports. It hides password recovery and rejects reset requests instead of claiming mail was sent. Both runtime modes require the same retained authentication key across restarts. Existing SMTP verification/recovery and restricted test-mailbox code remain available for controlled local validation.
 
-The captain replaced the earlier passkey decision with email/password authentication, verified email, short-lived single-use password-reset links stored as hashes, optional TOTP, secure cookies, origin checks, rate limits, safe logs, sign-out everywhere, export, deletion, configurable SMTP delivery, and an explicit 18+ gate. Optional Google sign-in is deferred unless a free configuration becomes available. The isolated verification runner enables an in-memory catcher with a per-run bearer token; browser users receive no mailbox content. The real SMTP provider remains to be configured by the operator.
+The captain replaced the earlier passkey decision with email/password authentication, verified email, short-lived single-use password-reset links stored as hashes, optional TOTP, secure cookies, origin checks, rate limits, safe logs, sign-out everywhere, export, deletion, configurable SMTP delivery, and an explicit 18+ gate. Optional Google sign-in is deferred unless a free configuration becomes available. The isolated verification runner enables an in-memory catcher with a per-run bearer token; browser users receive no mailbox content.
 
 Photo permission covers local processing and storage of the garment photo. It does not grant publication, sharing, or model-training rights. The browser resizes and strips metadata before the loopback service receives the image. The service decodes and canonicalizes it again; temporary mode-0600 images live in a private temporary directory only during classification and are removed afterward. Permanent photos are SQLite blobs, so account deletion cascades across photos, facts, and corrections without orphaned files.
 
