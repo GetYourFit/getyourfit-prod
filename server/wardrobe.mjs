@@ -10,8 +10,11 @@ import sharp from 'sharp';
 import { database } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
 import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
+import { shoppingSourceListSchema } from '../shared/shopping.ts';
+import shoppingSourceRecords from './shopping-sources.json' with { type: 'json' };
 
 const execute = promisify(execFile);
+const shoppingSources = shoppingSourceListSchema.parse(shoppingSourceRecords);
 const classifyScript = fileURLToPath(new URL('./classify.swift', import.meta.url));
 export function ensureWardrobeSchema() {
   database.exec(`
@@ -177,6 +180,7 @@ export function wardrobeRouter(requireUser) {
     response.json({ saved: true });
   });
   router.get('/starter-plans', (request, response) => response.json(listStarterPlans(request.user.id)));
+  router.get('/shopping-sources', (_request, response) => response.json(shoppingSources));
   router.post('/starter-plans', (request, response) => {
     const parsed = starterSaveSchema.safeParse(request.body);
     if (!parsed.success) return response.status(400).json({ error: 'Check the occasion, budget, and outfit needs, then try again.' });

@@ -121,6 +121,16 @@ const server = http.createServer(async (req, res) => {
     }));
   }
   if (!email) return json(res, 401, { error: 'sign in required' });
+  if (url.pathname === '/api/wardrobe/shopping-sources' && req.method === 'GET') {
+    const section = 'https://shop.example.test/c/men-tshirts';
+    const tracked = new URL('https://redirect.example.test/');
+    tracked.search = new URLSearchParams({ cid: '1001', source: 'api', url: mutation === 'shopping-redirect-mismatch' ? 'https://elsewhere.example.test/' : section }).toString();
+    if (mutation === 'shopping-private-link') tracked.searchParams.set('subid', email);
+    return json(res, 200, [{ id: 'stub-shop', retailer: 'Stub shop', retailerHost: 'shop.example.test', region: { country: 'IN', name: 'India' }, currency: 'INR', verifiedAt: '2026-10-18',
+      affiliate: { network: 'Stub network', redirectHost: 'redirect.example.test', campaignId: 1, channelId: 1001, channelUrl: origin },
+      rights: { productFacts: false, prices: false, images: false },
+      destinations: [{ kind: 'section', role: 'top', department: 'men', dressCodes: ['casual'], label: 'Men’s T-shirts', url: section, affiliateUrl: tracked.toString() }] }]);
+  }
   if (url.pathname === '/api/wardrobe/starter-plans' && req.method === 'GET') {
     return json(res, 200, [...starterPlans.values()].filter(plan => plan.email === email).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(publicPlan));
   }

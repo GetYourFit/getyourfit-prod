@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import { Plus, ArrowUpRight } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { contextSchema, decisionSchema, dressCodeSchema, garmentSchema, wardrobeSchema, weatherSchema, type Context, type Decision, type Garment } from '../shared/wardrobe';
 import { GarmentForm, InterpretationNote } from './GarmentForm';
 import { wardrobeRequest } from './wardrobe-api';
@@ -55,7 +55,7 @@ export function Wardrobe() {
     </section>
     <StarterPlan />
     <section className="outfit-section" id="outfit" aria-labelledby="outfit-title">
-      <div className="section-heading"><div><p className="eyebrow">ONE DECISION</p><h2 id="outfit-title">What are you dressing for?</h2><p className="lede">You set the context. We check your confirmed facts, then show a complete set you already own.</p></div><ArrowUpRight size={24} aria-hidden="true" /></div>
+      <div className="section-heading"><div><p className="eyebrow">ONE DECISION</p><h2 id="outfit-title">What are you dressing for?</h2><p className="lede">You set the context. We check your confirmed facts, then show a complete set you already own.</p></div></div>
       <form className="context-form" onSubmit={(event) => { event.preventDefault(); void act(decide); }}>
         <label>Occasion<input className="text-input" disabled={busy} value={context.occasion} maxLength={120} placeholder="Where are you going?" onChange={(event) => changeContext({ ...context, occasion: event.target.value })} /></label>
         <label>Weather<select className="text-input" disabled={busy} value={context.weather} onChange={(event) => changeContext(contextSchema.parse({ ...context, weather: event.target.value }))}><option value="unknown">I’m not sure</option>{weatherSchema.options.map((value) => <option key={value}>{value}</option>)}</select></label>
