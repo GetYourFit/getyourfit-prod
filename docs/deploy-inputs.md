@@ -56,7 +56,7 @@ Verify signup, session continuity, real photo upload and refresh, an owned-outfi
 
 ## Starter-plan release handoff
 
-The starter plan uses the existing SQLite database and account session. Its new table is additive and references the account with cascade deletion. It creates no merchant, search, AI, email, or payment integration. The owned-clothes path remains beside the new path.
+The starter plan uses the existing SQLite database and account session. Its table is additive and references the account with cascade deletion. Shopping links load from the bundled source record without a runtime Cuelinks API key. Source maintenance and permissions are owned by [shopping sources](shopping-sources.md). The owned-clothes path remains beside the new path.
 
 After this change is reviewed and merged, the existing deployment owner can build the exact approved `main` revision with `npm ci`, `npm run build`, and `npm run acceptance`, then use the established `npm start` service process and runtime inputs above. The acceptance command builds and runs a disposable production service; it does not deploy or prove a public host. Keep the same database, `BETTER_AUTH_SECRET`, and service configuration. Before an authorized rollout, take the deployment owner's normal consistent database backup and record the prior release revision.
 

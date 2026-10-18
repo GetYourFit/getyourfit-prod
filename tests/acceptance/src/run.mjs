@@ -47,6 +47,7 @@ const cases = [
   [caseNames.singleShirt, ['R5', 'R9', 'R11', 'R19', 'A-1'], singleShirtJourney],
   [caseNames.missingFacts, ['R5', 'R11', 'R19', 'A-1'], missingFactsJourney],
   [caseNames.starterPlan, ['R4', 'R9', 'R26', 'A-1', 'S1'], starterPlanJourney],
+  [caseNames.shopping, ['R4', 'R9', 'R26', 'R30', 'A-1'], shoppingJourney],
   [caseNames.isolation, ['R26', 'R27'], isolation],
 ];
 const started = Date.now();
@@ -133,7 +134,7 @@ try {
       if (privacyMutationMode && ![caseNames.browser, caseNames.frontDoor].includes(name)) continue;
       const item = { name, requirement_ids: ids, status: 'passed' };
       const caseStart = Date.now();
-      const context = await browser.newContext({ baseURL, ...([caseNames.browser, caseNames.frontDoor, caseNames.starterPlan].includes(name) ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {}) });
+      const context = await browser.newContext({ baseURL, ...([caseNames.browser, caseNames.frontDoor, caseNames.starterPlan, caseNames.shopping].includes(name) ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {}) });
       context.setDefaultTimeout(6000);
       activePage = await context.newPage();
       try {
@@ -609,6 +610,120 @@ async function starterPlanJourney(context, page) {
   assert.match(await builder.innerText(), /borrow|lend|reuse/i, 'Zero-budget plan gives no no-cost next step');
   assert.deepEqual(errors, [], 'Starter plan caused browser errors');
   assert.deepEqual(outsideRequests, [], 'Starter plan sends requests to an external service before the wearer opens a link');
+}
+
+function assertShoppingSource(source) {
+  assert.equal(source.region?.country, 'IN', 'The first shopping source is not limited to India');
+  assert.equal(source.currency, 'INR', 'The first shopping source does not use Indian rupees');
+  assert(['productFacts', 'prices', 'images'].every(key => typeof source.rights?.[key] === 'boolean'), 'Shopping source has no rights record for product facts, prices and images');
+  assert(Array.isArray(source.destinations) && source.destinations.length > 0, 'Shopping source has no destinations');
+  for (const destination of source.destinations) {
+    const target = new URL(destination.url);
+    const tracked = new URL(destination.affiliateUrl);
+    assert.equal(target.protocol, 'https:', 'Retailer destination is not HTTPS');
+    assert.equal(target.hostname, source.retailerHost, 'Affiliate link does not lead to its named retailer section');
+    assert.equal(tracked.protocol, 'https:', 'Affiliate link is not HTTPS');
+    assert.equal(tracked.hostname, source.affiliate?.redirectHost, 'Affiliate link does not use the approved network redirect');
+    assert.deepEqual([...tracked.searchParams.keys()].sort(), ['cid', 'source', 'url'], 'Affiliate link carries tracking fields beyond the approved channel');
+    assert.equal(tracked.searchParams.get('cid'), String(source.affiliate.channelId), 'Affiliate link carries tracking fields beyond the approved channel');
+    assert.equal(tracked.searchParams.get('url'), destination.url, 'Affiliate link does not lead to its named retailer section');
+  }
+}
+
+async function shoppingJourney(context, page) {
+  const anonymous = await browser.newContext({ baseURL });
+  try {
+    assert([401, 403, 404].includes((await api(anonymous, 'GET', contract.shoppingSources)).status()), 'Anonymous visitors can read shopping sources');
+  } finally { await anonymous.close(); }
+  const user = await signup(context);
+  const sources = await jsonOK(await api(context, 'GET', contract.shoppingSources), 'Shopping sources');
+  assert(Array.isArray(sources) && sources.length > 0, 'No verified shopping source is available');
+  sources.forEach(assertShoppingSource);
+  if (stubMode) return;
+
+  const [source] = sources;
+  const errors = [], outsideRequests = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  await context.route('**/*', async route => {
+    if (new URL(route.request().url()).origin === baseURL) return route.continue();
+    outsideRequests.push({ url: route.request().url(), referer: route.request().headers().referer });
+    await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Retailer section</title><p>Retailer section</p>' });
+  });
+  await page.goto('/wardrobe');
+  const builder = page.locator('#build-plan');
+  await builder.getByLabel(/what is the occasion/i).fill('Acceptance college days');
+  await builder.getByLabel(/spending ceiling/i).fill('3000');
+  await builder.getByLabel(/^plan weather/i).selectOption('warm');
+  await builder.getByLabel(/^plan dress code/i).selectOption('casual');
+  await builder.getByLabel(/i already have suitable footwear/i).check();
+  await builder.getByRole('button', { name: /make my starter plan/i }).click();
+  const shop = builder.getByRole('region', { name: /shop/i });
+  await shop.getByRole('radio', { name: /^men/i }).waitFor();
+  const affiliateLinks = shop.locator(`a[href^="https://${source.affiliate.redirectHost}/"]`);
+  assert.equal(await affiliateLinks.count(), 0, 'Shopping links appeared before the wearer chose a retailer department');
+  await shop.getByRole('radio', { name: /^men/i }).check();
+  await affiliateLinks.first().waitFor();
+  const links = await affiliateLinks.evaluateAll(anchors => anchors.map(anchor => ({ href: anchor.href, rel: anchor.rel, target: anchor.target, text: anchor.innerText })));
+  const approved = source.destinations.filter(destination => destination.department === 'men').map(destination => destination.affiliateUrl);
+  assert.equal(links.length, 2, 'Shopping links must cover only the planned top and bottom, not footwear the wearer owns');
+  for (const link of links) {
+    assert(approved.includes(link.href), 'A browser shopping link is not an approved affiliate destination');
+    assert.match(link.rel, /\bsponsored\b/, 'Affiliate link is not marked sponsored');
+    assert.match(link.rel, /\bnoopener\b/, 'Affiliate link does not isolate the opened page');
+    assert.equal(link.target, '_blank', 'Affiliate link replaces the plan instead of opening the retailer separately');
+    assert.match(link.text, /affiliate/i, 'Affiliate link is not labeled as an affiliate link');
+    assert.doesNotMatch(decodeURIComponent(link.href), /acceptance|college|3000|@/i, 'Affiliate link leaks private plan or account details');
+  }
+  const directLinks = await shop.locator(`a[href^="https://${source.retailerHost}/"]`).evaluateAll(anchors => anchors.map(anchor => anchor.href));
+  assert.deepEqual(directLinks.sort(), links.map(link => new URL(link.href).searchParams.get('url')).sort(), 'Each affiliate link needs a matching ordinary retailer link');
+  const disclosure = shop.getByText(/may earn a commission/i);
+  assert(await disclosure.isVisible(), 'Affiliate disclosure is not visible beside the shopping links');
+  const [disclosureBox, firstLinkBox] = [await disclosure.boundingBox(), await affiliateLinks.first().boundingBox()];
+  assert(disclosureBox.y < firstLinkBox.y && firstLinkBox.y - disclosureBox.y < 844, 'Affiliate disclosure is not placed before and near the first shopping link on a phone');
+  assert.equal(await shop.locator('img, picture').count(), 0, 'Shopping links show product images without an image licence');
+  const shopText = await shop.innerText();
+  assert.match(shopText, /checkout total[^.]*unknown|unknown[^.]*checkout/i, 'Shopping budget hides that the checkout total is unknown');
+  if (!source.rights.images) assert.match(shopText, /no product photos/i, 'Shopping section does not explain why photos are missing');
+  if (!source.rights.prices) assert.match(shopText, /prices?[^.]*not shown|not shown[^.]*prices?/i, 'Shopping section does not explain why prices are missing');
+  assert.doesNotMatch(shopText, /\b(?:in stock|available to buy|buy now|delivery tomorrow|verified price|within (?:your )?(?:budget|ceiling))\b/i, 'Shopping section invents a purchasability or budget claim');
+  const amounts = new Set(shopText.match(/₹\s?[\d,]+/g));
+  assert.deepEqual([...amounts].sort(), ['₹1,500', '₹3,000'], 'Shopping section shows money amounts other than the ceiling and planning shares');
+  assert.deepEqual(outsideRequests, [], 'Shopping links contact an external service before the wearer opens one');
+  await page.evaluate(axe.source);
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    assert(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth + 1), `Shopping links overflow at ${width}px`);
+    const violations = await page.evaluate(async () => (await globalThis.axe.run(globalThis.document.querySelector('#build-plan'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } })).violations.map(({ id, nodes }) => ({ id, targets: nodes.map(node => node.target) })));
+    assert.deepEqual(violations, [], `Shopping links fail automated WCAG AA at ${width}px: ${JSON.stringify(violations)}`);
+    await shop.screenshot({ path: path.join(output, 'screenshots', `shopping-${width}.png`) });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  const [popup] = await Promise.all([page.waitForEvent('popup'), affiliateLinks.first().click()]);
+  await popup.waitForLoadState();
+  assert.equal(popup.url(), links[0].href, 'Opening a shopping link did not go to its approved affiliate destination');
+  assert.deepEqual(outsideRequests.map(request => request.url), [links[0].href], 'Opening one shopping link contacted other external services');
+  assert.equal(outsideRequests[0].referer, undefined, 'Opening a shopping link leaks the GetYourFit page as the referrer');
+  await popup.close();
+
+  await builder.getByRole('button', { name: /reject plan/i }).click();
+  await builder.getByLabel(/what is the occasion/i).fill('Acceptance formal dinner');
+  await builder.getByLabel(/spending ceiling/i).fill('5000');
+  await builder.getByLabel(/^plan dress code/i).selectOption('formal');
+  await builder.getByLabel(/i already have suitable footwear/i).uncheck();
+  await builder.getByRole('button', { name: /make my starter plan/i }).click();
+  await shop.getByText(/no shop is suggested/i).waitFor();
+  assert.equal(await affiliateLinks.count(), 0, 'A sportswear source was offered for a formal dress code');
+  await builder.getByRole('button', { name: /reject plan/i }).click();
+  await builder.getByLabel(/what is the occasion/i).fill('Acceptance trip abroad');
+  await builder.getByLabel(/^plan dress code/i).selectOption('casual');
+  await builder.getByLabel(/currency/i).selectOption('USD');
+  await builder.getByRole('button', { name: /make my starter plan/i }).click();
+  await shop.getByText(/india only/i).waitFor();
+  assert.equal(await affiliateLinks.count(), 0, 'An India-only source was offered for a plan in another currency');
+  assert.deepEqual(await jsonOK(await api(context, 'GET', contract.wardrobe), 'Owned clothes after shopping links'), [], 'Opening shopping links changed the owned wardrobe');
+  assert.deepEqual(errors, [], 'Shopping links caused browser errors');
+  for (const secret of [user.email, user.password]) assert(!outsideRequests.some(request => request.url.includes(secret)), 'Shopping navigation leaked account credentials');
 }
 async function isolation(context) {
   await signup(context);

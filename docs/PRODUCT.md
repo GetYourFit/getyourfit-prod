@@ -28,7 +28,7 @@ Help a first wearer decide what to wear for one stated occasion, with a complete
 
 The v0.1 local path supports email/password signup without mail, optional TOTP, consented real photo upload, local garment review, a compact wardrobe, one factual outfit suggestion, wearer correction, and full data export or deletion. Account mail behavior is documented in [Run locally](../README.md#run-locally); provider activation requires the [mail release handoff](deploy-inputs.md#mail-release-handoff). [Workflow-kit documentation](workflow-kit.md) records the required checks. Public deployment still requires the operator configuration in [deployment inputs](deploy-inputs.md).
 
-For people starting without garments, [Build my wardrobe](../README.md#build-my-wardrobe) provides the separate text needs-plan precursor. Its scope and usage are documented there.
+For people starting without garments, [Build my wardrobe](../README.md#build-my-wardrobe) owns the scope and usage of starter plans and shopping links.
 
 ## Capabilities and Constraints
 
@@ -39,11 +39,11 @@ For people starting without garments, [Build my wardrobe](../README.md#build-my-
 - Every inferred fact records its source, model version, and confidence. macOS-local Apple Vision supplies a fallible clothing label with model revision and confidence. Only clothing labels are returned; no person attributes are exposed or stored. No classification result supplies an outfit fact automatically. The wearer confirms category, color, labelled size, current fit, ownership, availability, weather, and dress code. Those facts record wearer source, model version null, and confidence 1 as explicit confirmation, not a model score. Unsupported devices or failed classification ask for manual confirmation without invented confidence.
 - Keep user data private by default. Do not infer ethnicity, rank desirability, sell personal data, or collect body data in this slice. Require explicit 18+ confirmation before account creation.
 - Provide data export and deletion.
-- Defer creator, retailer, subscription, body-preview, and merchant features.
+- Defer creator, retailer platform, subscription, body-preview, and merchant features. The consumer shopping scope is owned by [Build my wardrobe](../README.md#build-my-wardrobe).
 
 ## What this slice removes
 
-It removes mock garments, random outfit shuffling, passkey-only account access, community and creator surfaces, retailer and merchant surfaces, subscriptions, body preview, unsupported fit claims, builder-written taste rules, and external image or recognition services. The broader product remains a wearer-first decision system; see [requirements](requirements.md) for the status of each wider requirement.
+It removes mock garments, random outfit shuffling, passkey-only account access, community and creator surfaces, retailer platform and merchant surfaces, subscriptions, body preview, unsupported fit claims, builder-written taste rules, and external image or recognition services. The broader product remains a wearer-first decision system; see [requirements](requirements.md) for the status of each wider requirement.
 
 ## Evidence on Hand
 

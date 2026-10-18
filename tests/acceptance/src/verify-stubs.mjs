@@ -65,6 +65,8 @@ const mutations = [
   ['starter-fake-purchasability', caseNames.starterPlan, /Starter plan contains a fake purchasability claim/],
   ['starter-impossible-constraints', caseNames.starterPlan, /Contradictory outfit needs were accepted instead of rejected/],
   ['starter-owned-plan-mixing', caseNames.starterPlan, /A planned need was added to the owned wardrobe/],
+  ['shopping-private-link', caseNames.shopping, /Affiliate link carries tracking fields beyond the approved channel/],
+  ['shopping-redirect-mismatch', caseNames.shopping, /Affiliate link does not lead to its named retailer section/],
 ];
 const detections = [];
 await mkdir(output, { recursive: true });

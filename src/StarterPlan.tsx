@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { ArrowUpRight } from 'lucide-react';
 import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
+import { ShoppingLinks } from './ShoppingLinks';
 import { wardrobeRequest } from './wardrobe-api';
 
 type FormValues = Omit<StarterInput, 'budget'> & { budget: string };
@@ -259,6 +260,7 @@ export function StarterPlan() {
       </ul>
       {remaining.length === 0 && <p className="starter-no-cash">Every role is covered by your confirmation. No shopping is suggested for this plan.</p>}
       {remaining.length > 0 && actionable && <p className="starter-search-disclosure">External search links open a general search page. They do not name a seller or specific offer. The search service may collect information when you visit it; GetYourFit sends no occasion, budget, or other plan details in these links.</p>}
+      {remaining.length > 0 && actionable && input.budget > 0 && <ShoppingLinks input={input} roles={roles} />}
       <div className="starter-plan-actions">
         {planStatus === 'draft' && <button className="button button-primary" disabled={busy !== ''} onClick={() => void saveDraft()}>{busy === 'save' ? 'Saving plan…' : 'Save plan'}</button>}
         {saved && planStatus === 'active' && <button className="button button-secondary" disabled={busy !== ''} onClick={startReplacement}>Replace plan</button>}

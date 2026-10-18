@@ -1,0 +1,83 @@
+[
+  {
+    "id": "decathlon-in",
+    "retailer": "Decathlon India",
+    "retailerHost": "www.decathlon.in",
+    "region": { "country": "IN", "name": "India" },
+    "currency": "INR",
+    "verifiedAt": "2026-10-18",
+    "affiliate": {
+      "network": "Cuelinks",
+      "redirectHost": "linksredirect.com",
+      "campaignId": 2248,
+      "channelId": 325006,
+      "channelUrl": "https://app.getyourfit.co"
+    },
+    "rights": { "productFacts": false, "prices": false, "images": false },
+    "destinations": [
+      {
+        "kind": "section",
+        "role": "top",
+        "department": "men",
+        "dressCodes": ["casual", "unknown"],
+        "label": "Men’s T-shirts",
+        "url": "https://www.decathlon.in/c/men-tshirts-17107",
+        "affiliateUrl": "https://linksredirect.com/?cid=325006&source=api&url=https%3A%2F%2Fwww.decathlon.in%2Fc%2Fmen-tshirts-17107"
+      },
+      {
+        "kind": "section",
+        "role": "top",
+        "department": "men",
+        "dressCodes": ["smart-casual"],
+        "label": "Men’s shirts",
+        "url": "https://www.decathlon.in/c/men-shirt-17104",
+        "affiliateUrl": "https://linksredirect.com/?cid=325006&source=api&url=https%3A%2F%2Fwww.decathlon.in%2Fc%2Fmen-shirt-17104"
+      },
+      {
+        "kind": "section",
+        "role": "bottom",
+        "department": "men",
+        "dressCodes": ["casual", "smart-casual", "unknown"],
+        "label": "Men’s trousers and cargos",
+        "url": "https://www.decathlon.in/c/men-trekking-pants-and-cargos-26090",
+        "affiliateUrl": "https://linksredirect.com/?cid=325006&source=api&url=https%3A%2F%2Fwww.decathlon.in%2Fc%2Fmen-trekking-pants-and-cargos-26090"
+      },
+      {
+        "kind": "section",
+        "role": "footwear",
+        "department": "men",
+        "dressCodes": ["casual", "smart-casual", "unknown"],
+        "label": "Men’s shoes",
+        "url": "https://www.decathlon.in/c/men-shoes-17128",
+        "affiliateUrl": "https://linksredirect.com/?cid=325006&source=api&url=https%3A%2F%2Fwww.decathlon.in%2Fc%2Fmen-shoes-17128"
+      },
+      {
+        "kind": "section",
+        "role": "top",
+        "department": "women",
+        "dressCodes": ["casual", "smart-casual", "unknown"],
+        "label": "Women’s T-shirts",
+        "url": "https://www.decathlon.in/c/women-t-shirts-17014",
+        "affiliateUrl": "https://linksredirect.com/?cid=325006&source=api&url=https%3A%2F%2Fwww.decathlon.in%2Fc%2Fwomen-t-shirts-17014"
+      },
+      {
+        "kind": "section",
+        "role": "bottom",
+        "department": "women",
+        "dressCodes": ["casual", "smart-casual", "unknown"],
+        "label": "Women’s trousers",
+        "url": "https://www.decathlon.in/c/women-trousers-17023",
+        "affiliateUrl": "https://linksredirect.com/?cid=325006&source=api&url=https%3A%2F%2Fwww.decathlon.in%2Fc%2Fwomen-trousers-17023"
+      },
+      {
+        "kind": "section",
+        "role": "footwear",
+        "department": "women",
+        "dressCodes": ["casual", "smart-casual", "unknown"],
+        "label": "Women’s sport shoes",
+        "url": "https://www.decathlon.in/c/women-sport-shoes-16993",
+        "affiliateUrl": "https://linksredirect.com/?cid=325006&source=api&url=https%3A%2F%2Fwww.decathlon.in%2Fc%2Fwomen-sport-shoes-16993"
+      }
+    ]
+  }
+]

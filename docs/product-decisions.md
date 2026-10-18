@@ -19,7 +19,7 @@ The foundation delivered the buildable app shell, and the next increment deliver
 - Keep the GetYourFit name, the wardrobe-to-outfit decision, and React/Vite as a familiar browser base.
 - Merge sign-in, one real garment photo, garment review and correction, a compact owned wardrobe, an occasion-based outfit decision, and data control into one local-first journey.
 - Replace shuffle-based outfits with exact checks for ownership, availability, size, weather, dress code, and budget. Builder-authored taste scoring is removed. Corrections are stored and take precedence for matching context.
-- Remove mock inventory, random outfit selection, community and sharing, body profiling, virtual try-on, creator, retailer, merchant, and subscription surfaces from slice 1. They add breadth without proving the first wearer outcome. The current [product scope](PRODUCT.md#first-slice-outcome) supersedes the earlier exclusion of planning.
+- Remove mock inventory, random outfit selection, community and sharing, body profiling, virtual try-on, creator, retailer, merchant, and subscription surfaces from slice 1. They add breadth without proving the first wearer outcome. The current [product scope](PRODUCT.md#first-slice-outcome) supersedes the earlier exclusion of planning and consumer shopping links.
 - Do not reuse earlier images or models because their provenance and licenses are undocumented. Do not seed a fake wardrobe. The wearer supplies real photos and confirms the garment facts.
 
 ## Stack
