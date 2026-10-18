@@ -59,7 +59,11 @@ async function wearer(t) {
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
   context.setDefaultTimeout(4000);
   t.after(() => context.close());
-  const response = await context.request.post(contract.register, { data: account(), headers: { origin: baseURL } });
+  let response = await context.request.post(contract.register, { data: account(), headers: { origin: baseURL } });
+  if (response.status() === 429) {
+    await delay(61_000);
+    response = await context.request.post(contract.register, { data: account(), headers: { origin: baseURL } });
+  }
   assert(response.ok(), `Signup returned ${response.status()}: ${await response.text()}`);
   const page = await context.newPage();
   return { context, page, builder: page.locator('#build-plan') };
@@ -442,4 +446,78 @@ test('R5/R9 rejection returns drafts to planning and closes saved-plan replaceme
       }
     }
   });
+});
+
+test('Capsule: one occasion supports several looks, budget shares and ownership without commerce claims', async t => {
+  const { context, page, builder } = await wearer(t);
+  const occasion = 'Office, family; weekends';
+  await page.goto('/wardrobe');
+  assert.equal(await page.locator('input[type=file]:visible').count(), 0, 'Capsule planning asked for a garment upload');
+  const capsule = builder.getByLabel('Starter capsule');
+  const looks = capsule.getByLabel('Outfits from this capsule').locator('li');
+  for (const outfitType of ['separates', 'one-piece']) {
+    assert.equal(await builder.getByLabel(/^currency/i).inputValue(), 'INR', 'India-first default currency is not INR');
+    assert.equal(await builder.getByLabel(/^plan style/i).count(), 0);
+    const weather = builder.getByLabel(/^plan weather/i);
+    assert.deepEqual(await weather.locator('option').evaluateAll(options => options.map(option => [option.value, option.textContent])), [
+      ['unknown', 'I am not sure'], ['warm', 'Warm'], ['mild', 'Mild'], ['cold', 'Cold'],
+    ]);
+    await draft(builder, { ...input, occasion, outfitType, budget: 6000, weather: 'warm' });
+    await capsule.waitFor();
+    const text = await capsule.innerText();
+    assert.match(text, /warm weather, light, breathable fabrics/i, 'Weather guidance is missing');
+    assert.match(text, /not a verified fit/i, 'Capsule hides uncertainty');
+    assert.match(text, outfitType === 'separates' ? /2 × top.*₹1,000 each/i : /2 × one-piece garment.*₹1,500 each/i, 'Per-piece planning share is missing or wrong');
+    assert.equal(await looks.count(), outfitType === 'separates' ? 4 : 2);
+    const outfits = await looks.allInnerTexts();
+    const combinations = await looks.locator('p:nth-child(2)').allTextContents();
+    assert.equal(new Set(combinations).size, outfits.length, 'Capsule repeated a piece combination');
+    assert(outfits.every(outfit => outfit.includes(occasion)), 'A look lost part of the occasion');
+    assert(outfits.every(outfit => (outfitType === 'separates' ? /Top [AB] \+ Bottom [AB] \+ Footwear A/ : /One-piece garment [AB] \+ Footwear A/).test(outfit)), 'Looks are not complete outfits');
+    assert.doesNotMatch(await builder.innerText(), /\b(?:in stock|available to buy|buy now|delivery tomorrow|verified price|kurta set|co-ord set|warm and dry)\b/i);
+    assert.match(await builder.locator('.starter-context').innerText(), /Weather: warm · Dress code:/);
+    await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
+    await builder.getByText('Plan saved in your private GetYourFit account.', { exact: true }).waitFor();
+    const saved = (await api(context, 'GET'))[0];
+    assert.deepEqual(saved.input, { ...input, occasion, outfitType, budget: 6000, weather: 'warm' });
+    await page.reload();
+    await capsule.waitFor();
+    assert.deepEqual(await looks.allInnerTexts(), outfits, 'Reload changed capsule looks');
+    await builder.getByRole('button', { name: 'Replace plan', exact: true }).click();
+    assert.equal(await weather.inputValue(), 'warm');
+    assert.equal(await builder.getByLabel(/what is the occasion/i).inputValue(), occasion);
+    await builder.getByRole('button', { name: 'Replace with this plan', exact: true }).click();
+    await builder.getByText(/previous plan is marked replaced/i).waitFor();
+    assert.deepEqual(await looks.allInnerTexts(), outfits, 'Replacement changed capsule looks');
+    const labels = outfitType === 'separates' ? ['Top', 'Bottom', 'Footwear'] : ['One-piece garment', 'Footwear'];
+    for (const label of labels) {
+      await roleRow(builder, label).getByRole('button', { name: 'I already have this', exact: true }).click();
+      await roleRow(builder, label).getByText(/you confirmed a suitable item/i).waitFor();
+      assert((await looks.allInnerTexts()).every(outfit => outfit.includes(occasion)), 'Ownership split the occasion');
+    }
+    assert.equal(await looks.count(), 1, 'Owned pieces must produce one complete look');
+    assert.deepEqual(await capsule.getByLabel('Capsule pieces and budget share').locator('li').allInnerTexts(), labels.map(label => label + ': the one you already have'));
+    assert.deepEqual(await api(context, 'GET', contract.wardrobe), []);
+    await builder.getByRole('button', { name: 'New plan', exact: true }).click();
+  }
+  const saved = await api(context, 'POST', contract.starterPlans, { ...input, occasion: 'Annual\ncelebration', weather: 'unknown' });
+  await page.reload();
+  await capsule.waitFor();
+  assert.match(await capsule.innerText(), /Climate was not provided/);
+  assert((await looks.locator('.starter-need-label').allTextContents()).every(name => name.endsWith(saved.input.occasion)), 'A newline split the occasion');
+  assert.deepEqual((await api(context, 'GET', '/api/data/export')).starterPlans, await api(context, 'GET'));
+});
+
+test('Capsule input rejects removed style and weather modes on save and replacement', async t => {
+  const { context } = await wearer(t);
+  const saved = await api(context, 'POST', contract.starterPlans, input);
+  const headers = { origin: baseURL, cookie: (await context.cookies()).map(entry => entry.name + '=' + entry.value).join('; ') };
+  for (const extra of [{ style: 'indian' }, { weather: 'hot-humid' }, { weather: 'monsoon' }]) {
+    const invalid = { ...input, ...extra };
+    const created = await context.request.post(contract.starterPlans, { data: invalid, headers });
+    assert.equal(created.status(), 400);
+    const replaced = await context.request.patch(contract.starterPlans + '/' + saved.id, { data: { action: 'replace-plan', input: invalid }, headers });
+    assert.equal(replaced.status(), 400);
+  }
+  assert.deepEqual(await api(context, 'GET'), [saved], 'Rejected input changed saved plans');
 });
