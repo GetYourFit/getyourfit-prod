@@ -30,7 +30,7 @@ The browser proves that blocked account APIs do not hide the example, public pho
 
 Build, lint, and all 16 unit tests passed. The design detector returned no findings. Visual review and design documentation were performed inline because this worker is instructed not to delegate. The final composition has one clear value statement, a recognizable complete set, visible example limits, and the primary action directly following its explanation.
 
-Private outfit composition, consistent private controls, editor focus restoration, and direct wardrobe-load retry remain follow-up increments. Classifier cold-start measurement remains a separate performance increment. No user research, customer feedback, deployment, or live-host changes are claimed here.
+Private outfit composition, consistent private controls, and editor focus restoration were follow-up increments to this one; the [design system and signed-in redesign proof](#design-system-and-signed-in-redesign-proof) below covers them. Direct wardrobe-load retry remains a follow-up increment. Classifier cold-start measurement remains a separate performance increment. No user research, customer feedback, deployment, or live-host changes are claimed here.
 
 # Design system and signed-in redesign proof
 
