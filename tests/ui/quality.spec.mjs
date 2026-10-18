@@ -175,6 +175,23 @@ test('wardrobe, outfit suggestion and account', async ({ page }) => {
   await checkScreen(page, 'account');
 });
 
+test('starter plan with shopping links', async ({ page }) => {
+  await signUp(page, 'plan@example.test');
+  await page.goto('/wardrobe');
+  const builder = page.locator('#build-plan');
+  await builder.getByLabel('What is the occasion?').fill('College days');
+  await builder.getByLabel('Spending ceiling').fill('3000');
+  await builder.getByLabel('Plan weather').selectOption('warm');
+  await builder.getByLabel('Plan dress code').selectOption('casual');
+  await builder.getByLabel('I already have suitable footwear').check();
+  await builder.getByRole('button', { name: 'Make my starter plan' }).click();
+  await expect(builder.getByRole('heading', { name: 'Needs for College days' })).toBeFocused();
+  const shop = builder.getByRole('region', { name: 'Where to shop for this outfit' });
+  await shop.getByRole('radio', { name: 'Men’s', exact: true }).check();
+  await expect(shop.getByRole('link', { name: /Affiliate link/ }).first()).toBeVisible();
+  await checkScreen(page, 'starter-plan-shopping');
+});
+
 test('design gates reject known defects', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => {
