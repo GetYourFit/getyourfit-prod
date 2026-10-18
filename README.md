@@ -4,7 +4,7 @@ GetYourFit is a private wardrobe companion: choose an explained outfit from clot
 
 For outfits from owned clothes, create an adult account with email and password, then add your own garment photos with permission. The browser resizes and strips metadata, then uploads the photo to your private account on the GetYourFit server, which classifies and stores it. On macOS with Swift installed, Apple Vision supplies a fallible clothing label with its revision and confidence; elsewhere the app explicitly asks you to confirm the facts yourself. Every outfit fact comes from the wearer. The owned-clothes outfit check requires an occasion, weather, dress code, availability, and confirmed fit; it asks one question when a required fact is unknown and abstains when no complete set exists. A rejected item stays excluded for the same context until you allow it again.
 
-The v0.1 default sends no email and allows sign-in with an unverified address. Email verification and password recovery are sequenced for v0.2. Privacy controls export photos and facts with provenance and corrections, or delete them with the account. Photos and facts are never sold or used for model training. There is no sharing, external recognition service, body inference, buying flow, or seeded wardrobe.
+The default sends no email and allows sign-in with an unverified address. Email verification and password recovery turn on when a mail transport is configured. Privacy controls export photos and facts with provenance and corrections, or delete them with the account. Photos and facts are never sold or used for model training. There is no sharing, external recognition service, body inference, buying flow, or seeded wardrobe.
 
 ## Build my wardrobe
 
@@ -30,7 +30,7 @@ Requirements: Node.js 22.18 or later. Local Apple Vision classification addition
 
 Set `BETTER_AUTH_SECRET` to a random key of at least 32 characters from your local secret store. Generate it once, retain it with the database, and reuse it on every restart. Changing it invalidates sessions and makes existing authenticator secrets unreadable. The server refuses startup without this key before opening the database. You can generate a key with `node -e 'process.stdout.write(require("node:crypto").randomBytes(48).toString("base64url"))'`; store its output privately, outside the repository.
 
-Email delivery defaults to `GYF_MAIL_TRANSPORT=disabled`. Signup creates a session immediately, keeps `emailVerified=false`, and recovery endpoints are unavailable. Keep your password safe; this version cannot email a reset link.
+Email delivery defaults to `GYF_MAIL_TRANSPORT=disabled`. Signup creates a session immediately, keeps `emailVerified=false`, and recovery endpoints return HTTP 404 by design. Keep your password safe while mail is disabled; the service cannot email a reset link in that mode.
 
 ```sh
 npm install
@@ -41,7 +41,17 @@ Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
 Run `npm run verify:local-account` to prove the default account path in a production build with a disposable database and random key. It checks consent, signup without mail, wrong-password failure, restart continuity, export, and deletion through real browser controls.
 
-The preserved v0.2 email path is opt-in: set `GYF_MAIL_TRANSPORT=smtp`, `SMTP_HOST`, and `SMTP_FROM`. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Non-implicit TLS connections require STARTTLS. Set both `SMTP_USER` and `SMTP_PASS` when authentication is required. No provider credentials are configured here. `npm run verify:auth` uses an isolated runner-only in-memory catcher and a controlled local SMTP relay to test this path. Neither sends real email or proves provider delivery. Browser requests to `/__mail` return no messages in default or SMTP mode.
+Mail delivery is infrastructure-only preparation. The [mail release handoff](docs/deploy-inputs.md#mail-release-handoff) owns the chosen provider, sender, cost, vault mappings, and activation requirements.
+
+The application supports these `GYF_MAIL_TRANSPORT` values:
+
+- `disabled` (default): no mail is sent.
+- `smtp`: set `SMTP_HOST` and `SMTP_FROM`. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Non-implicit TLS connections require STARTTLS. Set both `SMTP_USER` and `SMTP_PASS` when authentication is required.
+- `local`: development and test only. It starts an in-memory SMTP catcher and exposes messages at `/__mail` to the holder of `GYF_MAILBOX_RUNNER_TOKEN`.
+
+With any mail transport enabled, signup requires email verification before sign-in, and password recovery is available. A failed delivery is recorded in the audit log without failing the signup request or revealing whether an account exists. Sign-in still requires verification. No provider credentials are configured in this repository. Browser requests to `/__mail` return no messages in default or SMTP mode.
+
+`npm run verify:mail-delivery` exercises SMTP delivery against controlled local receivers through the real browser: STARTTLS enforcement, signup verification, forgot-password and reset, insecure relay rejection, and deletion waiting for in-flight mail. `npm test` covers transport selection and startup validation. `npm run verify:auth` runs the broader account checks with the local catcher, then runs the SMTP verifier. None of these send real email or prove provider delivery.
 
 ## Check
 
