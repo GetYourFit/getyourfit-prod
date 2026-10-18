@@ -1,4 +1,5 @@
 // UI quality gate: accessibility, design-system rules, and visual regression for the main screens at each supported width.
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { expect, test } from '@playwright/test';
@@ -9,7 +10,7 @@ const fixture = (name) => new URL(`../fixtures/${name}`, import.meta.url).pathna
 const widths = [390, 768, 1440];
 // Baselines are rendered in CI's pinned Linux image. Other platforms render text differently, so they compare only on request.
 const compareScreenshots = process.platform === 'linux' || process.env.UI_VISUAL === '1';
-const password = 'ui-quality-password-0123';
+const password = `ui-quality-${randomUUID()}`;
 const wardrobe = [
   ['top.jpg', { name: 'Grey crew tee', category: 'top', color: 'grey', size: 'M' }],
   ['bottom.jpg', { name: 'Olive cargo trousers', category: 'bottom', color: 'olive', size: '32' }],
