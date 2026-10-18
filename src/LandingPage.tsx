@@ -1,11 +1,12 @@
 import { ArrowRight, Check, LockKeyhole } from 'lucide-react';
+import { Brand } from './ui';
 import './LandingPage.css';
 
 export function LandingPage() {
   return <div className="public-page">
     <a className="skip-link" href="#public-main">Skip to content</a>
     <header className="public-header">
-      <a className="public-brand" href="/" aria-label="GetYourFit home"><span className="public-mark" aria-hidden="true">g.</span>GetYourFit</a>
+      <Brand href="/" />
       <a className="public-link" href="/sign-in">Sign in<ArrowRight size={16} aria-hidden="true" /></a>
     </header>
     <main id="public-main">

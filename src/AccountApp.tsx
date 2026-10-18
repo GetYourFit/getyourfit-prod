@@ -1,120 +1,83 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowDownToLine, LogOut, ShieldCheck, Trash2 } from 'lucide-react';
+import './zod-config';
+import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import { AuthGate } from './AuthGate';
-import { AccountSecurity } from './AccountSecurity';
+import { AccountPage } from './AccountPage';
 import { Wardrobe } from './Wardrobe';
 import { request, type EmailDeliveryMode } from './api';
 import { LoadingScreen } from './LoadingScreen';
+import { Brand } from './ui';
 
-type SessionState =
-  | { signedIn: false; emailDeliveryMode: EmailDeliveryMode }
-  | { signedIn: true; email: string; twoFactorEnabled: boolean; emailDeliveryMode: EmailDeliveryMode };
+export type SignedInSession = { signedIn: true; email: string; twoFactorEnabled: boolean; emailDeliveryMode: EmailDeliveryMode };
+type SessionState = { signedIn: false; emailDeliveryMode: EmailDeliveryMode } | SignedInSession;
+type Route = '/wardrobe' | '/account';
+
+const titles: Record<Route | 'sign-in' | 'sign-up', string> = { '/wardrobe': 'Wardrobe', '/account': 'Account', 'sign-in': 'Sign in', 'sign-up': 'Create your account' };
+const routeOf = (pathname: string): Route => pathname === '/account' ? '/account' : '/wardrobe';
 
 export default function AccountApp() {
   const [session, setSession] = useState<SessionState | null>(null);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [route, setRoute] = useState<Route>(() => routeOf(window.location.pathname));
 
   const refresh = useCallback(async () => {
     setSession(await request<SessionState>('/api/session'));
     window.history.replaceState({}, '', '/wardrobe');
+    setRoute('/wardrobe');
   }, []);
 
   useEffect(() => {
     let mounted = true;
     void request<SessionState>('/api/session').then((state) => {
-      if (mounted) setSession(state);
+      if (!mounted) return;
+      if (state.signedIn && !['/wardrobe', '/account'].includes(window.location.pathname)) window.history.replaceState({}, '', `/wardrobe${window.location.hash}`);
+      setSession(state);
     }).catch((cause: unknown) => {
       if (!mounted) return;
       setError(cause instanceof Error ? cause.message : 'We could not connect to GetYourFit. Check your connection and try again.');
       setSession({ signedIn: false, emailDeliveryMode: 'unknown' });
     });
-    return () => { mounted = false; };
+    const onPop = () => setRoute(routeOf(window.location.pathname));
+    window.addEventListener('popstate', onPop);
+    return () => { mounted = false; window.removeEventListener('popstate', onPop); };
   }, []);
 
-  async function perform(action: string, callback: () => Promise<void>) {
-    setBusy(action);
-    setError('');
-    try {
-      await callback();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'That action could not be completed.');
-    } finally {
-      setBusy('');
-    }
-  }
+  useEffect(() => {
+    if (!session) return;
+    const key = session.signedIn ? route : window.location.pathname === '/sign-up' ? 'sign-up' : 'sign-in';
+    document.title = `${titles[key]} · GetYourFit`;
+  }, [session, route]);
 
-  function showSignedOut() {
-    window.location.assign('/');
-  }
-
-  function exportData() {
-    return perform('export', async () => {
-      const response = await fetch('/api/data/export', { credentials: 'same-origin' });
-      if (!response.ok) throw new Error('Your account export could not be prepared. Try again.');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'getyourfit-account-export.json';
-      document.body.append(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    });
-  }
-
-  function signOut() {
-    return perform('sign-out', async () => {
-      await request('/api/auth/sign-out', { method: 'POST', body: '{}' });
-      showSignedOut();
-    });
-  }
-
-  function signOutEverywhere() {
-    return perform('revoke', async () => {
-      await request('/api/auth/sign-out-everywhere', { method: 'POST', body: '{}' });
-      showSignedOut();
-    });
-  }
-
-  function deleteAccount() {
-    return perform('delete', async () => {
-      await request('/api/data', { method: 'DELETE', body: JSON.stringify({ confirm: 'delete my account' }) });
-      setConfirmDelete(false);
-      showSignedOut();
-    });
+  function navigate(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const target = new URL(event.currentTarget.href);
+    window.history.pushState({}, '', `${target.pathname}${target.hash}`);
+    setRoute(routeOf(target.pathname));
+    globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(() => {
+      const heading = document.querySelector<HTMLElement>(target.hash ? `${target.hash} h2` : 'h1');
+      if (!heading) return;
+      if (target.hash) heading.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0);
+      if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }));
   }
 
   if (!session) return <LoadingScreen />;
   if (!session.signedIn) return <AuthGate onSignedIn={refresh} deliveryMode={session.emailDeliveryMode} initialError={error} />;
 
-  return <main className="account-shell">
-    <header className="account-topbar"><a className="brand-lockup" href="/" aria-label="GetYourFit home"><span className="brand-mark">g.</span><span>GETYOURFIT</span></a><span className="account-email">{session.email}</span><nav aria-label="Your app"><a href="#wardrobe-title">Wardrobe</a><a href="#outfit">Outfit</a><a href="#account-title">Privacy</a></nav></header>
-    <Wardrobe />
-    <section className="account-content" aria-labelledby="account-title">
-      <p className="eyebrow">YOUR ACCOUNT</p>
-      <h1 id="account-title">Your account, in your hands.</h1>
-      <p className="lede">Your photos, garment facts, and outfit corrections stay in your private GetYourFit account. Download a copy or erase them whenever you choose.</p>
-      {error && <p className="inline-error" role="alert">{error}</p>}
-      <section className="privacy-card" aria-labelledby="privacy-title">
-        <div className="privacy-card-title"><span className="privacy-icon"><ShieldCheck size={18} /></span><div><h2 id="privacy-title">Stored in your private account</h2><p>{session.email} · Your data is stored on the GetYourFit server, not in this browser.</p></div></div>
-        <div className="privacy-list"><p><ShieldCheck size={14} /> {session.emailDeliveryMode === 'disabled' ? "Email is unverified. Password reset isn't available here; keep your password safe." : session.emailDeliveryMode === 'smtp' ? 'Verification and recovery messages are sent by email.' : session.emailDeliveryMode === 'local-test' ? 'Email delivery is configured for a test environment.' : 'We could not confirm whether email delivery is available.'}</p><p><ShieldCheck size={14} /> Personal data is never sold.</p><p><ShieldCheck size={14} /> Your password is stored as a one-way hash.</p><p><ShieldCheck size={14} /> Sign out here or revoke every active session.</p></div>
-      </section>
-      <section className="data-action-card">
-        <span className="data-action-icon"><ArrowDownToLine size={18} /></span><div className="data-action-copy"><h2>Export account data</h2><p>Download your account, garment facts, photos, and outfit corrections as a JSON file.</p></div>
-        <button className="button button-secondary" onClick={() => void exportData()} disabled={busy !== ''}>{busy === 'export' ? 'Preparing…' : 'Download export'}</button>
-      </section>
-      <section className="data-action-card">
-        <span className="data-action-icon"><LogOut size={18} /></span><div className="data-action-copy"><h2>End active sessions</h2><p>Sign out of this browser or revoke all sessions for this account.</p></div>
-        <div className="button-stack"><button className="button button-secondary" onClick={() => void signOut()} disabled={busy !== ''}>Sign out</button><button className="button button-secondary" onClick={() => void signOutEverywhere()} disabled={busy !== ''}>Revoke sessions</button></div>
-      </section>
-      <AccountSecurity enabled={session.twoFactorEnabled === true} />
-      <section className="delete-card">
-        <div><p className="eyebrow">ACCOUNT CONTROL</p><h2>Delete your account</h2><p>This permanently removes your account, credentials, sessions, wardrobe photos, facts, and outfit corrections from GetYourFit.</p></div>
-        {!confirmDelete ? <button className="button button-danger-outline" onClick={() => setConfirmDelete(true)}><Trash2 size={15} /> Delete my data</button> : <div className="delete-confirm"><span>Delete this account and its data?</span><button className="button button-danger" onClick={() => void deleteAccount()} disabled={busy !== ''}>{busy === 'delete' ? 'Deleting…' : 'Erase permanently'}</button><button className="text-button" onClick={() => setConfirmDelete(false)}>Cancel</button></div>}
-      </section>
-    </section>
-  </main>;
+  return <div className="app">
+    <a className="skip-link" href="#main">Skip to content</a>
+    <header className="app-header">
+      <div className="app-header-inner">
+        <Brand href="/wardrobe" onClick={navigate} />
+        <nav className="app-nav" aria-label="Main">
+          <a href="/wardrobe" onClick={navigate} aria-current={route === '/wardrobe' ? 'page' : undefined}>Wardrobe</a>
+          <a href="/wardrobe#outfit" onClick={navigate}>Outfit</a>
+          <a href="/wardrobe#build-plan" onClick={navigate}>Plan</a>
+          <a href="/account" onClick={navigate} aria-current={route === '/account' ? 'page' : undefined}>Account</a>
+        </nav>
+      </div>
+    </header>
+    <main id="main" className="app-main">{route === '/account' ? <AccountPage session={session} /> : <Wardrobe />}</main>
+  </div>;
 }

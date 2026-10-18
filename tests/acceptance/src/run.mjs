@@ -470,7 +470,7 @@ async function starterPlanJourney(context, page) {
     page.getByRole('button', { name: /create account/i }).click(),
   ]);
   assert(registered.ok(), `Signup from the wardrobe entry returned HTTP ${registered.status()}`);
-  await page.getByRole('heading', { name: /a wardrobe worth knowing/i }).waitFor();
+  await page.getByRole('heading', { name: /^your wardrobe$/i }).waitFor();
   await page.locator('#build-plan').getByText('Opening your saved plans…', { exact: true }).waitFor();
   const planListResponse = page.waitForResponse(response => new URL(response.url()).pathname === contract.starterPlans && response.request().method() === 'GET');
   releasePlans();
@@ -897,7 +897,7 @@ async function browserJourney(context, page) {
   await factsForm.getByLabel(/size on label/i).fill(shirt.size);
   await selectByText(factsForm.getByLabel(/does it fit you now/i), /^(yes, it )?fits$/i);
   await factsForm.getByLabel(/^mild$/i).check();
-  await factsForm.getByLabel(/^smart-casual$/i).check();
+  await factsForm.getByLabel(/^smart[ -]casual$/i).check();
   await factsForm.getByLabel(/available to wear now/i).check();
   await factsForm.getByLabel(/confirm this garment is mine/i).check();
   const [uploaded] = await Promise.all([

@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
+import { KeyRound } from 'lucide-react';
 import { request } from './api';
+import { Field, Notice } from './ui';
 
 export function AccountSecurity({ enabled }: { enabled: boolean }) {
   const [password, setPassword] = useState('');
@@ -39,16 +41,22 @@ export function AccountSecurity({ enabled }: { enabled: boolean }) {
     }
   }
 
-  return <section className="two-factor-card">
-    <div><span className="eyebrow">OPTIONAL ACCOUNT SECURITY</span><h2>Authenticator app</h2><p>{enabled ? 'A time-based code is required when you sign in.' : 'Add a second step to sign-in with a time-based authenticator code.'}</p></div>
-    {enabled ? <span className="fact-pill">Enabled</span> : totpUri ? <form onSubmit={(event) => void confirm(event)} className="totp-setup">
-      <label><span className="field-label">SETUP URI · COPY INTO YOUR AUTHENTICATOR</span><input className="text-input" name="totp-uri" readOnly value={totpUri} onFocus={(event) => event.currentTarget.select()} /></label>
-      <p>Save these backup codes somewhere private. Each works once.</p><pre>{backupCodes.join('\n')}</pre>
-      <label><span className="field-label">VERIFY SETUP CODE</span><input className="text-input" name="totp-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} required /></label>
-      {message && <p className="inline-error" role="alert">{message}</p>}<button className="button button-primary" disabled={busy}>{busy ? 'Checking…' : 'Enable authenticator'}</button>
-    </form> : <form onSubmit={(event) => void begin(event)} className="totp-setup">
-      <label><span className="field-label">CONFIRM PASSWORD</span><input className="text-input" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
-      {message && <p className="inline-error" role="alert">{message}</p>}<button className="button button-secondary" disabled={busy}>{busy ? 'Preparing…' : 'Set up TOTP'}</button>
-    </form>}
+  return <section className="card settings-card" aria-labelledby="security-title">
+    <div className="settings-icon" aria-hidden="true"><KeyRound size={20} /></div>
+    <div className="settings-copy">
+      <div className="settings-title-row"><h2 id="security-title" className="card-title">Two-step sign-in</h2>{enabled && <span className="badge badge-positive">On</span>}</div>
+      <p className="muted">{enabled ? 'A code from your authenticator app is required when you sign in.' : 'Optional. Add a code from an authenticator app as a second step when you sign in.'}</p>
+      {!enabled && (totpUri ? <form onSubmit={(event) => void confirm(event)} className="settings-form">
+        <Field label="Setup key" hint="Copy this into your authenticator app.">{(control) => <input {...control} className="input" name="totp-uri" readOnly value={totpUri} onFocus={(event) => event.currentTarget.select()} />}</Field>
+        <div className="field"><p className="field-label">Backup codes</p><p className="field-hint">Save these somewhere private. Each works once.</p><pre className="backup-codes">{backupCodes.join('\n')}</pre></div>
+        <Field label="Code from your app">{(control) => <input {...control} className="input" name="totp-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} required />}</Field>
+        {message && <Notice tone="error" role="alert">{message}</Notice>}
+        <div><button className="button button-primary" disabled={busy}>{busy ? 'Checking…' : 'Turn on two-step sign-in'}</button></div>
+      </form> : <form onSubmit={(event) => void begin(event)} className="settings-form">
+        <Field label="Confirm your password">{(control) => <input {...control} className="input" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />}</Field>
+        {message && <Notice tone="error" role="alert">{message}</Notice>}
+        <div><button className="button button-secondary" disabled={busy}>{busy ? 'Preparing…' : 'Set up authenticator'}</button></div>
+      </form>)}
+    </div>
   </section>;
 }

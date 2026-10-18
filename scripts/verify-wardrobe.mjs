@@ -110,10 +110,12 @@ function capture(name) {
 }
 function select(name, value) { chrome(['fill', element('combobox', name), value]); }
 function check(name) { chrome(['click', element('checkbox', name)]); }
+function follow(name) { chrome(['click', element('link', name)]); }
+const label = (value) => value[0].toUpperCase() + value.slice(1);
 async function addGarment(category, name, color, fit, testBadPhoto = false) {
   click('Add garment');
   assert.equal(evaluate('() => document.querySelector("input[type=file]").disabled'), true, 'Photo processed without consent.');
-  check('I own this garment and have permission to use its photo. I consent to reviewing and storing it in my private account on the GetYourFit server, without sharing or model training.');
+  check('I own this garment and have permission to use its photo. I consent to GetYourFit checking and storing it in my private account on the GetYourFit server, without sharing or model training.');
   if (testBadPhoto) {
     const bad = path.join(root, 'tests/fixtures/damaged.jpg');
     const before = evaluate('() => performance.getEntriesByType("resource").filter(e => e.name.includes("/api/wardrobe/review")).length');
@@ -124,9 +126,9 @@ async function addGarment(category, name, color, fit, testBadPhoto = false) {
     capture('wardrobe-invalid-photo');
   }
   chrome(['upload', element('button', 'Garment photo'), path.join(root, 'tests/fixtures', `${category}.jpg`)]);
-  await shown('Your choices below are the facts');
-  fill('Name', name); select('Category', category); fill('Color', color); fill('Size on label', 'M'); select('Does it fit you now?', fit === 'unknown' ? 'I’m not sure' : fit === 'fits' ? 'Yes, it fits' : 'No, it does not fit');
-  check('mild'); check('casual'); check('I confirm this garment is mine and these are my facts.');
+  await shown('Choose a different photo');
+  fill('Name', name); select('Category', label(category)); fill('Color', color); fill('Size on label', 'M'); select('Does it fit you now?', fit === 'unknown' ? 'I’m not sure' : fit === 'fits' ? 'Yes, it fits' : 'No, it does not fit');
+  check('Mild'); check('Casual'); check('I confirm this garment is mine and these are my facts.');
   click('Save garment'); await shown('Add garment'); await shown(name);
 }
 
@@ -139,12 +141,13 @@ try {
   assert.equal(evaluate('() => document.documentElement.scrollWidth <= window.innerWidth'), true);
   await shown('Welcome back.'); capture('wardrobe-signin-mobile'); chrome(['emulate', '--viewport', '1440x1000x1']);
   await shown('Welcome back.');
-  click('Create an account'); fill('YOUR NAME', 'Wardrobe wearer'); fill('EMAIL ADDRESS', email); fill('PASSWORD', password);
-  check('I confirm I am at least 18 years old. GetYourFit does not create an account for minors.'); click('Create account');
-  await shown('A wardrobe worth knowing.'); capture('wardrobe-before');
-  for (const [name, hash] of [['Outfit', '#outfit'], ['Privacy', '#account-title'], ['Wardrobe', '#wardrobe-title']]) {
-    chrome(['click', element('link', name)]); assert.equal(evaluate('() => location.hash'), hash);
+  click('Create an account'); fill('Your name', 'Wardrobe wearer'); fill('Email', email); fill('Password', password);
+  check('I’m 18 or older. GetYourFit doesn’t create accounts for minors.'); click('Create account');
+  await shown('Your wardrobe'); capture('wardrobe-before');
+  for (const [name, location] of [['Outfit', '/wardrobe#outfit'], ['Plan', '/wardrobe#build-plan'], ['Account', '/account'], ['Wardrobe', '/wardrobe']]) {
+    follow(name); assert.equal(evaluate('() => location.pathname + location.hash'), location);
   }
+  await shown('Add garment');
   assert.equal(browserApi('/api/wardrobe/review', { consent: false, image: 'AAECAwQ=' }).status, 400);
   assert.equal(browserApi('/api/wardrobe/review', { consent: true, image: 'AAECAwQ=' }).status, 400);
   await addGarment('top', 'White T-shirt', 'White', 'unknown', true);
@@ -154,15 +157,15 @@ try {
   if (process.platform === 'darwin') assert.equal(items[0].interpretation.kind, 'classified', 'Actual local Vision classification did not run.');
   click('Find an outfit'); await shown('What is the occasion?');
   fill('Occasion', 'Lunch with a friend'); click('Find an outfit'); await shown('What weather should this outfit work for?');
-  select('Weather', 'mild'); click('Find an outfit'); await shown('What is the dress code?');
-  select('Dress code', 'casual'); click('Find an outfit'); await shown('No complete outfit meets');
+  select('Weather', 'Mild'); click('Find an outfit'); await shown('What is the dress code?');
+  select('Dress code', 'Casual'); click('Find an outfit'); await shown('No complete outfit meets');
   assert.equal(evaluate('() => document.querySelectorAll(".outfit-item").length'), 0);
   await addGarment('bottom', 'Green cargo trousers', 'Green', 'fits');
   click('Find an outfit'); await shown('No complete outfit meets'); capture('wardrobe-missing-footwear');
   await addGarment('footwear', 'Black trainers', 'Black', 'fits');
   click('Find an outfit'); await shown('Does White T-shirt fit you now?');
   assert.equal(evaluate('() => document.querySelectorAll(".outfit-item").length'), 0);
-  click('Yes, it fits'); await shown('A complete set for Lunch with a friend.');
+  click('Yes, it fits'); await shown('Your outfit for Lunch with a friend');
   assert.equal(evaluate('() => document.querySelectorAll(".outfit-item").length'), 3);
   items = browserApi('/api/wardrobe', undefined, 'GET').body;
   assert.equal(items[0].facts.fit, 'fits'); assert.equal(items[0].provenance.fit.source, 'wearer-correction');
@@ -183,26 +186,26 @@ try {
   evaluate('() => { [...document.querySelectorAll("button")].find(button => button.textContent === "Find an outfit").disabled = false; }');
   assertAcceptance(acceptanceState());
   chrome(['emulate', '--viewport', '390x844x1,mobile,touch']);
-  await shown('White T-shirt'); fill('Occasion', 'Lunch with a friend'); select('Weather', 'mild'); select('Dress code', 'casual'); click('Find an outfit'); await shown('A complete set for');
+  await shown('White T-shirt'); fill('Occasion', 'Lunch with a friend'); select('Weather', 'Mild'); select('Dress code', 'Casual'); click('Find an outfit'); await shown('Your outfit for');
   evaluate('() => document.querySelector(".outfit-result").scrollIntoView({block:"start"})');
   assert.equal(evaluate('() => window.innerWidth'), 390);
   assert.equal(evaluate('() => document.documentElement.scrollWidth <= window.innerWidth'), true);
   capture('wardrobe-outfit-mobile');
   chrome(['emulate', '--viewport', '1440x1000x1']);
-  await shown('White T-shirt'); fill('Occasion', 'Lunch with a friend'); select('Weather', 'mild'); select('Dress code', 'casual'); click('Find an outfit'); await shown('A complete set for');
-  chrome(['click', element('button', 'Don’t use this for this occasion')]); await shown('Your correction wins.');
+  await shown('White T-shirt'); fill('Occasion', 'Lunch with a friend'); select('Weather', 'Mild'); select('Dress code', 'Casual'); click('Find an outfit'); await shown('Your outfit for');
+  chrome(['click', element('button', 'Don’t use White T-shirt for this occasion')]); await shown('Your correction wins.');
   assert.equal(evaluate('() => document.querySelectorAll(".outfit-item").length'), 0);
-  chrome(['open', `${origin}/wardrobe`]); await shown('White T-shirt'); fill('Occasion', '  LUNCH WITH A FRIEND  '); select('Weather', 'mild'); select('Dress code', 'casual');
+  chrome(['open', `${origin}/wardrobe`]); await shown('White T-shirt'); fill('Occasion', '  LUNCH WITH A FRIEND  '); select('Weather', 'Mild'); select('Dress code', 'Casual');
   click('Find an outfit'); await shown('1 item stays excluded'); capture('wardrobe-correction');
   const corrected = browserApi('/api/wardrobe/outfit', { occasion: '  LUNCH WITH A FRIEND  ', weather: 'mild', dressCode: 'casual' }).body;
   assert.equal(corrected.kind, 'incomplete'); assert.equal(corrected.excludedCount, 1);
-  click('Allow excluded items again'); await shown('A complete set for');
-  chrome(['click', element('button', 'Edit details', 2)]); await shown('Edit Black trainers');
-  check('Available to wear now'); click('Save correction'); await shown('Add garment'); click('Find an outfit'); await shown('No complete outfit meets');
+  click('Allow excluded items again'); await shown('Your outfit for');
+  chrome(['click', element('button', 'Edit Black trainers')]); await shown('Save changes');
+  check('Available to wear now'); click('Save changes'); await shown('Add garment'); click('Find an outfit'); await shown('No complete outfit meets');
   assert.equal(evaluate('() => document.querySelectorAll(".outfit-item").length'), 0);
-  chrome(['click', element('button', 'Edit details', 2)]); check('Available to wear now'); click('Save correction'); await shown('Add garment');
-  click('Find an outfit'); await shown('A complete set for');
-  chrome(['click', element('button', 'Don’t use this for this occasion')]); await shown('Your correction wins.');
+  chrome(['click', element('button', 'Edit Black trainers')]); await shown('Save changes'); check('Available to wear now'); click('Save changes'); await shown('Add garment');
+  click('Find an outfit'); await shown('Your outfit for');
+  chrome(['click', element('button', 'Don’t use White T-shirt for this occasion')]); await shown('Your correction wins.');
   const exported = evaluate(`async () => {
     const response = await fetch('/api/data/export'); const data = await response.json();
     const photos = await Promise.all(data.wardrobe.map(async (garment) => {
@@ -232,9 +235,9 @@ try {
   }
   stored.close();
   fs.writeFileSync(path.join(dataDir, 'export.json'), JSON.stringify(exported));
-  chrome(['click', element('button', 'Remove', 2)]); click('Keep');
+  chrome(['click', element('button', 'Remove Black trainers')]); click('Keep');
   assert.equal(browserApi('/api/wardrobe', undefined, 'GET').body.length, 3);
-  chrome(['click', element('button', 'Remove', 2)]); click('Confirm remove'); await shown('2 garments');
+  chrome(['click', element('button', 'Remove Black trainers')]); click('Yes, remove'); await shown('2 garments');
   assert.equal(browserApi('/api/wardrobe', undefined, 'GET').body.length, 2);
   assert.equal(evaluate(`async () => (await fetch(${JSON.stringify(items[2].photoUrl)})).status`), 404);
   const other = await fetch(`${origin}/api/auth/sign-up/email`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
@@ -249,14 +252,14 @@ try {
   assert.equal((await (await fetch(`${origin}/api/wardrobe`, { headers: otherHeaders })).json()).length, 0);
   const untrusted = await fetch(`${origin}/api/wardrobe/review`, { method: 'POST', headers: { Origin: 'https://example.invalid', 'Content-Type': 'application/json' }, body: '{}' });
   assert.equal(untrusted.status, 403);
-  click('Sign out'); await shown('Example outfit');
+  follow('Account'); await shown('Signed in as'); click('Sign out'); await shown('Example outfit');
   const signedOutState = acceptanceState();
   assert.throws(() => assertAcceptance(signedOutState), /R13: sign-in/);
-  chrome(['open', `${origin}/sign-in`]); await shown('Welcome back.'); fill('EMAIL ADDRESS', email); fill('PASSWORD', password); click('Sign in'); await shown('White T-shirt');
+  chrome(['open', `${origin}/sign-in`]); await shown('Welcome back.'); fill('Email', email); fill('Password', password); click('Sign in'); await shown('White T-shirt');
   await stopServer(); await startServer(); chrome(['open', `${origin}/wardrobe`]); await shown('White T-shirt');
   assert.equal(evaluate('() => document.querySelectorAll(".garment-card img").length'), 2);
   assert.equal(evaluate('() => [...document.querySelectorAll(".garment-card img")].every(img => img.complete && img.naturalWidth > 0)'), true);
-  click('Download export'); click('Delete my data'); click('Erase permanently'); await shown('Example outfit');
+  follow('Account'); await shown('Signed in as'); click('Download export'); click('Delete my data'); click('Erase permanently'); await shown('Example outfit');
   const db = new Database(path.join(dataDir, 'getyourfit.sqlite'), { readonly: true });
   assert.equal(db.prepare('SELECT count(*) AS n FROM garments').get().n, 0);
   assert.equal(db.prepare('SELECT count(*) AS n FROM outfit_exclusions').get().n, 0); db.close();
