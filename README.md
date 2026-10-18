@@ -59,6 +59,7 @@ With any mail transport enabled, signup requires email verification before sign-
 npm run lint
 npm run build
 npm test
+npm run test:ui
 npm run verify
 npm run verify:auth
 npm run verify:local-account
@@ -77,5 +78,7 @@ npm run acceptance
 - [Feature map](FEATURE_MAP.md) links to generated account, wardrobe, outfit, and data-control browser guides.
 - [Workflow kit](docs/workflow-kit.md) records the pinned adoption, CI checks, and product acceptance hook.
 - [Deployment inputs](docs/deploy-inputs.md) records host, vault, storage, and public-origin requirements for the deployment item.
+
+`npm run test:ui` checks the main screens of a production build at 390, 768, and 1440px for axe WCAG 2.2 AA violations, the [design rules](DESIGN.md#quality-gate), keyboard focus, and visual regression against screenshots rendered in CI's pinned Linux image (other platforms skip only the pixel comparison). Build first with `npm run build`; Chromium comes from `npx playwright install chromium`.
 
 `npm run verify:wardrobe` builds the production app and drives real signup, photo permission, invalid-image rejection, the licensed photographs in [tests/fixtures](tests/fixtures/README.md), facts and correction, outfit clarification and abstention, cross-account isolation, export, restart, and deletion. Set `GYF_PROOF_DIR` to a directory outside the repository to retain screenshots, snapshots, and network evidence. The verifier selects a free ephemeral loopback port with `GYF_PORT` and owns only its disposable data and named browser session. It never stops another worktree's listener.
