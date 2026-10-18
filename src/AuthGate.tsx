@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { LockKeyhole } from 'lucide-react';
 import type { EmailDeliveryMode } from './api';
+import { Brand, Field, Notice } from './ui';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot' | 'reset' | 'sent';
 const deliveryCopy: Record<EmailDeliveryMode, { sent: string; privacy: string }> = {
@@ -66,7 +67,8 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError || (verificationError === 'INVALID_TOKEN' ? 'That verification link is invalid, expired, or already used. Sign in to request a fresh link.' : ''));
   const formRef = useRef<HTMLFormElement>(null);
-  const errorRef = useRef<HTMLParagraphElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const [ageMissing, setAgeMissing] = useState(false);
 
   useEffect(() => { formRef.current?.querySelector<HTMLInputElement>('input')?.focus(); }, [mode, needsCode]);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
@@ -89,7 +91,8 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
     setBusy(true);
     try {
       if (mode === 'sign-up') {
-        if (!adult) throw new Error('Confirm that you are at least 18 before creating an account.');
+        if (!adult) { setAgeMissing(true); throw new Error('Confirm that you’re 18 or older to create an account.'); }
+        setAgeMissing(false);
         const result = await authRequest('sign-up/email', { name: name.trim(), email: email.trim(), password, adultConfirmed: true, callbackURL: window.location.origin });
         if ('token' in result && typeof result.token === 'string') {
           await onSignedIn();
@@ -130,42 +133,41 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
     }
   }
 
-  const title = mode === 'sign-up' ? 'Make it yours.' : mode === 'forgot' ? 'Find your way back.' : mode === 'reset' ? 'Choose a new password.' : mode === 'sent' ? 'Request received.' : needsCode ? 'One more step.' : 'Welcome back.';
-  const intro = mode === 'sign-up' ? 'Create a private account with an email address you can access.' : mode === 'forgot' ? 'We’ll send a single-use reset link if this address has an account.' : mode === 'reset' ? 'Use a long, unique password you do not use elsewhere.' : mode === 'sent' ? 'If this request can be completed, follow the link sent to your email address.' : needsCode ? 'Enter the code from your authenticator app.' : 'Sign in to your GetYourFit account.';
-  const showCredential = mode === 'sign-up' || mode === 'sign-in' || mode === 'forgot';
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError('');
+    if (next === 'sign-in' || next === 'sign-up') window.history.replaceState({}, '', `/${next}`);
+  }
 
-  return <main className="auth-layout">
-    <section className="auth-copy">
-      <span className="brand-mark">g.</span>
-      <div className="auth-main">
-        <h1>GetYourFit</h1>
-        <p className="auth-description">Your own clothes. Your plans. One complete outfit, with the reasons behind it.</p>
-        <a className="text-button" href="/">Back to GetYourFit</a>
-      </div>
-    </section>
-    <section className="auth-action">
-      <div className="auth-action-inner">
-        <h2>{title}</h2><p>{intro}</p>
-        {error && <p id="auth-error" className="inline-error" role="alert" tabIndex={-1} ref={errorRef}>{error}</p>}
-        {error.includes('connect to GetYourFit') && <button className="text-button" onClick={() => void retryService()} disabled={busy}>Try the connection again</button>}
-        {mode === 'sent' ? <div className="mail-delivery-note"><ShieldCheck size={17} /><span>{deliveryCopy[deliveryMode].sent}</span></div> : needsCode ? <form ref={formRef} onSubmit={verifyCode} className="auth-form" aria-busy={busy}>
-          <label><span className="field-label">AUTHENTICATOR CODE</span><input className="text-input" name="code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} required /></label>
-          <button className="button button-primary button-wide" disabled={busy}>{busy ? 'Checking…' : 'Verify code'}<ArrowRight size={16} /></button>
+  const title = mode === 'sign-up' ? 'Create your account' : mode === 'forgot' ? 'Reset your password' : mode === 'reset' ? 'Choose a new password' : mode === 'sent' ? 'Check your email' : needsCode ? 'Enter your code' : 'Sign in';
+  const intro = mode === 'sign-up' ? 'Use an email address you can access. Your wardrobe is private to your account.' : mode === 'forgot' ? 'We’ll send a single-use reset link if this address has an account.' : mode === 'reset' ? 'Use a long, unique password you do not use elsewhere.' : mode === 'sent' ? 'If this request can be completed, follow the link sent to your email address.' : needsCode ? 'Enter the six-digit code from your authenticator app.' : 'Welcome back. Sign in to see your wardrobe.';
+  const showCredential = mode === 'sign-up' || mode === 'sign-in' || mode === 'forgot';
+  const submitLabel = mode === 'sign-up' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : mode === 'reset' ? 'Save new password' : 'Sign in';
+
+  return <div className="auth-page">
+    <header className="auth-header"><Brand href="/" /></header>
+    <main className="auth-main">
+      <div className="auth-panel">
+        <div className="auth-intro"><h1 className="page-title">{title}</h1><p className="muted">{intro}</p></div>
+        {error && <Notice ref={errorRef} id="auth-error" tone="error" role="alert" focusable>{error}{error.includes('connect to GetYourFit') && <span><button type="button" className="text-link" onClick={() => void retryService()} disabled={busy}>Try the connection again</button></span>}</Notice>}
+        {mode === 'sent' ? <Notice tone="info">{deliveryCopy[deliveryMode].sent}</Notice> : needsCode ? <form ref={formRef} onSubmit={verifyCode} className="auth-form" aria-busy={busy}>
+          <Field label="Authenticator code">{(control) => <input {...control} className="input" name="code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} required />}</Field>
+          <button className="button button-primary button-block" disabled={busy}>{busy ? 'Checking…' : 'Verify code'}</button>
         </form> : <form ref={formRef} onSubmit={(event) => void submit(event)} className="auth-form" aria-busy={busy} aria-describedby={error ? 'auth-error' : undefined}>
-          {mode === 'sign-up' && <label><span className="field-label">YOUR NAME</span><input className="text-input" name="name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} maxLength={80} required /></label>}
-          {showCredential && <label><span className="field-label">EMAIL ADDRESS</span><input className="text-input" name="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} required /></label>}
-          {mode !== 'forgot' && <label><span className="field-label">{mode === 'reset' ? 'NEW PASSWORD' : 'PASSWORD'}</span><input className="text-input" name={mode === 'reset' ? 'new-password' : 'password'} type="password" autoComplete={mode === 'sign-up' ? 'new-password' : mode === 'reset' ? 'new-password' : 'current-password'} value={password} onChange={(event) => setPassword(event.target.value)} minLength={mode === 'sign-in' ? undefined : 12} maxLength={1024} required aria-describedby={mode === 'sign-in' ? undefined : 'password-help'} />{mode !== 'sign-in' && <span id="password-help" className="form-note">At least 12 characters. Choose a password you don't use elsewhere.</span>}</label>}
-          {mode === 'sign-up' && <label className="consent-check age-check"><input type="checkbox" checked={adult} onChange={(event) => setAdult(event.target.checked)} required /><span>I confirm I am at least 18 years old. GetYourFit does not create an account for minors.</span></label>}
-          <button className="button button-primary button-wide" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'sign-up' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : mode === 'reset' ? 'Save new password' : 'Sign in'}<ArrowRight size={16} aria-hidden="true" /></button>
+          {mode === 'sign-up' && <Field label="Your name">{(control) => <input {...control} className="input" name="name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} maxLength={80} required />}</Field>}
+          {showCredential && <Field label="Email">{(control) => <input {...control} className="input" name="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} required />}</Field>}
+          {mode !== 'forgot' && <Field label={mode === 'reset' ? 'New password' : 'Password'} hint={mode === 'sign-in' ? undefined : 'At least 12 characters. Choose a password you don’t use elsewhere.'} hintId="password-help">{(control) => <input {...control} className="input" name={mode === 'reset' ? 'new-password' : 'password'} type="password" autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'} value={password} onChange={(event) => setPassword(event.target.value)} minLength={mode === 'sign-in' ? undefined : 12} maxLength={1024} required />}</Field>}
+          {mode === 'sign-up' && <label className="check"><input type="checkbox" name="adult" checked={adult} onChange={(event) => { setAdult(event.target.checked); if (event.target.checked) setAgeMissing(false); }} aria-required="true" aria-invalid={ageMissing || undefined} /><span>I’m 18 or older. <span className="check-detail">GetYourFit doesn’t create accounts for minors.</span></span></label>}
+          <button className="button button-primary button-block" type="submit" disabled={busy}>{busy ? <><span className="spinner" aria-hidden="true" />Please wait</> : submitLabel}</button>
         </form>}
-        <p className="auth-status" role="status">{busy ? mode === 'sign-up' ? 'Creating your account…' : needsCode ? 'Checking your code…' : 'Checking your request…' : ''}</p>
-        {mode !== 'sent' && !needsCode && <div className="auth-links">
-          {mode === 'sign-in' && <>{deliveryMode !== 'disabled' && deliveryMode !== 'unknown' && <button className="text-button" onClick={() => { setMode('forgot'); setError(''); }}>Forgot password?</button>}<button className="text-button" onClick={() => { setMode('sign-up'); setError(''); }}>Create an account</button></>}
-          {mode === 'sign-up' && <button className="text-button" onClick={() => { setMode('sign-in'); setError(''); }}>Already have an account? Sign in</button>}
-          {(mode === 'forgot' || mode === 'reset') && <button className="text-button" onClick={() => { setMode('sign-in'); setError(''); }}>Back to sign in</button>}
+        <p className="auth-status caption" role="status">{busy ? mode === 'sign-up' ? 'Creating your account…' : needsCode ? 'Checking your code…' : 'Checking your request…' : ''}</p>
+        {mode !== 'sent' && !needsCode && <div className="auth-switch">
+          {mode === 'sign-in' && <>{deliveryMode !== 'disabled' && deliveryMode !== 'unknown' && <button type="button" className="text-link" onClick={() => switchMode('forgot')}>Forgot password?</button>}<p>New to GetYourFit? <button type="button" className="text-link" onClick={() => switchMode('sign-up')}>Create an account</button></p></>}
+          {mode === 'sign-up' && <p>Already have an account? <button type="button" className="text-link" onClick={() => switchMode('sign-in')}>Sign in</button></p>}
+          {(mode === 'forgot' || mode === 'reset') && <button type="button" className="text-link" onClick={() => switchMode('sign-in')}>Back to sign in</button>}
         </div>}
-        <div className="privacy-note"><LockKeyhole size={15} aria-hidden="true" /><span>Your wardrobe stays in your private account on the GetYourFit server. {deliveryCopy[deliveryMode].privacy}</span></div>
       </div>
-    </section>
-  </main>;
+      <p className="auth-privacy"><LockKeyhole size={16} aria-hidden="true" /><span>Your wardrobe is stored in your private account on the GetYourFit server. {deliveryCopy[deliveryMode].privacy}</span></p>
+    </main>
+  </div>;
 }

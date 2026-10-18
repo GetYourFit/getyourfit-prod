@@ -28,7 +28,7 @@ Preconditions:
 - **Known bad.** Upload tests/fixtures/damaged.jpg. The browser announces the decode failure, Save remains disabled, and no /api/wardrobe/review request is sent.
 - **Valid photo.** Upload a licensed real fixture. The preview loads. On macOS, the photo label includes Apple Vision, its revision, and its actual score. Confirm the category yourself, plus name, color, labelled size, current fit (or unknown), availability, weather and dress code. Confirm ownership and save.
 - **Correction.** Edit a detail and save. Refresh: the photo and corrected detail remain. The export records source wearer-correction, modelVersion null, confidence 1 for that changed fact.
-- **Remove.** Choose Remove, then Confirm remove. The garment and photo disappear; it cannot appear in an outfit.
+- **Remove.** Choose Remove, then Yes, remove. The garment and photo disappear; it cannot appear in an outfit.
 - **Proof.** npm run verify:wardrobe drives these production controls and probes private image ownership using a second account.
 
 ## Gotchas

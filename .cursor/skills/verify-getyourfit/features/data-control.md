@@ -20,8 +20,8 @@ Preconditions:
 
 - Sign in and add real garments through the wardrobe guide.
 
-- **Export.** Choose Download export. Inspect the JSON: getyourfit-account-export-v1 includes the account, wardrobe photos in JPEG/base64, facts, consent and provenance, and outfitCorrections. Password hashes and session secrets must be absent.
-- **Delete.** Choose Delete my data, then Erase permanently. Sign-in returns; old photo requests fail and the account cannot sign in again.
+- **Export.** Open Account and choose Download export. Inspect the JSON: getyourfit-account-export-v1 includes the account, wardrobe photos in JPEG/base64, facts, consent and provenance, and outfitCorrections. Password hashes and session secrets must be absent.
+- **Delete.** Choose Delete my data, then Erase permanently. The public page returns; old photo requests fail and the account cannot sign in again.
 - **Proof.** npm run verify:wardrobe checks photo metadata removal, wardrobe export and correction records, cross-account access, restart continuity, and database cascade deletion. Existing account verifiers cover credentials, sessions, tokens and exact-recipient test mail cleanup.
 
 ## Gotchas
