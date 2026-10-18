@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import sharp from 'sharp';
 
-const password = 'review-regression-password-123';
+const password = randomUUID();
 let accountCookies;
 
 async function post(page, url, data) {

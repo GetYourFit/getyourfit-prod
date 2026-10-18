@@ -68,7 +68,7 @@ test('partial garment patches preserve other facts and provenance', async (t) =>
   const { request, origin } = await start(t);
   const headers = { Origin: origin, 'Content-Type': 'application/json' };
   const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {
-    name: 'Wearer', email: 'patches@example.test', password: 'patch-test-password-123', adultConfirmed: true,
+    name: 'Wearer', email: 'patches@example.test', password: randomBytes(32).toString('base64url'), adultConfirmed: true,
   } });
   assert.equal(signedUp.status, 200);
   headers.Cookie = signedUp.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
