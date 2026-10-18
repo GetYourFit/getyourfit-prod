@@ -59,7 +59,11 @@ async function wearer(t) {
   const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
   context.setDefaultTimeout(4000);
   t.after(() => context.close());
-  const response = await context.request.post(contract.register, { data: account(), headers: { origin: baseURL } });
+  let response = await context.request.post(contract.register, { data: account(), headers: { origin: baseURL } });
+  if (response.status() === 429) {
+    await delay(61_000);
+    response = await context.request.post(contract.register, { data: account(), headers: { origin: baseURL } });
+  }
   assert(response.ok(), `Signup returned ${response.status()}: ${await response.text()}`);
   const page = await context.newPage();
   return { context, page, builder: page.locator('#build-plan') };
@@ -73,7 +77,7 @@ async function api(context, method, endpoint = contract.starterPlans, data) {
 }
 
 async function draft(builder, values = input) {
-  await builder.getByLabel(/what is the occasion/i).fill(values.occasion);
+  await builder.getByLabel(/what occasions is this for/i).fill(values.occasion);
   await builder.getByLabel(/spending ceiling/i).fill(String(values.budget));
   await builder.getByLabel(/what kind of outfit/i).selectOption(values.outfitType);
   await builder.getByLabel(/^plan weather/i).selectOption(values.weather);
@@ -219,7 +223,7 @@ test('R3/R6/R8 ownership survives replacement timing and temporary outfit change
     const roles = outfitType === 'separates' ? ['top', 'bottom', 'footwear'] : ['one-piece', 'footwear'];
     await page.goto('/wardrobe');
     await builder.getByRole('button', { name: 'New plan', exact: true }).click();
-    await builder.getByLabel(/what is the occasion/i).fill('Draft with remembered ownership');
+    await builder.getByLabel(/what occasions is this for/i).fill('Draft with remembered ownership');
     await builder.getByLabel(/spending ceiling/i).fill('1001');
     const outfit = builder.getByLabel(/what kind of outfit/i);
     await outfit.selectOption(outfitType);
@@ -301,7 +305,7 @@ test('R5/R9 rejection returns drafts to planning and closes saved-plan replaceme
   await roleRow(builder, 'Top').getByRole('button', { name: 'Replace need', exact: true }).click();
   await builder.getByLabel(/replacement need/i).fill('Discard this draft edit');
   await builder.getByRole('button', { name: 'Reject plan', exact: true }).click();
-  await builder.getByLabel(/what is the occasion/i).waitFor();
+  await builder.getByLabel(/what occasions is this for/i).waitFor();
   await page.waitForFunction(() => globalThis.document.activeElement === globalThis.document.querySelector('#build-plan .starter-form h3'));
   assert.equal(await builder.getByRole('button', { name: 'Save plan', exact: true }).count(), 0);
   assert.deepEqual(await api(context, 'GET'), [saved]);
@@ -442,4 +446,37 @@ test('R5/R9 rejection returns drafts to planning and closes saved-plan replaceme
       }
     }
   });
+});
+
+test('Capsule: climate, occasions, budget and style produce an explained outfit set without commerce claims', async t => {
+  const { context, page, builder } = await wearer(t);
+  await page.goto('/wardrobe');
+  assert.equal(await page.locator('input[type=file]:visible').count(), 0, 'Capsule planning asked for a garment upload');
+  await builder.getByLabel(/what occasions is this for/i).fill('Office, family functions, weekends');
+  await builder.getByLabel(/spending ceiling/i).fill('6000');
+  assert.equal(await builder.getByLabel(/^currency/i).inputValue(), 'INR', 'India-first default currency is not INR');
+  await builder.getByLabel(/^plan weather/i).selectOption('hot-humid');
+  await builder.getByLabel(/^plan style/i).selectOption('indian');
+  await builder.getByRole('button', { name: 'Make my starter plan', exact: true }).click();
+  const capsule = builder.getByLabel('Starter capsule');
+  await capsule.waitFor();
+  const text = await capsule.innerText();
+  assert.match(text, /breathable cotton or linen/i, 'Climate guidance is missing');
+  assert.match(text, /not a verified fit/i, 'Capsule hides uncertainty');
+  assert.match(text, /2 × top.*₹1,000 each/i, 'Per-piece planning share is missing or wrong');
+  const outfits = await capsule.getByLabel('Outfits from this capsule').locator('li').allInnerTexts();
+  assert.equal(outfits.length, 4, 'Separates capsule should mix into four looks');
+  assert(outfits.some(outfit => /Office/i.test(outfit)) && outfits.some(outfit => /family functions/i.test(outfit)), 'Looks do not cover the stated occasions');
+  assert(outfits.every(outfit => /Top [AB] \+ Bottom [AB] \+ Footwear A/.test(outfit)), 'Looks are not complete outfits');
+  assert.doesNotMatch(await builder.innerText(), /\b(?:in stock|available to buy|buy now|delivery tomorrow|verified price)\b/i);
+  assert.match(await builder.locator('.starter-needs').innerText(), /kurta/i, 'Style examples are missing from needs');
+  await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
+  await builder.getByText('Plan saved in your private GetYourFit account.', { exact: true }).waitFor();
+  const saved = (await api(context, 'GET'))[0];
+  assert.equal(saved.input.style, 'indian');
+  assert.equal(saved.input.weather, 'hot-humid');
+  await page.reload();
+  await builder.getByLabel('Starter capsule').waitFor();
+  const owned = await api(context, 'POST', contract.starterPlans, { ...input, ownedRoles: ['top', 'bottom', 'footwear'] });
+  assert.equal(owned.input.style, 'unknown', 'Old-shape input must default style');
 });

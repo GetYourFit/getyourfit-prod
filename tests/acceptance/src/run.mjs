@@ -483,7 +483,7 @@ async function starterPlanJourney(context, page) {
   await page.getByRole('link', { name: /^build my wardrobe$/i }).last().focus();
   await page.keyboard.press('Enter');
   const builder = page.locator('#build-plan');
-  await builder.getByLabel(/what is the occasion/i).fill('Acceptance ceremony');
+  await builder.getByLabel(/what occasions is this for/i).fill('Acceptance ceremony');
   await builder.getByLabel(/spending ceiling/i).fill('1001');
   await builder.getByLabel(/^plan weather/i).selectOption('unknown');
   await builder.getByLabel(/^plan dress code/i).selectOption('formal');
@@ -583,7 +583,7 @@ async function starterPlanJourney(context, page) {
   assert.equal(saved.roles.find(role => role.role === 'top').allocation, 0);
   assert.deepEqual(await jsonOK(await api(context, 'GET', contract.wardrobe), 'Owned clothes after wearer confirmation'), [], 'A plan confirmation created an owned garment');
   await builder.getByRole('button', { name: /^replace plan$/i }).click();
-  await builder.getByLabel(/what is the occasion/i).fill('Acceptance reception');
+  await builder.getByLabel(/what occasions is this for/i).fill('Acceptance reception');
   await builder.getByLabel(/spending ceiling/i).fill('2000');
   await builder.getByRole('button', { name: /replace with this plan/i }).click();
   await builder.getByRole('heading', { name: /your starter plan for acceptance reception/i }).waitFor();
@@ -601,7 +601,7 @@ async function starterPlanJourney(context, page) {
   const deletedPlans = await api(context, 'GET', contract.starterPlans);
   assert.equal(deletedPlans.status(), 401, 'Deleted account retained access to saved plans');
   await builder.getByRole('button', { name: /start a new plan/i }).click();
-  await builder.getByLabel(/what is the occasion/i).fill('Acceptance with no cash');
+  await builder.getByLabel(/what occasions is this for/i).fill('Acceptance with no cash');
   await builder.getByLabel(/spending ceiling/i).fill('0');
   await builder.getByRole('button', { name: /make my starter plan/i }).click();
   await builder.getByText(/zero spending ceiling/i).waitFor();
