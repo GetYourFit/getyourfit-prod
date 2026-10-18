@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { ArrowUpRight } from 'lucide-react';
-import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
+import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
 import { wardrobeRequest } from './wardrobe-api';
 
 type FormValues = Omit<StarterInput, 'budget'> & { budget: string };
@@ -214,6 +214,7 @@ export function StarterPlan() {
   }
 
   function renderPlan(input: StarterInput, roles: StarterRoleState[], saved: boolean, planStatus: StarterPlan['status'] | 'draft') {
+    const capsule = buildCapsule(input, roles);
     const allocated = roles.reduce((sum, role) => sum + role.allocation, 0);
     const remaining = roles.filter((role) => role.state === 'planned');
     const actionable = planStatus === 'active' || planStatus === 'draft';
@@ -231,6 +232,16 @@ export function StarterPlan() {
         <p className="starter-note">This is a planning allocation, split evenly across needs you have not marked owned. It is not a quote or a promise that an outfit is within budget. Size, delivery cost, taxes, and checkout total are unknown.</p>
       </div>
       {input.budget === 0 && remaining.length > 0 && <p className="starter-no-cash">With a zero spending ceiling, consider reusing something you have or asking whether someone can lend a suitable piece. Availability is not guaranteed.</p>}
+      <div className="starter-capsule" aria-label="Starter capsule">
+        <h4>Your starter capsule</h4>
+        <p className="starter-note">{capsule.climate} These are general suggestions built from what you told us, not a verified fit, a taste prediction, or a shopping list for a specific product.</p>
+        <ul className="starter-capsule-pieces" aria-label="Capsule pieces and budget share">
+          {capsule.pieces.map((piece) => <li key={piece.role}>{piece.owned ? `${starterRoleName(piece.role)}: the one you already have` : `${piece.count} × ${starterRoleName(piece.role).toLowerCase()} · about ${displayBudget(piece.perPiece, input.currency)} each as a planning share`}</li>)}
+        </ul>
+        <ol className="starter-outfits" aria-label="Outfits from this capsule">
+          {capsule.outfits.map((outfit) => <li key={outfit.name}><p className="starter-need-label">{outfit.name}</p><p>{outfit.pieces.join(' + ')}</p><p>{outfit.why}</p></li>)}
+        </ol>
+      </div>
       <ul className="starter-needs" aria-label="Clothing needs in this outfit plan">
         {roles.map((role) => <li key={role.role}>
           <div className="starter-need-copy"><p className="starter-need-label">{starterRoleName(role.role)}</p><p>{role.need}</p><p>{role.state === 'planned' ? `Planned need · allocation ${displayBudget(role.allocation, input.currency)}` : 'You confirmed a suitable item is already owned · allocation 0'}</p></div>
@@ -260,7 +271,7 @@ export function StarterPlan() {
   const planHistory = plans.filter((plan) => plan.id !== current?.id);
 
   return <section className="starter-plan-section" id="build-plan" aria-labelledby="starter-plan-title">
-    <div className="starter-plan-heading"><div><h2 id="starter-plan-title">Build my wardrobe</h2><p>Start with one outfit for what you need next. No garment upload or account at another service is needed to plan.</p></div>{!formOpen && !draft && (current ? <button className="button button-secondary" disabled={busy !== ''} onClick={startNewPlan}>New plan</button> : <button className="button button-primary" disabled={busy !== ''} onClick={() => setFormOpen(true)}>Plan an occasion</button>)}</div>
+    <div className="starter-plan-heading"><div><h2 id="starter-plan-title">Build my wardrobe</h2><p>Answer a few questions to get a starter capsule: a small set of pieces that mix into several outfits. No garment upload or account at another service is needed to plan.</p></div>{!formOpen && !draft && (current ? <button className="button button-secondary" disabled={busy !== ''} onClick={startNewPlan}>New plan</button> : <button className="button button-primary" disabled={busy !== ''} onClick={() => setFormOpen(true)}>Plan an occasion</button>)}</div>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {loadFailed && <button className="button button-secondary starter-load-retry" disabled={busy !== ''} onClick={() => { setLoading(true); setLoadFailed(false); setLoadAttempt((attempt) => attempt + 1); }}>Try loading saved plans again</button>}
     {status && <p className="starter-status" role="status">{status}</p>}
@@ -269,15 +280,15 @@ export function StarterPlan() {
       {draft && renderPlan(draft.input, draft.roles, false, 'draft')}
       {!draft && current?.status === 'replaced' && <button className="button button-primary" disabled={busy !== ''} onClick={startNewPlan}>Start a new plan</button>}
       {formOpen && <form className="starter-form" onSubmit={(event) => void submit(event)}>
-        <h3 tabIndex={-1}>{replacePlan ? 'Change this plan' : current ? 'Plan another occasion' : 'Start with one occasion'}</h3>
+        <h3 tabIndex={-1}>{replacePlan ? 'Change this plan' : current ? 'Plan another capsule' : 'Start with your occasion'}</h3>
         <p>Tell us what the outfit needs to cover. Unknown details stay unknown.</p>
-        <label>What is the occasion?<input disabled={busy !== ''} required maxLength={120} value={values.occasion} placeholder="For example, a family celebration" onChange={(event) => setValue('occasion', event.target.value)} /></label>
+        <label>What is the occasion?<input disabled={busy !== ''} required maxLength={120} value={values.occasion} placeholder="For example: a family function" onChange={(event) => setValue('occasion', event.target.value)} /></label>
         <div className="starter-form-row">
           <label>Spending ceiling<input disabled={busy !== ''} required type="number" min="0" max="1000000" step="1" inputMode="numeric" value={values.budget} onChange={(event) => setValue('budget', event.target.value)} /></label>
           <label>Currency<select disabled={busy !== ''} value={values.currency} onChange={(event) => setValue('currency', z.enum(['INR', 'USD', 'GBP']).parse(event.target.value))}><option value="INR">INR · Indian rupee</option><option value="USD">USD · US dollar</option><option value="GBP">GBP · British pound</option></select></label>
         </div>
         <div className="starter-form-row">
-          <label>Plan weather<select disabled={busy !== ''} value={values.weather} onChange={(event) => setValue('weather', z.enum(['warm', 'mild', 'cold', 'unknown']).parse(event.target.value))}><option value="unknown">I am not sure</option><option value="warm">Warm</option><option value="mild">Mild</option><option value="cold">Cold</option></select></label>
+          <label>Plan weather<select disabled={busy !== ''} value={values.weather} onChange={(event) => setValue('weather', starterWeatherSchema.parse(event.target.value))}><option value="unknown">I am not sure</option><option value="warm">Warm</option><option value="mild">Mild</option><option value="cold">Cold</option></select></label>
           <label>Plan dress code<select disabled={busy !== ''} value={values.dressCode} onChange={(event) => setValue('dressCode', z.enum(['casual', 'smart-casual', 'formal', 'unknown']).parse(event.target.value))}><option value="unknown">I am not sure</option><option value="casual">Casual</option><option value="smart-casual">Smart casual</option><option value="formal">Formal</option></select></label>
         </div>
         <label>What kind of outfit do you need?<select disabled={busy !== ''} value={values.outfitType} onChange={(event) => setValue('outfitType', z.enum(['separates', 'one-piece']).parse(event.target.value))}><option value="separates">Top, bottom and footwear</option><option value="one-piece">One-piece garment and footwear</option></select></label>
