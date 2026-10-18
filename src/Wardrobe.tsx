@@ -10,7 +10,7 @@ import { Outfit } from './Outfit';
 import { categoryLabel, dressCodeLabel, fitLabel, weatherLabel } from './labels';
 import { Notice } from './ui';
 
-type Editor = { kind: 'closed' } | { kind: 'add' } | { kind: 'edit'; garment: Garment };
+type Editor = { kind: 'closed' } | { kind: 'add' } | { kind: 'edit'; garmentId: string };
 
 export function Wardrobe() {
   const [garments, setGarments] = useState<Garment[] | null>(null);
@@ -22,19 +22,25 @@ export function Wardrobe() {
   const [revision, setRevision] = useState(0);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
+  const refreshRequest = useRef(0);
 
   useEffect(() => {
     titleRef.current?.focus();
     let mounted = true;
-    void wardrobeRequest('', wardrobeSchema, undefined, 'GET').then((items) => { if (mounted) setGarments(items); }).catch((cause: unknown) => {
-      if (mounted) setError(cause instanceof Error ? cause.message : 'Your wardrobe could not be loaded.');
+    const request = ++refreshRequest.current;
+    void wardrobeRequest('', wardrobeSchema, undefined, 'GET').then((items) => { if (mounted && request === refreshRequest.current) setGarments(items); }).catch((cause: unknown) => {
+      if (mounted && request === refreshRequest.current) setError(cause instanceof Error ? cause.message : 'Your wardrobe could not be loaded.');
     });
-    return () => { mounted = false; };
+    return () => { mounted = false; refreshRequest.current += 1; };
   }, []);
 
   async function refresh() {
-    const items = await wardrobeRequest('', wardrobeSchema, undefined, 'GET');
-    flushSync(() => { setGarments(items); setRevision((value) => value + 1); });
+    const request = ++refreshRequest.current;
+    try {
+      const items = await wardrobeRequest('', wardrobeSchema, undefined, 'GET');
+      if (request !== refreshRequest.current) return;
+      flushSync(() => { setGarments(items); setRevision((value) => value + 1); });
+    } catch (cause) { if (request === refreshRequest.current) throw cause; }
   }
   async function act(callback: () => Promise<void>) {
     setBusy(true); setError('');
@@ -57,6 +63,8 @@ export function Wardrobe() {
   }
 
   const full = garments !== null && garments.length >= 50;
+  const editedGarment = editor.kind === 'edit' ? garments?.find((item) => item.id === editor.garmentId) : undefined;
+  if (editor.kind === 'edit' && garments !== null && !editedGarment) setEditor({ kind: 'closed' });
   return <div className="page">
     <header className="page-header">
       <div className="page-heading">
@@ -96,7 +104,7 @@ export function Wardrobe() {
             <p className="caption">{item.facts.weather.map((value) => weatherLabel[value]).join(', ')} weather · {item.facts.dressCode.map((value) => dressCodeLabel[value]).join(', ')}</p>
           </div>
           <div className="garment-actions">{remove !== item.id
-            ? <><button className="button button-ghost" disabled={busy || editor.kind !== 'closed'} aria-label={`Edit ${item.facts.name}`} onClick={(event) => open({ kind: 'edit', garment: item }, event.currentTarget)}><Pencil size={16} aria-hidden="true" />Edit</button><button className="button button-danger-ghost" disabled={busy || editor.kind !== 'closed'} aria-label={`Remove ${item.facts.name}`} onClick={() => setRemove(item.id)}><Trash2 size={16} aria-hidden="true" />Remove</button></>
+            ? <><button className="button button-ghost" disabled={busy || editor.kind !== 'closed'} aria-label={`Edit ${item.facts.name}`} onClick={(event) => open({ kind: 'edit', garmentId: item.id }, event.currentTarget)}><Pencil size={16} aria-hidden="true" />Edit</button><button className="button button-danger-ghost" disabled={busy || editor.kind !== 'closed'} aria-label={`Remove ${item.facts.name}`} onClick={() => setRemove(item.id)}><Trash2 size={16} aria-hidden="true" />Remove</button></>
             : <><span className="garment-confirm">Remove from your wardrobe?</span><button className="button button-danger-ghost remove-confirm" autoFocus disabled={busy} onClick={() => void act(async () => { await wardrobeRequest(`/${item.id}`, z.object({ deleted: z.literal(true) }), undefined, 'DELETE'); setRemove(''); await refresh(); setStatus(`${item.facts.name} was removed from your wardrobe.`); document.querySelector<HTMLElement>('#add-garment')?.focus(); })}>Yes, remove</button><button className="button button-ghost" disabled={busy} onClick={() => setRemove('')}>Keep</button></>}
           </div>
         </article></li>)}</ul>}
@@ -105,7 +113,7 @@ export function Wardrobe() {
     <Outfit garments={garments} disabled={editor.kind !== 'closed'} revision={revision} onGarmentsChanged={refresh} />
     <StarterPlan />
 
-    {editor.kind !== 'closed' && <GarmentForm key={editor.kind === 'edit' ? editor.garment.id : 'add'} garment={editor.kind === 'edit' ? editor.garment : null} onCancel={close} onSaved={async (saved) => {
+    {(editor.kind === 'add' || editedGarment) && <GarmentForm key={editedGarment?.id ?? 'add'} garment={editedGarment ?? null} onCancel={close} onSaved={async (saved) => {
       await refresh();
       setStatus(editor.kind === 'edit' ? `Changes to ${saved.facts.name} were saved.` : `${saved.facts.name} was added to your wardrobe.`);
       close();

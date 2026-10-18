@@ -15,7 +15,7 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
   const [error, setError] = useState('');
   const dialogRef = useRef<HTMLDialogElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
-  const defaults = garment?.facts;
+  const [defaults] = useState(() => garment?.facts);
   const locked = busy || photo.kind === 'processing';
 
   useEffect(() => {
@@ -83,10 +83,18 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
       owned: data.get('owned') === 'on', available: data.get('available') === 'on', fit: data.get('fit'), weather: data.getAll('weather'), dressCode: data.getAll('dressCode') });
     if (!parsed.success) { setError('Confirm ownership and every detail, including at least one weather and one dress code.'); return; }
     if (!garment && (!consent || photo.kind !== 'ready')) { setError('Confirm permission and add a photo first.'); return; }
+    const changes = Object.fromEntries(factsSchema.keyof().options.filter((key) => {
+      const value = parsed.data[key];
+      const previous = defaults?.[key];
+      return Array.isArray(value) && Array.isArray(previous)
+        ? value.length !== previous.length || value.some((entry) => !previous.some((item) => item === entry))
+        : value !== previous;
+    }).map((key) => [key, parsed.data[key]]));
+    if (garment && Object.keys(changes).length === 0) { onCancel(); return; }
     setBusy(true); setError('');
     try {
       let saved: Garment | null = null;
-      if (garment) saved = await wardrobeRequest(`/${garment.id}`, garmentSchema, parsed.data, 'PATCH');
+      if (garment) saved = await wardrobeRequest(`/${garment.id}`, garmentSchema, changes, 'PATCH');
       else if (photo.kind === 'ready') saved = await wardrobeRequest('', garmentSchema, { facts: parsed.data, consent: true, image: photo.image });
       if (saved) await onSaved(saved);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'The garment could not be saved. Try again.'); }

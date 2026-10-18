@@ -86,10 +86,10 @@ async function signUp(page, email) {
   expect(response.status).toBe(200);
 }
 
-async function addWardrobe(page) {
+async function addWardrobe(page, { uncertainFit = false } = {}) {
   for (const [file, facts] of wardrobe) {
     const image = (await sharp(fixture(file)).resize(1200, 1200, { fit: 'inside' }).jpeg({ quality: 85 }).toBuffer()).toString('base64');
-    const response = await api(page, 'POST', '/api/wardrobe', { consent: true, image, facts: { ...facts, fit: 'fits', owned: true, available: true, weather: ['mild'], dressCode: ['casual', 'smart-casual'] } });
+    const response = await api(page, 'POST', '/api/wardrobe', { consent: true, image, facts: { ...facts, fit: uncertainFit && facts.category === 'top' ? 'unknown' : 'fits', owned: true, available: true, weather: ['mild'], dressCode: ['casual', 'smart-casual'] } });
     expect(response.status).toBe(201);
   }
 }
@@ -173,6 +173,74 @@ test('wardrobe, outfit suggestion and account', async ({ page }) => {
   await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Account' })).toBeFocused();
   await checkScreen(page, 'account');
+});
+
+test('concurrent wardrobe refreshes and edits preserve confirmed facts', async ({ page }) => {
+  await signUp(page, `concurrent-${randomUUID()}@example.test`);
+  for (const action of ['edit', 'remove']) {
+    await test.step(action, async () => {
+      const previous = await api(page, 'GET', '/api/wardrobe');
+      expect(previous.status).toBe(200);
+      for (const item of previous.body) expect((await api(page, 'DELETE', `/api/wardrobe/${item.id}`)).status).toBe(200);
+      await addWardrobe(page, { uncertainFit: true });
+      await page.goto('/wardrobe');
+      await page.getByLabel('Occasion', { exact: true }).fill('Dinner');
+      await page.getByLabel('Weather', { exact: true }).selectOption('mild');
+      await page.getByLabel('Dress code', { exact: true }).selectOption('casual');
+      await page.getByRole('button', { name: 'Find an outfit' }).click();
+      await expect(page.getByRole('button', { name: 'Yes, it fits', exact: true })).toBeVisible();
+
+      const held = Promise.withResolvers();
+      const captured = Promise.withResolvers();
+      const delivered = Promise.withResolvers();
+      await page.route('**/api/wardrobe', async (route) => {
+        const response = await route.fetch();
+        captured.resolve();
+        await held.promise;
+        await route.fulfill({ response });
+        delivered.resolve();
+      }, { times: 1 });
+      try {
+        await page.getByRole('button', { name: 'Yes, it fits', exact: true }).click();
+        await captured.promise;
+        if (action === 'edit') {
+          await page.getByRole('button', { name: 'Edit Grey crew tee', exact: true }).click();
+          const dialog = page.getByRole('dialog', { name: 'Edit Grey crew tee', exact: true });
+          await dialog.getByLabel('Name', { exact: true }).fill('Renamed tee');
+          await dialog.getByRole('button', { name: 'Save changes' }).click();
+          await expect(dialog).toBeHidden();
+          await page.getByRole('button', { name: 'Edit Renamed tee', exact: true }).click();
+          const unchanged = page.getByRole('dialog', { name: 'Edit Renamed tee', exact: true });
+          const patches = [];
+          const recordPatch = (request) => { if (request.method() === 'PATCH') patches.push(request.url()); };
+          page.on('request', recordPatch);
+          try {
+            await unchanged.getByRole('button', { name: 'Save changes' }).click();
+            await expect(unchanged).toBeHidden();
+            expect.soft(patches).toEqual([]);
+          } finally { page.off('request', recordPatch); }
+        } else {
+          await page.getByRole('button', { name: 'Remove Black trainers', exact: true }).click();
+          await page.getByRole('button', { name: 'Yes, remove', exact: true }).click();
+          await expect(page.getByRole('heading', { name: 'Black trainers', exact: true })).toHaveCount(0);
+        }
+        held.resolve();
+        await delivered.promise;
+        await expect(page.getByRole('button', { name: 'Find an outfit' })).toBeEnabled();
+        const current = await api(page, 'GET', '/api/wardrobe');
+        expect(current.status).toBe(200);
+        if (action === 'edit') {
+          const top = current.body.find((item) => item.facts.category === 'top');
+          expect.soft(top.facts.name).toBe('Renamed tee');
+          expect.soft(top.facts.fit).toBe('fits');
+          await expect.soft(page.getByRole('heading', { name: 'Renamed tee', exact: true })).toBeVisible();
+        } else {
+          expect(current.body.some((item) => item.facts.category === 'footwear')).toBe(false);
+          await expect.soft(page.getByRole('heading', { name: 'Black trainers', exact: true })).toHaveCount(0);
+        }
+      } finally { held.resolve(); }
+    });
+  }
 });
 
 test('starter plan with shopping links', async ({ page }) => {
