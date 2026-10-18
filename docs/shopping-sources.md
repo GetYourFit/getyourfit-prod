@@ -23,7 +23,7 @@ The interface reads these flags. While a flag is `false`, the page says that pho
 
 ## Selection rules
 
-Sections are chosen only by the planned role, the wearer's chosen department (men's or women's), and the plan's dress code. Commission, payout, and retailer popularity are not inputs. Roles the wearer already owns get no link. A plan gets no link when its currency is not INR, its ceiling is zero, or no section matches its dress code. No section is listed for a formal dress code or a one-piece garment.
+[Build my wardrobe](../README.md#build-my-wardrobe) owns the user-facing selection rules and unsupported outcomes. [suggestShopping](../shared/shopping.ts) implements selection from the source record.
 
 ## Refresh or add a destination
 
@@ -35,7 +35,7 @@ Sections are chosen only by the planned role, the wearer's chosen department (me
    ```
 
 3. Use the response only when `affiliated` is `true` and the campaign is the expected one. Store `tracking_url` unchanged as `affiliateUrl`, then update `verifiedAt`.
-4. Run `npm test`. The schema rejects a link with extra tracking fields, another channel, another retailer host, or a different destination.
+4. Run `npm test`. The schema rejects extra affiliate query fields and links whose channel, retailer host, or destination differs from the source record.
 
 When the campaign is paused, blocked, or no longer affiliated, remove the source from the file. The plan then falls back to its text needs and external search links.
 

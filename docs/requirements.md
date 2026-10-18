@@ -10,7 +10,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | R2 | next | Decision traces and repeatable product evaluations remain future work. |
 | R3 | later | Creator and retailer sides follow the consumer decision core. |
 | R4 | slice1-local | Account, real photo, correction, wardrobe, one outfit, export, and deletion; fit, purchase, social, and long-term memory are deferred. |
-| R5 | slice1-local | Occasion, weather, and dress code feed one clear outfit action; unknown required facts produce one question. Natural-language parsing and shopping context are deferred. |
+| R5 | slice1-local | Occasion, weather, and dress code feed one clear outfit action; unknown required facts produce one question. Natural-language parsing is deferred. Consumer shopping scope is owned by [Build my wardrobe](../README.md#build-my-wardrobe). |
 | R6 | next | This slice asks only the questions required to complete its decision. Broader adaptive onboarding needs outcome evidence. |
 | R7 | slice1-local | One consented real photo is resized in the browser, classified on the server, reviewed, corrected, and stored with provenance. Additional ownership states and ingestion channels are deferred. |
 | R8 | next | Persisted user corrections are the first memory signal; the broader typed style memory and decay model need repeated outcomes. |
@@ -50,7 +50,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | R27 | slice1-local | Bound local image size and types, decode before use, resize client-side, isolate temporary classifier files, enforce local origin and account ownership, and audit without raw personal data. |
 | R28 | next | Do not report fashion-decision metrics without wear or keep outcomes. This slice records no fake success metric. |
 | R29 | deferred-with-reason | No retailer commerce exists to measure retained margin. |
-| R30 | shopping-links-local | Personal data is never sold and commission does not control recommendations. India shopping links come from one verified affiliate source, disclose commission beside the links, offer an ordinary link for each need, and choose sections only by role, wearer-chosen department, and dress code. Monetization beyond these links follows measured value. |
+| R30 | shopping-links-local | Personal data is never sold. Affiliate behavior and disclosures are owned by [Build my wardrobe](../README.md#build-my-wardrobe); source permissions are owned by [shopping sources](shopping-sources.md). Monetization beyond these links follows measured value. |
 | R31 | next | No experiment is run before there is enough usage to define a meaningful primary measure and guardrails. |
 | R32 | later | A go-to-market wedge follows repeatable wearer outcomes. |
 | R33 | next | Product evidence and limits are recorded here; competitor and superiority claims wait for measured research. |
@@ -75,4 +75,4 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 
 ## Slice 1 outcome
 
-Proven locally for v0.1: a wearer can sign in, add real garment photos with consent, confirm or correct facts, inspect their small wardrobe, and get one complete explained occasion outfit from owned items. Missing required facts produce one question; hard constraints that prevent completeness produce an abstention. The outcome removes guesswork about whether an owned set satisfies the wearer's stated facts; it makes no taste or fit prediction and introduces no checkout, creator or merchant integration. The separate [starter-plan precursor](../README.md#build-my-wardrobe) supports people starting without garments. Every wider requirement remains listed above. Real-provider verification/recovery, deployment and broader conformance remain outside this local proof.
+Proven locally for v0.1: a wearer can sign in, add real garment photos with consent, confirm or correct facts, inspect their small wardrobe, and get one complete explained occasion outfit from owned items. Missing required facts produce one question; hard constraints that prevent completeness produce an abstention. The outcome removes guesswork about whether an owned set satisfies the wearer's stated facts; it makes no taste or fit prediction and provides no checkout. [Build my wardrobe](../README.md#build-my-wardrobe) owns the separate planning and shopping scope for people starting without garments. Every wider requirement remains listed above. Real-provider verification/recovery, deployment and broader conformance remain outside this local proof.
