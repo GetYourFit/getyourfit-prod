@@ -59,6 +59,8 @@ The independent good and deliberately broken controls reject fake in-stock or de
 
 The user-facing scope and disclosures are owned by [Build my wardrobe](../../README.md#build-my-wardrobe); the verified source and its rights record are in [Shopping sources](../../docs/shopping-sources.md).
 
+Scope decision: this slice ships retailer section links only. There is no product feed or image right, so it selects no individual garments and shows no prices, photos or copied product text. The complete explained outfit for a zero-garment shopper is the starter plan capsule that is already merged; the shopping links sit beside it.
+
 | Interface | Request | Observable response |
 | --- | --- | --- |
 | `GET /api/wardrobe/shopping-sources` | Existing private session | Array of sources. Each has `region.country` `IN`, `currency` `INR`, a `rights` record with boolean `productFacts`, `prices` and `images`, an `affiliate` record naming its `redirectHost` and `channelId`, and `destinations` with `url` and `affiliateUrl` |

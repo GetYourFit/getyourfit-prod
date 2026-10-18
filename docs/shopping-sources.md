@@ -39,6 +39,10 @@ Sections are chosen only by the planned role, the wearer's chosen department (me
 
 When the campaign is paused, blocked, or no longer affiliated, remove the source from the file. The plan then falls back to its text needs and external search links.
 
+## Scope decision
+
+The operator accepted a section-links slice: no product feed and no image rights exist, so the shopping links choose no individual garments. The complete explained outfit for a zero-garment shopper is the starter plan capsule. Product selection, prices, photos and copied product text stay out until a catalogue is permitted.
+
 ## Adding a permitted catalogue
 
 A catalogue with written product, price, or image permission adds a new destination kind beside `section` in `shared/shopping.ts`. It also sets the matching rights flags, with the grant recorded in this document. Product facts, prices, or photos must never be shown while their rights flag is `false`.
