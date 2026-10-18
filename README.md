@@ -24,7 +24,7 @@ Requirements: Node.js 22.18 or later. Local Apple Vision classification addition
 
 Set `BETTER_AUTH_SECRET` to a random key of at least 32 characters from your local secret store. Generate it once, retain it with the database, and reuse it on every restart. Changing it invalidates sessions and makes existing authenticator secrets unreadable. The server refuses startup without this key before opening the database. You can generate a key with `node -e 'process.stdout.write(require("node:crypto").randomBytes(48).toString("base64url"))'`; store its output privately, outside the repository.
 
-Email delivery defaults to `GYF_MAIL_TRANSPORT=disabled`. Signup creates a session immediately, keeps `emailVerified=false`, and recovery endpoints are unavailable. Keep your password safe; this version cannot email a reset link.
+Email delivery defaults to `GYF_MAIL_TRANSPORT=disabled`. Signup creates a session immediately, keeps `emailVerified=false`, and recovery endpoints return HTTP 404 by design. Keep your password safe while mail is disabled; the service cannot email a reset link in that mode.
 
 ```sh
 npm install
@@ -35,7 +35,9 @@ Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
 Run `npm run verify:local-account` to prove the default account path in a production build with a disposable database and random key. It checks consent, signup without mail, wrong-password failure, restart continuity, export, and deletion through real browser controls.
 
-Real email is opt-in and provider-agnostic. Select a transport with `GYF_MAIL_TRANSPORT`:
+This release is infrastructure-only preparation. The chosen delivery path is SMTP through the captain's existing Gmail account, `gyf1ltd@gmail.com`, using a Google app password. Cost is zero, subject to Gmail's daily send cap for a personal account. Mail stays disabled until the vault references exist and are wired into the runtime. [Mail release handoff](docs/deploy-inputs.md#mail-release-handoff) records the exact vault mappings and activation settings. No new account, paid plan, or DNS change is authorized, and no literal secret belongs in the repository.
+
+The application supports these `GYF_MAIL_TRANSPORT` values:
 
 - `disabled` (default): no mail is sent.
 - `smtp`: set `SMTP_HOST` and `SMTP_FROM`. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Non-implicit TLS connections require STARTTLS. Set both `SMTP_USER` and `SMTP_PASS` when authentication is required.

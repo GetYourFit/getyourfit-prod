@@ -19,9 +19,26 @@ Use an exact `main` revision with successful `quality` and `acceptance` checks. 
 | `GYF_PORT` | A chosen loopback port from 1 through 65535, matching the ingress upstream; the default is 4174 |
 | `GYF_DATA_DIR` | A persistent directory outside the release checkout, writable by the service identity |
 | `BETTER_AUTH_SECRET` | A stable random key of at least 32 characters, injected from the vault; supply the vault reference and workload access, never a literal value in Git or logs |
-| `GYF_MAIL_TRANSPORT` | `disabled` (default; signup signs in immediately, while email verification and password recovery are unavailable), `smtp` (`SMTP_HOST`, `SMTP_FROM`, optional `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER` with `SMTP_PASS`) or `http` (`MAIL_API_URL`, `MAIL_API_TOKEN`, `MAIL_FROM`); inject credentials from the vault, never Git or logs |
+| `GYF_MAIL_TRANSPORT` | Keep `disabled` until the Gmail vault references below exist and are wired into the runtime; then set `smtp` |
 
-Retain the secret with the database across releases and restores. Changing it invalidates sessions and makes existing authenticator secrets unreadable. Real-mail credentials are unnecessary while mail stays `disabled`. To enable real verification and reset mail, supply an `smtp` relay or an `http` mail API with a sender address on a domain the operator controls and has authorized for sending (SPF/DKIM published by that domain's owner); the application cannot prove provider delivery itself.
+Retain the secret with the database across releases and restores. Changing it invalidates sessions and makes existing authenticator secrets unreadable.
+
+### Mail release handoff
+
+This change is authorized as infrastructure-only preparation. No existing mail credential is available, and no new account, paid plan, or DNS change is authorized. The chosen path is SMTP through the captain's existing Gmail account, `gyf1ltd@gmail.com`, using a Google app password. Cost is zero, subject to Gmail's daily send cap for a personal account. The sender remains `gyf1ltd@gmail.com` until domain mail exists.
+
+The deployment owner supplies these vault references and maps them into the service environment. These are reference names, not runtime variable aliases that the application reads directly.
+
+| Vault reference | Value held in the vault | Service environment variable |
+| --- | --- | --- |
+| `GYF_SMTP_HOST` | `smtp.gmail.com` | `SMTP_HOST` |
+| `GYF_SMTP_USER` | `gyf1ltd@gmail.com` | `SMTP_USER` |
+| `GYF_SMTP_PASS` | Google app password for that account | `SMTP_PASS` |
+| `GYF_MAIL_FROM` | `gyf1ltd@gmail.com` | `SMTP_FROM` |
+
+Never put the literal app password in the repository or logs. Once all four references exist and are wired into the runtime, set `GYF_MAIL_TRANSPORT=smtp`, `SMTP_PORT=587`, and `SMTP_SECURE=false`. Port 587 requires STARTTLS in [server/mail.mjs](../server/mail.mjs).
+
+Until that handoff is complete, mail stays disabled. Signup signs in immediately with an unverified address, and email verification is unavailable. Password-reset requests return the disabled response (HTTP 404) by design, as does reset submission. This preparation does not establish live provider delivery. After activation, the deployment owner must verify signup verification and password reset through the public HTTPS browser path using real delivered messages before calling mail live.
 
 `getyourfit.sqlite` holds accounts, wardrobe records, garment photos as BLOBs, and private starter plans. Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
 
@@ -35,7 +52,7 @@ Set `GYF_TRUSTED_PROXIES` only to the addresses of controlled ingress hops, neve
 
 `npm test` exercises the real production HTTP service on free ports with disposable databases and per-run credentials: loopback and public requests, foreign rejection, secure signup cookies, forwarding spoof resistance, separate ingress clients, and invalid startup configuration.
 
-Verify signup, session continuity, real photo upload and refresh, an owned-outfit result, cross-user isolation, and no mail through the public HTTPS browser path. `npm run acceptance` starts its own isolated local service and cannot verify a deployed URL. Keep both required checks bound to the release revision; [workflow-kit.md](workflow-kit.md) records protection.
+Verify signup, session continuity, real photo upload and refresh, an owned-outfit result, and cross-user isolation through the public HTTPS browser path. While mail is disabled, verify that no mail is sent and password-reset requests return HTTP 404. After SMTP activation, follow the mail release handoff above. `npm run acceptance` starts its own isolated local service and cannot verify a deployed URL. Keep both required checks bound to the release revision; [workflow-kit.md](workflow-kit.md) records protection.
 
 ## Starter-plan release handoff
 
