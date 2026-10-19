@@ -6,6 +6,14 @@ For outfits from owned clothes, create an adult account with email and password,
 
 See [Mail settings](#mail-settings) for signup, verification, and password recovery requirements. Privacy controls export photos and facts with provenance and corrections, or delete them with the account. Photos and facts are never sold or used for model training. There is no sharing, external recognition service, body inference, buying flow, or seeded wardrobe.
 
+## Try it without an account
+
+**Plan an outfit now** on the home page opens `/plan`, where a visitor answers occasion, weather, outfit form, budget and an optional dress code, then sees a complete outfit with no account. The result is an outfit board: one square composition of real garment photographs (a top, a bottom and footwear, or a one-piece and footwear), a switch between the capsule's looks, the reasons, and **Download as image**, which draws the same board as a PNG in the browser. A role the visitor marks owned in the account flow shows as a "your own" tile instead of a photograph. Photographs are The Metropolitan Museum of Art Open Access (CC0) garments, with each licence, source and hash recorded in `public/example/provenance.json`. They are historical pieces shown as stand-ins, and the page says so.
+
+The answers are not sent to a server while planning (only the anonymous counters below), and no photo goes to any external AI service. **Save this outfit** keeps the answers in this tab's session storage, opens sign-up, and shows the plan as an unsaved draft after sign-up so the visitor can save it.
+
+Drop-off is measured with anonymous daily counters in the local database: `plan_opened`, `plan_submitted`, `outfit_shown`, `save_prompt_shown`, `save_prompt_accepted` and `plan_saved_after_visit`. The `funnel_counts` table holds only a UTC day, a step name and a number: no cookie, identifier, IP address or plan content, and no third-party tracker. Browsers that send Do Not Track or Global Privacy Control are not counted. Run `npm run funnel` with the same `GYF_DATA_DIR` and `BETTER_AUTH_SECRET` as the server to read the totals and step rates.
+
 ## Build my wardrobe
 
 Create or sign in to your GetYourFit account, then choose **Build my wardrobe** beside **Add garment**. Planning needs no garment upload or account at another service. The owned-clothes outfit path remains available.

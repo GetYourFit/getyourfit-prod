@@ -1,7 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { ArrowUpRight } from 'lucide-react';
 import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
+import { composeBoard } from '../shared/outfit-board';
+import { countStep } from './funnel';
+import { OutfitBoardPanel } from './OutfitBoard';
+import { takePendingPlan } from './pending-plan';
 import { ShoppingLinks } from './ShoppingLinks';
 import { wardrobeRequest } from './wardrobe-api';
 import { Notice } from './ui';
@@ -44,6 +48,7 @@ export function StarterPlan() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const fromVisit = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -51,8 +56,16 @@ export function StarterPlan() {
       if (!mounted) return;
       setPlans(items);
       if (loadAttempt === 0) {
-        setCurrent(items.find((item) => item.status === 'active') ?? items[0] ?? null);
-        setFormOpen(items.length === 0);
+        const visit = takePendingPlan();
+        if (visit) {
+          fromVisit.current = true;
+          setDraft({ input: visit, roles: buildStarterRoles(visit, new Date().toISOString()) });
+          setFormOpen(false);
+          setStatus('Your outfit from before you signed up is ready. Save it to keep it in your account.');
+        } else {
+          setCurrent(items.find((item) => item.status === 'active') ?? items[0] ?? null);
+          setFormOpen(items.length === 0);
+        }
       }
       setLoadFailed(false);
     }).catch((cause: unknown) => {
@@ -132,6 +145,7 @@ export function StarterPlan() {
       closeNeedEditor();
       focusPlanAfterUpdate();
       setStatus('Plan saved in your private GetYourFit account.');
+      if (fromVisit.current) { fromVisit.current = false; countStep('plan_saved_after_visit'); }
     });
   }
 
@@ -234,6 +248,7 @@ export function StarterPlan() {
         <p className="starter-note">This is a planning allocation, split evenly across needs you have not marked owned. It is not a quote or a promise that an outfit is within budget. Size, delivery cost, taxes, and checkout total are unknown.</p>
       </div>
       {input.budget === 0 && remaining.length > 0 && <p className="starter-no-cash">With a zero spending ceiling, consider reusing something you have or asking whether someone can lend a suitable piece. Availability is not guaranteed.</p>}
+      <OutfitBoardPanel key={`${input.occasion}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} />
       <div className="starter-capsule" aria-label="Starter capsule">
         <h4>Your starter capsule</h4>
         <p className="starter-note">{capsule.climate} These are general suggestions built from what you told us, not a verified fit, a taste prediction, or a shopping list for a specific product.</p>

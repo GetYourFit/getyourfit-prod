@@ -10,6 +10,7 @@ import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, consumeEmailVerificationToken, hashPassword, isLockedOut, migrateAuth, recordSignInResult } from './auth.mjs';
 import { emailConnected, emailDeliveryMode, localMailbox, sendMail, settleMailForAccountDeletion } from './mail.mjs';
 import { audit, database, ensureAuthSchema } from './database.mjs';
+import { ensureFunnelSchema, funnelRouter } from './funnel.mjs';
 import { ensureWardrobeSchema, exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
 import { allowedHosts, allowedOrigins, apiOrigin, apiPort, authOrigin, trustedProxies } from './config.mjs';
 
@@ -58,6 +59,7 @@ async function requireUser(request, response, next) {
 }
 
 app.use('/api/wardrobe', wardrobeRouter(requireUser));
+app.use('/api/funnel', funnelRouter());
 app.use(express.json({ limit: '32kb' }));
 
 const requestLimits = new Map();
@@ -227,6 +229,7 @@ if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
 await migrateAuth();
 ensureAuthSchema();
 ensureWardrobeSchema();
+ensureFunnelSchema();
 const server = http.createServer(app);
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 66_000;
