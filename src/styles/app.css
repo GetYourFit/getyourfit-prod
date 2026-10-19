@@ -177,6 +177,7 @@ fieldset.field-group > legend.step-title { margin-bottom: var(--space-4); }
 .starter-plan-actions { border-top: 1px solid var(--color-rule); padding-top: var(--space-4); }
 .starter-status { color: var(--color-accent-hover); font-weight: var(--weight-strong); }
 .starter-load-retry { justify-self: start; }
+.starter-details[open] { display: grid; gap: var(--space-4); }
 .starter-history { border-top: 1px solid var(--color-rule); padding-top: var(--space-2); }
 .starter-history > summary { display: inline-flex; min-height: var(--target-min); align-items: center; font-weight: var(--weight-strong); }
 .starter-history ul { display: grid; justify-items: start; margin: 0; padding: 0; list-style: none; }

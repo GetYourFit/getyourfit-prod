@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import test from 'node:test';
 import sharp from 'sharp';
 import { backends, inspect, start } from './support/server.mjs';
@@ -49,6 +49,28 @@ for (const backend of backends) {
 }
 
 for (const backend of backends) {
+  test(`retrying a visitor save retains its chosen look exactly once and stays private [${backend}]`, async (t) => {
+    const server = await start(t, {}, { backend });
+    const owner = await signUp(server, 'owner');
+    const other = await signUp(server, 'other');
+    const input = { occasion: 'Dinner', outfitType: 'separates', budget: 0, currency: 'INR', weather: 'mild', dressCode: 'casual', mustHave: '', ownedRoles: [], selectedLook: 3 };
+    const requestId = randomUUID();
+    const save = (wearer) => wearer.call({ method: 'POST', route: '/api/wardrobe/starter-plans', body: { ...input, requestId } });
+    const responses = await Promise.all([save(owner), save(owner), save(owner)]);
+    for (const response of responses) {
+      assert.equal(response.status, 201);
+      assert.equal(response.body.id, requestId);
+      assert.deepEqual(response.body.input, input);
+      assert.deepEqual(response.body, responses[0].body);
+    }
+    assert.deepEqual((await owner.call({ route: '/api/wardrobe/starter-plans' })).body, [responses[0].body]);
+    assert.notEqual((await save(other)).status, 201);
+    assert.deepEqual((await other.call({ route: '/api/wardrobe/starter-plans' })).body, []);
+    const exported = await owner.call({ route: '/api/data/export' });
+    assert.equal(exported.body.starterPlans[0].input.selectedLook, 3);
+    assert.deepEqual((await owner.call({ route: '/api/wardrobe' })).body, []);
+  });
+
   test(`outfit corrections, starter plans and export round-trip through the database [${backend}]`, async (t) => {
     const server = await start(t, {}, { backend });
     const wearer = await signUp(server);

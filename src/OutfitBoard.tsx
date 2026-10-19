@@ -34,11 +34,11 @@ export function OutfitBoard({ look, heading }: { look: BoardLook; heading: strin
 }
 
 // The board, a switch between the capsule's looks, the pieces in the chosen look, and a download of the board as one image.
-export function OutfitBoardPanel({ input, board }: { input: StarterInput; board: Board }) {
-  const [lookIndex, setLookIndex] = useState(0);
+export function OutfitBoardPanel({ input, board, selection }: { input: StarterInput; board: Board; selection?: { index: number; onChange: (index: number) => void } }) {
+  const [lookIndex, setLookIndex] = useState(input.selectedLook ?? 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const look = board.looks[lookIndex] ?? board.looks[0];
+  const look = board.looks[selection?.index ?? lookIndex] ?? board.looks[0];
   if (!look) return null;
 
   async function download(current: BoardLook) {
@@ -63,12 +63,12 @@ export function OutfitBoardPanel({ input, board }: { input: StarterInput; board:
     <OutfitBoard look={look} heading={`${look.name} for ${input.occasion}`} />
     <div className="board-panel-side">
       <div className="board-looks" role="group" aria-label="Choose a look">
-        {board.looks.map((item, index) => <button key={item.name} type="button" className="chip" aria-pressed={index === lookIndex} onClick={() => setLookIndex(index)}>{item.name}</button>)}
+        {board.looks.map((item, index) => <button key={item.name} type="button" className="chip" aria-pressed={item === look} onClick={() => { if (selection) selection.onChange(index); else setLookIndex(index); }}>{item.name}</button>)}
       </div>
       <ul className="board-pieces" aria-label={`Pieces in ${look.name}`}>
         {look.pieces.map((piece) => <li key={piece.role}><span className="board-piece-role">{starterRoleName(piece.role)}</span><span>{piece.owned ? 'You already have this' : piece.garment.caption}</span></li>)}
       </ul>
-      <button className="button button-secondary" type="button" onClick={() => void download(look)} disabled={busy}><Download size={18} aria-hidden="true" />{busy ? 'Making image…' : 'Download as image'}</button>
+      <button className={`button ${input.selectedLook === undefined ? 'button-secondary' : 'button-primary'}`} type="button" onClick={() => void download(look)} disabled={busy}><Download size={18} aria-hidden="true" />{busy ? 'Making image…' : 'Download as image'}</button>
       {error && <Notice tone="error" role="alert">{error}</Notice>}
     </div>
   </div>;

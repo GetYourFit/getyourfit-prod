@@ -290,7 +290,7 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   expect(download.suggestedFilename()).toBe('getyourfit-outfit.png');
   const image = await sharp(await download.path()).metadata();
   expect({ width: image.width, height: image.height, format: image.format }).toEqual({ width: 1080, height: 1570, format: 'png' });
-  await page.getByRole('button', { name: 'Save this outfit' }).click();
+  await page.getByRole('button', { name: 'Save this plan' }).click();
   await expect(page).toHaveURL(/\/sign-up$/);
   await page.getByLabel('Your name').fill('Visitor');
   await page.getByLabel('Email', { exact: true }).fill(`visitor-${randomUUID()}@example.test`);
@@ -303,8 +303,7 @@ test('visitor gets an outfit board without an account, then saves it after sign-
     await page.getByRole('button', { name: 'Create account', exact: true }).click();
   }
   const builder = page.locator('#build-plan');
-  await expect(builder.getByRole('heading', { name: 'Needs for Dinner with friends' })).toBeVisible();
-  await builder.getByRole('button', { name: 'Save plan' }).click();
+  await expect(builder.getByRole('heading', { name: 'Your starter plan for Dinner with friends' })).toBeVisible();
   await expect(builder.getByRole('status').filter({ hasText: 'Plan saved' })).toBeVisible();
   await expect.poll(() => steps.includes('plan_saved_after_visit')).toBe(true);
   expect(steps).toEqual(['plan_opened', 'plan_submitted', 'outfit_shown', 'save_prompt_shown', 'save_prompt_accepted', 'plan_saved_after_visit']);

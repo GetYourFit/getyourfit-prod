@@ -40,12 +40,14 @@ export async function exportWardrobe(userId) {
     starterPlans: await listStarterPlans(userId) };
 }
 
-async function insertStarterPlan(userId, input, roles, status = 'active', run = query) {
+async function insertStarterPlan(userId, input, roles, status = 'active', run = query, id = crypto.randomUUID()) {
   const now = new Date().toISOString();
-  const plan = starterPlanSchema.parse({ id: crypto.randomUUID(), status, input, roles, createdAt: now, updatedAt: now });
-  await run('INSERT INTO starter_plans (id, user_id, status, input, roles, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+  const plan = starterPlanSchema.parse({ id, status, input, roles, createdAt: now, updatedAt: now });
+  await run('INSERT INTO starter_plans (id, user_id, status, input, roles, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
     [plan.id, userId, plan.status, JSON.stringify(plan.input), JSON.stringify(plan.roles), plan.createdAt, plan.updatedAt]);
-  return plan;
+  const { rows } = await run('SELECT * FROM starter_plans WHERE id = $1 AND user_id = $2', [id, userId]);
+  if (!rows.length) throw new Error('This plan could not be saved. Try a new plan.');
+  return starterPlan(rows[0]);
 }
 
 async function updateStarterPlan(userId, plan, run = query) {
@@ -165,9 +167,9 @@ export function wardrobeRouter(requireUser) {
   router.post('/starter-plans', async (request, response) => {
     const parsed = starterSaveSchema.safeParse(request.body);
     if (!parsed.success) return response.status(400).json({ error: 'Check the occasion, budget, and outfit needs, then try again.' });
-    const { needs, ...input } = parsed.data;
+    const { needs, requestId, ...input } = parsed.data;
     const roles = buildStarterRoles(input, new Date().toISOString()).map((role) => ({ ...role, need: needs?.find((need) => need.role === role.role)?.need ?? role.need }));
-    response.status(201).json(await insertStarterPlan(request.user.id, input, roles));
+    response.status(201).json(await insertStarterPlan(request.user.id, input, roles, 'active', query, requestId));
   });
   router.patch('/starter-plans/:id', async (request, response) => {
     const action = starterPlanActionSchema.safeParse(request.body);

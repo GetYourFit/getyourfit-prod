@@ -13,6 +13,7 @@ export const starterInputSchema = z.strictObject({
   dressCode: z.enum(['casual', 'smart-casual', 'formal', 'unknown']),
   mustHave: z.string().trim().max(160),
   ownedRoles: z.array(starterRoleSchema).max(4),
+  selectedLook: z.number().int().min(0).max(3).optional(),
 }).superRefine((input, context) => {
   if (new Set(input.ownedRoles).size !== input.ownedRoles.length) {
     context.addIssue({ code: 'custom', path: ['ownedRoles'], message: 'Each role can be declared owned only once.' });
@@ -24,6 +25,7 @@ export const starterInputSchema = z.strictObject({
 });
 
 export const starterSaveSchema = starterInputSchema.safeExtend({
+  requestId: z.uuid().optional(),
   needs: z.array(z.strictObject({ role: starterRoleSchema, need: starterNeedSchema })).min(2).max(3).optional(),
 }).superRefine((input, context) => {
   const { needs } = input;
