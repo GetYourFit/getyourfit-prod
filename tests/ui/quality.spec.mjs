@@ -271,7 +271,7 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   await expect(heading).toBeFocused();
   const board = page.getByRole('figure');
   await expect(board.getByRole('img')).toHaveCount(3);
-  expect(await board.locator('img').evaluateAll((images) => images.every((image) => image.complete && image.naturalWidth > 0))).toBe(true);
+  await expect.poll(() => board.locator('img').evaluateAll((images) => images.every((image) => image.complete && image.naturalWidth > 0))).toBe(true);
   await expect(page.getByRole('heading', { name: 'Why this works' })).toBeVisible();
   await expect(page.getByText('For cold weather')).toBeVisible();
   const alts = () => board.locator('img').evaluateAll((images) => images.map((image) => image.alt));
