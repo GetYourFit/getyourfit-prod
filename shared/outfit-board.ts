@@ -102,13 +102,6 @@ export function layoutFor(pieces: BoardPiece[]): TileRect[] {
   return pieces.map((piece) => spots[piece.role] ?? { x: 4, y: 4, w: 92, h: 92 });
 }
 
-// A photograph fills its tile when the shapes nearly match; otherwise it is shown whole.
-export function fitFor(garment: Garment, rect: TileRect): 'cover' | 'contain' {
-  const photo = garment.width / garment.height;
-  const tile = rect.w / rect.h;
-  return Math.abs(photo / tile - 1) <= 0.3 ? 'cover' : 'contain';
-}
-
 export const garmentSources = (garment: Garment) => ({
   src: `/example/${garment.file}.webp`,
   srcSet: `/example/${garment.file}-360.webp 360w, /example/${garment.file}-600.webp 600w, /example/${garment.file}.webp ${garment.width}w`,

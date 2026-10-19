@@ -1,4 +1,4 @@
-import { fitFor, layoutFor, type BoardLook } from '../shared/outfit-board';
+import { layoutFor, type BoardLook } from '../shared/outfit-board';
 import { starterRoleName } from '../shared/starter-plan';
 
 const SIZE = 1080;
@@ -76,7 +76,7 @@ export async function renderBoardImage(look: BoardLook, title: string, subtitle:
     }
     context.fillStyle = piece.garment.backdrop;
     context.fillRect(x, y, w, h);
-    const scale = (fitFor(piece.garment, rect) === 'cover' ? Math.max : Math.min)(w / image.naturalWidth, h / image.naturalHeight);
+    const scale = Math.min(w / image.naturalWidth, h / image.naturalHeight);
     const drawW = image.naturalWidth * scale;
     const drawH = image.naturalHeight * scale;
     context.drawImage(image, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH);
@@ -88,7 +88,7 @@ export async function renderBoardImage(look: BoardLook, title: string, subtitle:
   context.fillText('GetYourFit', MARGIN, top + BOARD + 72);
   context.fillStyle = '#56645d';
   context.font = '500 20px Manrope, sans-serif';
-  context.fillText('Stand-in garment photographs. Cropped and resized; source licences retained.', MARGIN, top + BOARD + 114);
+  context.fillText('Stand-in garment photographs. Backgrounds cleaned and resized; source licences retained.', MARGIN, top + BOARD + 114);
   look.pieces.forEach((piece, index) => {
     if (piece.owned) return;
     const { garment } = piece;

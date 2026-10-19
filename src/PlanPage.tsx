@@ -6,7 +6,6 @@ import { composeBoard } from '../shared/outfit-board';
 import { countStep } from './funnel';
 import { holdPendingPlan } from './pending-plan';
 import { OutfitBoard, OutfitBoardPanel } from './OutfitBoard';
-import { PhotoCredits } from './PhotoCredits';
 import { Brand, Field, Notice } from './ui';
 import './LandingPage.css';
 
@@ -33,7 +32,6 @@ export default function PlanPage() {
 
   const board = useMemo(() => input ? composeBoard(input, buildStarterRoles(input, new Date().toISOString())) : null, [input]);
   const look = board?.looks[0];
-  const credits = look?.pieces.flatMap((piece) => piece.owned ? [] : [piece.garment]) ?? [];
 
   useEffect(() => {
     if (!board) return;
@@ -126,7 +124,6 @@ export default function PlanPage() {
               <p>Create a free account to save your plan, then add clothes you already own. Your photos are reviewed on our own server and never sent to an external AI service.</p>
               <button className="button button-primary button-split" type="button" onClick={saveAfterValue}>Save this outfit<ArrowRight size={18} aria-hidden="true" /></button>
             </div>
-            <details className="disclosure plan-credits"><summary>Photo credits</summary><PhotoCredits items={credits} /></details>
           </> : <div className="plan-placeholder">
             <h2 id="plan-result-title" className="card-title">Your outfit appears here</h2>
             <OutfitBoard look={sample} heading="Example outfit" />
