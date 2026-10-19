@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import express from 'express';
 import sharp from 'sharp';
-import { query, transaction } from './database.mjs';
+import { asIso, asJson, query, reclaimDeletedData, transaction } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
 import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
 import { shoppingSourceListSchema } from '../shared/shopping.ts';
@@ -18,25 +18,23 @@ const execute = promisify(execFile);
 const shoppingSources = shoppingSourceListSchema.parse(shoppingSourceRecords);
 const factsPatchSchema = factsSchema.partial().refine((facts) => Object.keys(facts).length > 0);
 const classifyScript = fileURLToPath(new URL('./classify.swift', import.meta.url));
-const iso = (value) => value.toISOString();
-
 function garment(row) {
-  return garmentSchema.parse({ id: row.id, facts: row.facts, provenance: row.provenance,
-    interpretation: row.interpretation, photoConsent: { scope: 'local-processing-and-storage', recordedAt: iso(row.created_at) }, photoUrl: `/api/wardrobe/${row.id}/photo`, createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) });
+  return garmentSchema.parse({ id: row.id, facts: asJson(row.facts), provenance: asJson(row.provenance),
+    interpretation: asJson(row.interpretation), photoConsent: { scope: 'local-processing-and-storage', recordedAt: asIso(row.created_at) }, photoUrl: `/api/wardrobe/${row.id}/photo`, createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) });
 }
 
 const listRows = async (userId, run = query) => (await run('SELECT * FROM garments WHERE user_id = $1 ORDER BY created_at, id', [userId])).rows;
 const countGarments = async (userId, run = query) => Number((await run('SELECT count(*) AS count FROM garments WHERE user_id = $1', [userId])).rows[0].count);
 function starterPlan(row) {
-  return starterPlanSchema.parse({ id: row.id, status: row.status, input: row.input, roles: row.roles,
-    createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) });
+  return starterPlanSchema.parse({ id: row.id, status: row.status, input: asJson(row.input), roles: asJson(row.roles),
+    createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) });
 }
 const listStarterPlans = async (userId) => (await query('SELECT * FROM starter_plans WHERE user_id = $1 ORDER BY created_at DESC, id DESC', [userId])).rows.map(starterPlan);
 
 export async function exportWardrobe(userId) {
   const exclusions = (await query('SELECT garment_id AS "garmentId", context, recorded_at AS "recordedAt" FROM outfit_exclusions WHERE user_id = $1 ORDER BY recorded_at', [userId])).rows;
   return { wardrobe: (await listRows(userId)).map((row) => ({ ...garment(row), photo: { mediaType: 'image/jpeg', base64: row.photo.toString('base64') } })),
-    outfitCorrections: exclusions.map((row) => ({ ...row, recordedAt: iso(row.recordedAt), context: JSON.parse(row.context), source: 'wearer-correction', modelVersion: null, confidence: 1 })),
+    outfitCorrections: exclusions.map((row) => ({ ...row, recordedAt: asIso(row.recordedAt), context: JSON.parse(row.context), source: 'wearer-correction', modelVersion: null, confidence: 1 })),
     starterPlans: await listStarterPlans(userId) };
 }
 
@@ -142,6 +140,7 @@ export function wardrobeRouter(requireUser) {
   router.delete('/:id', async (request, response) => {
     const result = await query('DELETE FROM garments WHERE id = $1 AND user_id = $2', [request.params.id, request.user.id]);
     if (!result.rowCount) return response.status(404).json({ error: 'This garment is not in your wardrobe.' });
+    await reclaimDeletedData();
     response.json({ deleted: true });
   });
   router.post('/outfit', async (request, response) => {
@@ -155,7 +154,7 @@ export function wardrobeRouter(requireUser) {
     if (!parsed.success) return response.status(400).json({ error: 'Choose an item and an outfit context to correct.' });
     const { context, garmentId, excluded } = parsed.data;
     if (!(await query('SELECT id FROM garments WHERE id = $1 AND user_id = $2', [garmentId, request.user.id])).rows.length) return response.status(404).json({ error: 'This garment is not in your wardrobe.' });
-    if (excluded) await query('INSERT INTO outfit_exclusions (user_id, garment_id, context, recorded_at) VALUES ($1, $2, $3, now()) ON CONFLICT DO NOTHING', [request.user.id, garmentId, contextKey(context)]);
+    if (excluded) await query('INSERT INTO outfit_exclusions (user_id, garment_id, context, recorded_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING', [request.user.id, garmentId, contextKey(context), new Date().toISOString()]);
     else await query('DELETE FROM outfit_exclusions WHERE user_id = $1 AND garment_id = $2 AND context = $3', [request.user.id, garmentId, contextKey(context)]);
     response.json({ saved: true });
   });

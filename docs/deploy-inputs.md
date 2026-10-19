@@ -4,7 +4,7 @@ Target `https://app.getyourfit.co` with email/password signup without email conf
 
 ## Host and release
 
-Supply a Linux host running Node.js 24, a service identity with vault access, and HTTPS ingress reaching the loopback listener. Data lives in Supabase Postgres (see [Supabase](supabase.md)), so the host keeps no durable state. Linux needs no Swift or Apple Vision: browsers recognize garments on-device ([photo recognition](photo-recognition.md)), and the macOS Swift cold-start finding for the optional server path is deferred to v0.2.
+Supply a Linux host running Node.js 24, a service identity with vault access, and HTTPS ingress reaching the loopback listener. The default database is a SQLite file in a durable data directory; the planned production database is Supabase Postgres, selected by `DATABASE_URL` at cutover (see [Supabase](supabase.md)), after which the host keeps no durable state. Linux needs no Swift or Apple Vision: browsers recognize garments on-device ([photo recognition](photo-recognition.md)), and the macOS Swift cold-start finding for the optional server path is deferred to v0.2.
 
 Use an exact `main` revision with successful `quality` and `acceptance` checks. Build with `npm ci` and `npm run build`, then run `npm start`. Keep `server/`, `shared/`, package manifests, runtime dependencies, and `dist/` together.
 
@@ -17,7 +17,8 @@ Use an exact `main` revision with successful `quality` and `acceptance` checks. 
 | `GYF_ALLOWED_ORIGINS` | Optional comma-separated additional HTTPS origins; omit for a single same-origin deployment |
 | `GYF_TRUSTED_PROXIES` | Comma-separated ingress IP addresses or narrow CIDRs; empty trusts no forwarded client addresses |
 | `GYF_PORT` | A chosen loopback port from 1 through 65535, matching the ingress upstream; the default is 4174 |
-| `DATABASE_URL` | The Supabase session pooler connection string (port 5432), injected from the vault as `SUPABASE_DATABASE_URL`; never a literal value in Git or logs. The server applies pending `migrations/` at startup |
+| `GYF_DATA_DIR` | A persistent directory outside the release checkout, writable by the service identity. Holds `getyourfit.sqlite` and is used only while `DATABASE_URL` is unset |
+| `DATABASE_URL` | Unset by default, which keeps SQLite. Set at cutover to the Supabase session pooler connection string (port 5432), injected from the vault as `SUPABASE_DATABASE_URL`; never a literal value in Git or logs. The server applies pending `migrations/` at startup |
 | `BETTER_AUTH_SECRET` | A stable random key of at least 32 characters, injected from the vault; supply the vault reference and workload access, never a literal value in Git or logs |
 
 Retain the secret with the database across releases and restores. Changing it invalidates sessions and makes existing authenticator secrets unreadable.
@@ -26,7 +27,7 @@ Retain the secret with the database across releases and restores. Changing it in
 
 No mail provider is configured and the app has no mail settings. Sign-up needs no confirmation, the password reset and verification routes answer 503 `EMAIL_NOT_AVAILABLE`, and a signed-in wearer can change their password from Account. [Turning email on later](supabase.md#turning-email-on-later) records the exact steps.
 
-The Postgres database holds accounts, wardrobe records, garment photos as `bytea`, private starter plans, and anonymous daily funnel counters (`funnel_counts`, read with `npm run funnel`; see the README). The Supabase free plan has no point-in-time recovery or managed daily backups, so [Supabase](supabase.md#backups) records the backup and restore procedure the deployment owner runs. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
+`getyourfit.sqlite` holds accounts, wardrobe records, garment photos as BLOBs, private starter plans, and anonymous daily funnel counters (`funnel_counts`, read with `npm run funnel`; see the README). Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Once `DATABASE_URL` is set the data lives in Postgres instead; the Supabase free plan has no point-in-time recovery or managed daily backups, so [Supabase](supabase.md#backups) records the backup and restore procedure the deployment owner runs. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
 
 ## Public request boundary
 

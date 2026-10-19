@@ -21,7 +21,7 @@ Create an adult email/password account, sign in, change the password while signe
 Preconditions:
 
 - Install dependencies with npm install. Set BETTER_AUTH_SECRET once to a random key of at least 32 characters and reuse it with the database.
-- Run npm run verify:local-account for isolated production browser coverage against a disposable Postgres database.
+- Run npm run verify:local-account for isolated production browser coverage against a disposable database.
 
 - **Create.** Choose Create an account, enter a name, email, and password of at least 12 characters, confirm the 18+ statement, and choose Create account. The wardrobe appears without a mail link. Signup without consent must fail.
 - **Sign in.** Sign out and use the same credentials. An incorrect password fails. Restart the service with the same database and key; the existing session must still work.

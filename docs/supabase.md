@@ -1,6 +1,6 @@
 # Supabase
 
-GetYourFit's production data lives in one free-plan Supabase project. Nothing here is a credential: connection strings, the database password and API keys live only in the Automic Vault.
+GetYourFit runs on a SQLite file by default. Setting `DATABASE_URL` opts in to Postgres, and production will point it at one free-plan Supabase project at cutover. Nothing changes for a deployment that leaves `DATABASE_URL` unset. Nothing here is a credential: connection strings, the database password and API keys live only in the Automic Vault.
 
 ## The project
 
@@ -32,17 +32,20 @@ TLS is always verified. [`server/certs/supabase-root-2021-ca.crt`](../server/cer
 
 ## Schema and migrations
 
-The schema is the SQL in [`migrations/`](../migrations), applied in name order at server start (`npm run migrate` runs them alone). Each file runs in one transaction under an advisory lock, so two instances starting together cannot collide, and a file edited after it was applied is refused: add a new migration instead. `schema_migrations` records names and checksums.
+With `DATABASE_URL` set, the schema is the SQL in [`migrations/`](../migrations), applied in name order at server start (`npm run migrate` runs them alone). Each file runs in one transaction under an advisory lock, so two instances starting together cannot collide, and a file edited after it was applied is refused: add a new migration instead. `schema_migrations` records names and checksums.
 
 - `0001_initial.sql` holds the Better Auth tables (generated from the options in `server/auth.mjs`, then pinned) and the app tables. `tests/database.test.mjs` fails if the installed Better Auth expects a different schema, so a Better Auth upgrade that changes tables surfaces as a failing test and a new migration.
 - `0002_lock_down_data_api.sql` enables row level security on every table and revokes all privileges from Supabase's `anon` and `authenticated` roles, including future tables. Supabase exposes `public` tables through its Data API by default; the app reaches Postgres only through its own server connection (which bypasses RLS), so the Data API must see nothing. A test creates those roles with Supabase's default grants and proves they can read and write nothing.
 
-Garment photos are still `bytea` in `garments.photo`. Moving them to Supabase Storage is the next stage.
+The SQLite schema is unchanged and still created in code (`server/db/sqlite.mjs`) with Better Auth's own migration, so an existing `getyourfit.sqlite` keeps working; `tests/legacy-sqlite.test.mjs` opens a file written by the release before this work. Both drivers sit behind one `query(text, values)` interface using `$1` placeholders and the SQL subset the two databases share.
+
+Garment photos are still stored in the database (`bytea` or BLOB). Moving them to Supabase Storage is the next stage.
 
 ## Development and tests
 
 - `npm run dev:db` starts a persistent local Postgres 17 under `.gyf-data/postgres` and prints the `DATABASE_URL` to export before `npm run dev`.
-- `npm test`, `npm run test:ui`, `npm run acceptance` and the `verify:*` scripts run through `scripts/with-postgres.mjs`, which starts a throwaway embedded Postgres 17 (or uses `GYF_TEST_DATABASE_URL`, which CI sets to a service container) and gives every test its own database.
+- `npm test` runs the HTTP, account and wardrobe tests against both SQLite and Postgres. `scripts/with-postgres.mjs` starts a throwaway embedded Postgres 17 or uses `GYF_TEST_DATABASE_URL`, which CI sets to a service container. Each test gets its own database.
+- `npm run test:ui`, `npm run acceptance` and the `verify:*` scripts use isolated SQLite files by default. `npm run acceptance:postgres` checks Postgres. To run either browser verifier against Postgres, use `GYF_VERIFY_BACKEND=postgres node scripts/with-postgres.mjs npm run verify:local-account` or replace the final script with `verify:wardrobe`.
 
 ## Free-plan limits and keep-alive
 
@@ -107,7 +110,7 @@ Docs only; nothing below is implemented.
 | Stage | Status |
 | --- | --- |
 | 1. Free-tier project in Mumbai, secrets in the vault | Done |
-| 2. Postgres data layer, migrations, tests on real Postgres, Better Auth kept, email off | This change |
+| 2. Opt-in Postgres data layer beside the default SQLite, migrations, tests on both, Better Auth kept, email off | This change. Default runtime stays SQLite |
 | 3. Garment photos in Supabase Storage with per-user access | Next |
 | 4. Export of the SQLite data and rehearsed import | Next |
 | 5. Rollback to SQLite and the cutover runbook | Next. Roll back by redeploying the last SQLite release (`ef2860f`) with its untouched `getyourfit.sqlite`; data written to Postgres after cutover needs the reverse export built in stage 4 |

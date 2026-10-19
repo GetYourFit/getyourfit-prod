@@ -1,6 +1,6 @@
 # GetYourFit
 
-GetYourFit is a private wardrobe companion: choose an explained outfit from clothes you own, or use [Build my wardrobe](#build-my-wardrobe) to plan clothing needs when starting without garments. "You already own it" is a useful result. This v0.1 increment connects local accounts, garment review, a compact wardrobe, a factual outfit check, starter plans, wearer corrections, export, and deletion. Data is stored in Postgres, on Supabase's free plan in production ([Supabase](docs/supabase.md)). It is not yet a deployed service, nor a validated style or fit model.
+GetYourFit is a private wardrobe companion: choose an explained outfit from clothes you own, or use [Build my wardrobe](#build-my-wardrobe) to plan clothing needs when starting without garments. "You already own it" is a useful result. This v0.1 increment connects local accounts, garment review, a compact wardrobe, a factual outfit check, starter plans, wearer corrections, export, and deletion. Data is stored in a local SQLite file by default; setting `DATABASE_URL` opts in to Postgres, which production will use on Supabase's free plan ([Supabase](docs/supabase.md)). It is not yet a deployed service, nor a validated style or fit model.
 
 For outfits from owned clothes, create an adult account with email and password, then add your own garment photos with permission. The browser resizes and strips metadata, then recognizes the garment on your device with FashionCLIP using CPU/WASM, including on Linux-hosted apps and browsers without WebGPU. First use downloads about 154 MB of model weights from Hugging Face; the photo stays on your device until you save it to your private GetYourFit account. You can skip recognition and confirm facts immediately. Unavailable or uncertain recognition also falls back to manual confirmation. See [photo recognition](docs/photo-recognition.md) for model provenance, privacy, limitations, and acceptance checks. Every outfit fact comes from the wearer. The owned-clothes outfit check requires an occasion, weather, dress code, availability, and confirmed fit; it asks one question when a required fact is unknown and abstains when no complete set exists. A rejected item stays excluded for the same context until you allow it again.
 
@@ -38,20 +38,20 @@ Requirements: Node.js 22.18 or later. Local Apple Vision classification addition
 
 Set `BETTER_AUTH_SECRET` to a random key of at least 32 characters from your local secret store. Generate it once, retain it with the database, and reuse it on every restart. Changing it invalidates sessions and makes existing authenticator secrets unreadable. The server refuses startup without this key before opening the database. You can generate a key with `node -e 'process.stdout.write(require("node:crypto").randomBytes(48).toString("base64url"))'`; store its output privately, outside the repository.
 
-The server needs a Postgres database in `DATABASE_URL` and applies pending [migrations](migrations) when it starts. In production that is the Supabase session pooler ([Supabase](docs/supabase.md#connecting)); locally, `npm run dev:db` runs a throwaway-friendly Postgres 17 and prints the URL to export.
+By default the server keeps one SQLite file, `getyourfit.sqlite`, in `GYF_DATA_DIR` (`.gyf-data` in the checkout when unset). Setting `DATABASE_URL` to a Postgres connection string opts in to Postgres instead, applying the SQL in [migrations](migrations) at startup; in production that is the Supabase session pooler ([Supabase](docs/supabase.md#connecting)). Without `DATABASE_URL` nothing about the SQLite behavior changes.
 
 ```sh
 npm install
-npm run dev:db        # terminal 1: leaves Postgres running
-export DATABASE_URL=postgres://postgres:development-only@127.0.0.1:54329/postgres
-npm run dev           # terminal 2
+npm run dev
 ```
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-Run `npm run verify:local-account` to prove the account path in a production build with a disposable Postgres database and random key. It checks consent, signup without email confirmation, the honest email-reset notice, a signed-in password change, wrong-password failure, restart continuity, export, and deletion through real browser controls.
+To develop against Postgres, run `npm run dev:db` in one terminal (a persistent local Postgres 17 under `.gyf-data/postgres`), then `export DATABASE_URL=postgres://postgres:development-only@127.0.0.1:54329/postgres` before `npm run dev` in another.
 
-Tests and verifiers start their own throwaway Postgres 17 through `scripts/with-postgres.mjs`, or use the server named by `GYF_TEST_DATABASE_URL`. See [Supabase](docs/supabase.md) for the schema, the free-plan limits, the keep-alive plan, and the evaluation of Supabase Auth.
+Run `npm run verify:local-account` to prove the account path in a production build with a disposable database and random key. It checks consent, signup without email confirmation, the honest email-reset notice, a signed-in password change, wrong-password failure, restart continuity, export, and deletion through real browser controls. It uses SQLite. For Postgres, run `GYF_VERIFY_BACKEND=postgres node scripts/with-postgres.mjs npm run verify:local-account`. `npm run verify:wardrobe` takes the same switch and wrapper.
+
+`scripts/with-postgres.mjs` starts a throwaway Postgres 17 or uses the server named by `GYF_TEST_DATABASE_URL`. `npm test` and `npm run acceptance:postgres` invoke this wrapper automatically. See [Supabase](docs/supabase.md) for the schema, the free-plan limits, the keep-alive plan, and the evaluation of Supabase Auth.
 
 ## Check
 

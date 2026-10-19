@@ -6,7 +6,7 @@ Download the account, garment photos, confirmed facts, classification provenance
 ## Sub-features
 
 - account-export downloads profile fields, garment facts and per-fact provenance, stored JPEG photos as base64, original classification provenance, consent timestamps, and context-specific outfit corrections without credentials or session secrets.
-- account-delete cascades across credentials, sessions, wardrobe photos, facts and outfit corrections in one Postgres statement; Postgres autovacuum later reclaims the retired rows.
+- account-delete cascades across credentials, sessions, wardrobe photos, facts and outfit corrections in one statement; SQLite then checkpoints and vacuums, and Postgres autovacuum later reclaims the retired rows.
 
 ## How to get to it (user POV)
 
@@ -22,7 +22,7 @@ Preconditions:
 
 - **Export.** Open Account and choose Download export. Inspect the JSON: getyourfit-account-export-v1 includes the account, wardrobe photos in JPEG/base64, facts, consent and provenance, and outfitCorrections. Password hashes and session secrets must be absent.
 - **Delete.** Choose Delete my data, then Erase permanently. The public page returns; old photo requests fail and the account cannot sign in again.
-- **Proof.** npm run verify:wardrobe checks photo metadata removal, wardrobe export and correction records, cross-account access, restart continuity, and database cascade deletion. Existing account verifiers cover credentials, sessions, tokens and exact-recipient test mail cleanup.
+- **Proof.** npm run verify:wardrobe checks photo metadata removal, wardrobe export and correction records, cross-account access, restart continuity, and database cascade deletion. The account verifier covers password changes, session continuity and deleted-account sign-in failure.
 
 ## Gotchas
 

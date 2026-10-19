@@ -1,56 +1,62 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 import pg from 'pg';
 import sharp from 'sharp';
 import { createTestDatabase } from './support/database.mjs';
-import { start } from './support/server.mjs';
+import { backends, start } from './support/server.mjs';
 
 const publicOrigin = 'https://app.getyourfit.co';
 
-test('partial garment patches preserve other facts and provenance', async (t) => {
-  const { request, origin } = await start(t);
-  const headers = { Origin: origin, 'Content-Type': 'application/json' };
-  const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {
-    name: 'Wearer', email: 'patches@example.test', password: randomBytes(32).toString('base64url'), adultConfirmed: true,
-  } });
-  assert.equal(signedUp.status, 200);
-  headers.Cookie = signedUp.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
-  const image = (await sharp(new URL('./fixtures/top.jpg', import.meta.url).pathname)
-    .resize(1200, 1200, { fit: 'inside' }).jpeg({ quality: 85 }).toBuffer()).toString('base64');
-  const created = await request({ method: 'POST', route: '/api/wardrobe', headers, body: {
-    consent: true, image, facts: { name: 'Tee', category: 'top', color: 'grey', size: 'M', fit: 'unknown',
-      owned: true, available: true, weather: ['mild'], dressCode: ['casual'] },
-  } });
-  assert.equal(created.status, 201);
-  const route = `/api/wardrobe/${created.body.id}`;
-  let current = created.body;
-  for (const body of [{ fit: 'fits' }, { name: 'Renamed tee' }, { weather: ['warm', 'cold'] }, { dressCode: ['formal'] },
-    { available: false }, { category: 'one-piece' }, { color: 'olive' }, { size: 'L' }, { owned: true }]) {
-    const updated = await request({ method: 'PATCH', route, headers, body });
-    assert.equal(updated.status, 200);
-    assert.deepEqual(updated.body.facts, { ...current.facts, ...body });
-    for (const key of Object.keys(current.facts)) {
-      if (key in body && JSON.stringify(current.facts[key]) !== JSON.stringify(body[key])) {
-        assert.deepEqual(updated.body.provenance[key], { source: 'wearer-correction', modelVersion: null, confidence: 1, recordedAt: updated.body.updatedAt });
-      } else assert.deepEqual(updated.body.provenance[key], current.provenance[key]);
+for (const backend of backends) {
+  test(`partial garment patches preserve other facts and provenance [${backend}]`, async (t) => {
+    const { request, origin } = await start(t, {}, { backend });
+    const headers = { Origin: origin, 'Content-Type': 'application/json' };
+    const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {
+      name: 'Wearer', email: 'patches@example.test', password: randomBytes(32).toString('base64url'), adultConfirmed: true,
+    } });
+    assert.equal(signedUp.status, 200);
+    headers.Cookie = signedUp.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
+    const image = (await sharp(new URL('./fixtures/top.jpg', import.meta.url).pathname)
+      .resize(1200, 1200, { fit: 'inside' }).jpeg({ quality: 85 }).toBuffer()).toString('base64');
+    const created = await request({ method: 'POST', route: '/api/wardrobe', headers, body: {
+      consent: true, image, facts: { name: 'Tee', category: 'top', color: 'grey', size: 'M', fit: 'unknown',
+        owned: true, available: true, weather: ['mild'], dressCode: ['casual'] },
+    } });
+    assert.equal(created.status, 201);
+    const route = `/api/wardrobe/${created.body.id}`;
+    let current = created.body;
+    for (const body of [{ fit: 'fits' }, { name: 'Renamed tee' }, { weather: ['warm', 'cold'] }, { dressCode: ['formal'] },
+      { available: false }, { category: 'one-piece' }, { color: 'olive' }, { size: 'L' }, { owned: true }]) {
+      const updated = await request({ method: 'PATCH', route, headers, body });
+      assert.equal(updated.status, 200);
+      assert.deepEqual(updated.body.facts, { ...current.facts, ...body });
+      for (const key of Object.keys(current.facts)) {
+        if (key in body && JSON.stringify(current.facts[key]) !== JSON.stringify(body[key])) {
+          assert.deepEqual(updated.body.provenance[key], { source: 'wearer-correction', modelVersion: null, confidence: 1, recordedAt: updated.body.updatedAt });
+        } else assert.deepEqual(updated.body.provenance[key], current.provenance[key]);
+      }
+      current = updated.body;
     }
-    current = updated.body;
-  }
-  for (const body of [{}, { unexpected: true }, { name: 'Ignored', unexpected: true }, { fit: 'invalid' }, { weather: [] }]) {
-    assert.equal((await request({ method: 'PATCH', route, headers, body })).status, 400);
-    const listed = await request({ route: '/api/wardrobe', headers });
-    assert.deepEqual(listed.body, [current]);
-  }
-  const facts = { ...current.facts, name: 'Full update' };
-  const full = await request({ method: 'PATCH', route, headers, body: facts });
-  assert.equal(full.status, 200);
-  assert.deepEqual(full.body.facts, facts);
-  assert.equal(full.body.provenance.name.source, 'wearer-correction');
-  for (const key of Object.keys(facts).filter((key) => key !== 'name')) assert.deepEqual(full.body.provenance[key], current.provenance[key]);
-  assert.deepEqual((await request({ route: '/api/wardrobe', headers })).body, [full.body]);
-});
+    for (const body of [{}, { unexpected: true }, { name: 'Ignored', unexpected: true }, { fit: 'invalid' }, { weather: [] }]) {
+      assert.equal((await request({ method: 'PATCH', route, headers, body })).status, 400);
+      const listed = await request({ route: '/api/wardrobe', headers });
+      assert.deepEqual(listed.body, [current]);
+    }
+    const facts = { ...current.facts, name: 'Full update' };
+    const full = await request({ method: 'PATCH', route, headers, body: facts });
+    assert.equal(full.status, 200);
+    assert.deepEqual(full.body.facts, facts);
+    assert.equal(full.body.provenance.name.source, 'wearer-correction');
+    for (const key of Object.keys(facts).filter((key) => key !== 'name')) assert.deepEqual(full.body.provenance[key], current.provenance[key]);
+    assert.deepEqual((await request({ route: '/api/wardrobe', headers })).body, [full.body]);
+  });
+}
 
 test('health check answers from the database without a session', async (t) => {
   const { request, origin } = await start(t);
@@ -83,52 +89,56 @@ test('configured public Host and Origins are allowed without expanding the Host 
   assert.equal((await request({ method: 'POST', route: '/api/auth/sign-up/email', headers: { Host: 'app.getyourfit.co' }, body: {} })).status, 403);
 });
 
-test('public signup issues a secure private cookie and retains the account session without email confirmation', async (t) => {
-  const { request } = await start(t, { BETTER_AUTH_URL: publicOrigin });
-  const headers = { Host: 'app.getyourfit.co', Origin: publicOrigin, 'Content-Type': 'application/json' };
-  const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {
-    name: 'Wearer', email: `wearer-${randomBytes(8).toString('hex')}@example.test`,
-    password: randomBytes(32).toString('base64url'), adultConfirmed: true,
-  } });
-  assert.equal(signedUp.status, 200);
-  const cookies = signedUp.headers['set-cookie'];
-  const sessionCookie = cookies.find((cookie) => cookie.startsWith('__Secure-gyf.session_token='));
-  assert.ok(sessionCookie);
-  const attributes = new Set(sessionCookie.split(';').slice(1).map((attribute) => attribute.trim()));
-  for (const attribute of ['Secure', 'HttpOnly', 'SameSite=Lax', 'Path=/']) assert.ok(attributes.has(attribute));
-  const session = await request({ headers: { Host: 'app.getyourfit.co', Cookie: sessionCookie.split(';')[0] } });
-  assert.deepEqual(session.body, { signedIn: true, email: session.body.email, twoFactorEnabled: false });
-});
+for (const backend of backends) {
+  test(`public signup issues a secure private cookie and retains the account session without email confirmation [${backend}]`, async (t) => {
+    const { request } = await start(t, { BETTER_AUTH_URL: publicOrigin }, { backend });
+    const headers = { Host: 'app.getyourfit.co', Origin: publicOrigin, 'Content-Type': 'application/json' };
+    const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {
+      name: 'Wearer', email: `wearer-${randomBytes(8).toString('hex')}@example.test`,
+      password: randomBytes(32).toString('base64url'), adultConfirmed: true,
+    } });
+    assert.equal(signedUp.status, 200);
+    const cookies = signedUp.headers['set-cookie'];
+    const sessionCookie = cookies.find((cookie) => cookie.startsWith('__Secure-gyf.session_token='));
+    assert.ok(sessionCookie);
+    const attributes = new Set(sessionCookie.split(';').slice(1).map((attribute) => attribute.trim()));
+    for (const attribute of ['Secure', 'HttpOnly', 'SameSite=Lax', 'Path=/']) assert.ok(attributes.has(attribute));
+    const session = await request({ headers: { Host: 'app.getyourfit.co', Cookie: sessionCookie.split(';')[0] } });
+    assert.deepEqual(session.body, { signedIn: true, email: session.body.email, twoFactorEnabled: false });
+  });
+}
 
-test('email reset and verification say email is unavailable, and a signed-in password change recovers the account', async (t) => {
-  const { request, origin } = await start(t);
-  const headers = { Origin: origin, 'Content-Type': 'application/json' };
-  const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
-  const password = randomBytes(32).toString('base64url');
-  const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: { name: 'Wearer', email, password, adultConfirmed: true } });
-  assert.equal(signedUp.status, 200);
-  assert.equal(typeof signedUp.body.token, 'string', 'Signup must sign the wearer in without confirming email.');
-  const duplicate = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: { name: 'Taker', email, password: randomBytes(32).toString('base64url'), adultConfirmed: true } });
-  assert.notEqual(duplicate.status, 200, 'A second signup for a registered address must not create a session.');
-  assert.equal(duplicate.headers['set-cookie'], undefined);
-  for (const route of ['/api/auth/request-password-reset', '/api/auth/forget-password', '/api/auth/reset-password', '/api/auth/send-verification-email']) {
-    const refused = await request({ method: 'POST', route, headers, body: { email, token: 'x', newPassword: password } });
-    assert.equal(refused.status, 503, route);
-    assert.equal(refused.body.code, 'EMAIL_NOT_AVAILABLE', route);
-    assert.match(refused.body.message, /Change your password from Account/);
-  }
-  assert.equal((await request({ route: '/api/auth/verify-email?token=x', headers: { Origin: origin } })).status, 404);
-  const cookie = signedUp.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
-  const newPassword = randomBytes(32).toString('base64url');
-  const wrong = await request({ method: 'POST', route: '/api/auth/change-password', headers: { ...headers, Cookie: cookie },
-    body: { currentPassword: randomBytes(32).toString('base64url'), newPassword, revokeOtherSessions: true } });
-  assert.notEqual(wrong.status, 200, 'A wrong current password changed the password.');
-  const changed = await request({ method: 'POST', route: '/api/auth/change-password', headers: { ...headers, Cookie: cookie },
-    body: { currentPassword: password, newPassword, revokeOtherSessions: true } });
-  assert.equal(changed.status, 200);
-  assert.notEqual((await request({ method: 'POST', route: '/api/auth/sign-in/email', headers, body: { email, password } })).status, 200, 'The old password still works.');
-  assert.equal((await request({ method: 'POST', route: '/api/auth/sign-in/email', headers, body: { email, password: newPassword } })).status, 200);
-});
+for (const backend of backends) {
+  test(`email reset and verification say email is unavailable, and a signed-in password change recovers the account [${backend}]`, async (t) => {
+    const { request, origin } = await start(t, {}, { backend });
+    const headers = { Origin: origin, 'Content-Type': 'application/json' };
+    const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
+    const password = randomBytes(32).toString('base64url');
+    const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: { name: 'Wearer', email, password, adultConfirmed: true } });
+    assert.equal(signedUp.status, 200);
+    assert.equal(typeof signedUp.body.token, 'string', 'Signup must sign the wearer in without confirming email.');
+    const duplicate = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: { name: 'Taker', email, password: randomBytes(32).toString('base64url'), adultConfirmed: true } });
+    assert.notEqual(duplicate.status, 200, 'A second signup for a registered address must not create a session.');
+    assert.equal(duplicate.headers['set-cookie'], undefined);
+    for (const route of ['/api/auth/request-password-reset', '/api/auth/forget-password', '/api/auth/reset-password', '/api/auth/send-verification-email']) {
+      const refused = await request({ method: 'POST', route, headers, body: { email, token: 'x', newPassword: password } });
+      assert.equal(refused.status, 503, route);
+      assert.equal(refused.body.code, 'EMAIL_NOT_AVAILABLE', route);
+      assert.match(refused.body.message, /Change your password from Account/);
+    }
+    assert.equal((await request({ route: '/api/auth/verify-email?token=x', headers: { Origin: origin } })).status, 404);
+    const cookie = signedUp.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
+    const newPassword = randomBytes(32).toString('base64url');
+    const wrong = await request({ method: 'POST', route: '/api/auth/change-password', headers: { ...headers, Cookie: cookie },
+      body: { currentPassword: randomBytes(32).toString('base64url'), newPassword, revokeOtherSessions: true } });
+    assert.notEqual(wrong.status, 200, 'A wrong current password changed the password.');
+    const changed = await request({ method: 'POST', route: '/api/auth/change-password', headers: { ...headers, Cookie: cookie },
+      body: { currentPassword: password, newPassword, revokeOtherSessions: true } });
+    assert.equal(changed.status, 200);
+    assert.notEqual((await request({ method: 'POST', route: '/api/auth/sign-in/email', headers, body: { email, password } })).status, 200, 'The old password still works.');
+    assert.equal((await request({ method: 'POST', route: '/api/auth/sign-in/email', headers, body: { email, password: newPassword } })).status, 200);
+  });
+}
 
 async function rateLimit(request, origin, forwarded) {
   for (let attempt = 1; attempt <= 6; attempt += 1) {
@@ -166,7 +176,8 @@ test('trusted ingress chains use the closest untrusted address, preserving separ
 
 test('invalid public origins and proxy settings refuse startup before creating account data', async (t) => {
   const database = await createTestDatabase();
-  t.after(() => database.drop());
+  const dataDir = path.join(await mkdtemp(path.join(tmpdir(), 'gyf-invalid-boundary-')), 'data');
+  t.after(async () => { await database.drop(); await rm(path.dirname(dataDir), { recursive: true, force: true }); });
   for (const [setting, value] of [
     ['BETTER_AUTH_URL', 'http://app.getyourfit.co'],
     ['BETTER_AUTH_URL', 'https://app.getyourfit.co/path'],
@@ -182,13 +193,23 @@ test('invalid public origins and proxy settings refuse startup before creating a
     const refused = spawnSync(process.execPath, ['server/index.mjs'], {
       cwd: new URL('../', import.meta.url), encoding: 'utf8', timeout: 10_000,
       env: {
-        ...process.env, NODE_ENV: 'production', DATABASE_URL: database.url,
+        ...process.env, NODE_ENV: 'production', DATABASE_URL: '', GYF_DATA_DIR: dataDir,
         BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
         BETTER_AUTH_URL: '', GYF_ALLOWED_ORIGINS: '', GYF_TRUSTED_PROXIES: '', [setting]: value,
       },
     });
     assert.notEqual(refused.status, 0, `${setting} accepted invalid configuration.`);
     assert.match(refused.stderr, new RegExp(setting));
+    assert.equal(existsSync(dataDir), false, 'Invalid configuration created persistent account data.');
+    const postgres = spawnSync(process.execPath, ['server/index.mjs'], {
+      cwd: new URL('../', import.meta.url), encoding: 'utf8', timeout: 10_000,
+      env: {
+        ...process.env, NODE_ENV: 'production', DATABASE_URL: database.url, GYF_DATA_DIR: dataDir,
+        BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
+        BETTER_AUTH_URL: '', GYF_ALLOWED_ORIGINS: '', GYF_TRUSTED_PROXIES: '', [setting]: value,
+      },
+    });
+    assert.notEqual(postgres.status, 0, `${setting} accepted invalid configuration on Postgres.`);
     const client = new pg.Client({ connectionString: database.url });
     await client.connect();
     const tables = (await client.query("SELECT count(*) AS count FROM information_schema.tables WHERE table_schema = 'public'")).rows[0].count;

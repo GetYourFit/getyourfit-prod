@@ -1,93 +1,26 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import pg from 'pg';
+import { postgresDriver } from './db/postgres.mjs';
+import { sqliteDriver } from './db/sqlite.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const migrationsDirectory = path.join(root, 'migrations');
-const supabaseRootCa = path.join(root, 'server/certs/supabase-root-2021-ca.crt');
+// SQLite in GYF_DATA_DIR is the default. Setting DATABASE_URL opts in to Postgres (the Supabase session pooler in production).
+const driver = process.env.DATABASE_URL ? postgresDriver(process.env.DATABASE_URL) : sqliteDriver();
 
-const databaseUrl = process.env.DATABASE_URL || '';
-if (!databaseUrl) throw new Error('Set DATABASE_URL to the Postgres connection string (the Supabase session pooler on port 5432 in production).');
+export const backend = driver.kind;
+export const authDatabase = driver.authDatabase;
+export const query = driver.query;
+export const transaction = driver.transaction;
+export const runMigrations = driver.migrate;
+export const reclaimDeletedData = driver.reclaim;
+export const closeDatabase = driver.close;
 
-function sslFor(url) {
-  const { hostname } = new URL(url);
-  if (['localhost', '127.0.0.1', '[::1]'].includes(hostname) || process.env.GYF_DATABASE_SSL === 'disable') return false;
-  const caFile = process.env.GYF_DATABASE_CA_FILE || (/\.supabase\.(com|co)$/.test(hostname) ? supabaseRootCa : '');
-  return { rejectUnauthorized: true, ...(caFile ? { ca: fs.readFileSync(caFile, 'utf8') } : {}) };
-}
-
-// Postgres returns bigint as strings; every bigint column here holds epoch milliseconds that fit a double.
-pg.types.setTypeParser(pg.types.builtins.INT8, Number);
-
-export function createPool(url, max = Number(process.env.GYF_DATABASE_POOL_SIZE || 10)) {
-  const created = new pg.Pool({ connectionString: url, ssl: sslFor(url), max, idleTimeoutMillis: 30_000 });
-  // An idle client dropped by the server (a Supabase restart or free-tier pause) must not crash the process.
-  created.on('error', () => {});
-  return created;
-}
-
-export const pool = createPool(databaseUrl);
-
-export const query = (text, values) => pool.query(text, values);
-
-export async function transaction(work) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await work((text, values) => client.query(text, values));
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK').catch(() => {});
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-// Applies migrations/*.sql in name order, each in its own transaction, serialized across instances by an advisory lock.
-// An applied migration whose file has since changed is refused rather than silently skipped.
-export async function applyMigrations(target, directory = migrationsDirectory) {
-  const client = await target.connect();
-  try {
-    await client.query('SELECT pg_advisory_lock(hashtext($1))', ['getyourfit-migrations']);
-    await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
-    const applied = new Map((await client.query('SELECT name, checksum FROM schema_migrations')).rows.map((row) => [row.name, row.checksum]));
-    const files = fs.readdirSync(directory).filter((name) => name.endsWith('.sql')).sort();
-    const ran = [];
-    for (const name of files) {
-      const sql = fs.readFileSync(path.join(directory, name), 'utf8');
-      const checksum = crypto.createHash('sha256').update(sql).digest('hex');
-      if (applied.has(name)) {
-        if (applied.get(name) !== checksum) throw new Error(`Migration ${name} changed after it was applied. Add a new migration instead.`);
-        continue;
-      }
-      try {
-        await client.query('BEGIN');
-        await client.query(sql);
-        await client.query('INSERT INTO schema_migrations (name, checksum) VALUES ($1, $2)', [name, checksum]);
-        await client.query('COMMIT');
-      } catch (error) {
-        await client.query('ROLLBACK').catch(() => {});
-        throw new Error(`Migration ${name} failed: ${error.message}`, { cause: error });
-      }
-      ran.push(name);
-    }
-    return ran;
-  } finally {
-    await client.query('SELECT pg_advisory_unlock(hashtext($1))', ['getyourfit-migrations']).catch(() => {});
-    client.release();
-  }
-}
+// Postgres returns timestamptz as Date and jsonb as objects; SQLite returns the ISO text and JSON text that were stored.
+export const asIso = (value) => value instanceof Date ? value.toISOString() : value;
+export const asJson = (value) => typeof value === 'string' ? JSON.parse(value) : value;
 
 // An audit write that fails must never fail the request it describes.
-export const runMigrations = () => applyMigrations(pool);
-
 export async function audit(action) {
   try {
-    await query('INSERT INTO auth_audit (id, action, occurred_at) VALUES ($1, $2, now())', [crypto.randomUUID(), action]);
+    await query('INSERT INTO auth_audit (id, action, occurred_at) VALUES ($1, $2, $3)', [crypto.randomUUID(), action, new Date().toISOString()]);
   } catch (error) {
     process.stderr.write(`audit write failed for ${action}: ${error.code ?? error.message}\n`);
   }

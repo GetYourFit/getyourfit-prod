@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createTestDatabase } from '../tests/support/database.mjs';
+import { createStore } from '../tests/support/store.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const portProbe = net.createServer();
@@ -14,7 +14,7 @@ const port = portProbe.address().port;
 await new Promise((resolve) => portProbe.close(resolve));
 const origin = `http://127.0.0.1:${port}`;
 const session = `gyf-local-account-${process.pid}`;
-const database = await createTestDatabase();
+const store = await createStore();
 const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
 let password = randomBytes(32).toString('base64url');
 const secret = randomBytes(48).toString('base64url');
@@ -72,7 +72,7 @@ async function startServer() {
   serverError = '';
   server = spawn(process.execPath, ['server/index.mjs'], {
     cwd: root, stdio: ['ignore', 'ignore', 'pipe'],
-    env: { ...process.env, NODE_ENV: 'production', DATABASE_URL: database.url, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: String(port) },
+    env: { ...process.env, NODE_ENV: 'production', ...store.env, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: String(port) },
   });
   server.stderr.on('data', (chunk) => { serverError += chunk; });
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -90,7 +90,7 @@ try {
   run('npm', ['run', 'build']);
   const refused = spawnSync(process.execPath, ['server/index.mjs'], {
     cwd: root, encoding: 'utf8', timeout: 10_000,
-    env: { ...process.env, BETTER_AUTH_SECRET: '', DATABASE_URL: database.url },
+    env: { ...process.env, BETTER_AUTH_SECRET: '', ...store.env },
   });
   assert.notEqual(refused.status, 0);
   assert.match(refused.stderr, /stable random key/);
@@ -169,9 +169,9 @@ try {
   fill('Password', password);
   click('Sign in');
   await shown('We could not sign you in.');
-  process.stdout.write('verify:local-account passed: production browser signup without email confirmation, adult consent, honest email-reset notice, signed-in password change, unverified export, stable-key restart, wrong password, sign-out/sign-in, and permanent deletion.\n');
+  process.stdout.write(`verify:local-account passed: production browser signup without email confirmation (${store.backend}), adult consent, honest email-reset notice, signed-in password change, unverified export, stable-key restart, wrong password, sign-out/sign-in, and permanent deletion.\n`);
 } finally {
   await stopServer();
   try { chrome(['stop']); } catch (error) { process.stderr.write(`Browser cleanup failed: ${String(error)}\n`); }
-  await database.drop();
+  await store.drop();
 }

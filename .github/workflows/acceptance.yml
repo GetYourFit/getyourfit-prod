@@ -45,6 +45,11 @@ jobs:
         run: npm run acceptance
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/acceptance/production
+      - name: Check the production build against Postgres
+        if: ${{ !cancelled() }}
+        run: npm run acceptance:postgres
+        env:
+          ACCEPTANCE_OUTPUT: ${{ runner.temp }}/acceptance/production-postgres
       - name: Preserve acceptance evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4

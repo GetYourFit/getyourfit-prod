@@ -6,14 +6,16 @@ import test, { after } from 'node:test';
 import pg from 'pg';
 import { createTestDatabase } from './support/database.mjs';
 
-// The server modules read DATABASE_URL once at import, so the file shares one database for them. Cases that need
+// The server modules read DATABASE_URL once at import (setting it selects the Postgres backend), so the file shares one database for them. Cases that need
 // an empty database create their own and talk to it through createPool/applyMigrations.
 const shared = await createTestDatabase();
 process.env.DATABASE_URL = shared.url;
 process.env.BETTER_AUTH_SECRET = 'a'.repeat(48);
-const { applyMigrations, createPool, migrationsDirectory, pool, query, runMigrations } = await import('../server/database.mjs');
+const { applyMigrations, createPool, migrationsDirectory } = await import('../server/db/postgres.mjs');
+const { backend, closeDatabase, query, runMigrations } = await import('../server/database.mjs');
+assert.equal(backend, 'postgres');
 const auth = await import('../server/auth.mjs');
-after(async () => { await pool.end(); await shared.drop(); });
+after(async () => { await closeDatabase(); await shared.drop(); });
 
 async function emptyDatabase(t, { supabaseRoles = false } = {}) {
   const database = await createTestDatabase();

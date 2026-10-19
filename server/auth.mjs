@@ -3,7 +3,7 @@ import { betterAuth } from 'better-auth';
 import { twoFactor } from 'better-auth/plugins';
 import { hash, verify } from '@node-rs/argon2';
 import { allowedOrigins, authOrigin, authSecret } from './config.mjs';
-import { pool, query } from './database.mjs';
+import { authDatabase, backend, query } from './database.mjs';
 
 const argon2id = { memoryCost: 65536, timeCost: 3, parallelism: 2, outputLen: 32, algorithm: 2 };
 export const hashPassword = (password) => hash(password, argon2id);
@@ -11,7 +11,7 @@ export const auth = betterAuth({
   appName: 'GetYourFit',
   baseURL: authOrigin,
   secret: authSecret,
-  database: pool,
+  database: authDatabase,
   trustedOrigins: [...allowedOrigins],
   logger: { disabled: true },
   rateLimit: {
@@ -41,7 +41,7 @@ export const auth = betterAuth({
   },
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 12, cookieCache: { enabled: false } },
   advanced: {
-    // assertAuthSchema() checks the schema once after migrations; Better Auth's own check would run at import, before they do.
+    // prepareAuthSchema() settles the schema once at startup; Better Auth's own check would run at import, before Postgres migrations do.
     database: { validateSchema: false },
     ipAddress: { ipAddressHeaders: ['x-gyf-client-ip'] },
     useSecureCookies: true,
@@ -61,13 +61,22 @@ export const auth = betterAuth({
   },
 });
 
-// The schema comes from migrations/, not from Better Auth. Refuse to start if the installed Better Auth expects anything else.
+// Postgres: the schema comes from migrations/, so refuse to start if the installed Better Auth expects anything else.
 export async function assertAuthSchema() {
   const { toBeCreated, toBeAdded, toBeAddedIndexes, unsafeChanges, schemaProblems } = await (await import('better-auth/db/migration')).getMigrations(auth.options);
   if (toBeCreated.length || toBeAdded.length || toBeAddedIndexes.length || unsafeChanges.length || schemaProblems.length) {
     throw new Error('The database does not match the Better Auth schema. Add a migration in migrations/.');
   }
 }
+
+// SQLite keeps its original behavior: Better Auth creates and extends its own tables.
+export async function migrateAuth() {
+  const { schemaProblems, runMigrations } = await (await import('better-auth/db/migration')).getMigrations(auth.options);
+  if (schemaProblems.length) throw new Error('Better Auth database schema requires review.');
+  await runMigrations();
+}
+
+export const prepareAuthSchema = () => backend === 'postgres' ? assertAuthSchema() : migrateAuth();
 
 export function emailKey(email) {
   return crypto.createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex');

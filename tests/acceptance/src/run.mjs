@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import axe from 'axe-core';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, readFile, writeFile, mkdtemp } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { createServer as tcpServer } from 'node:net';
 import pg from 'pg';
 import { tmpdir } from 'node:os';
@@ -71,8 +71,16 @@ function redact(value) {
   for (const secret of secrets) text = text.replaceAll(secret, '[redacted]');
   return text;
 }
-// A disposable database on the Postgres named by GYF_TEST_DATABASE_URL (see scripts/with-postgres.mjs at the repository root).
+// A disposable database for the service. SQLite in a private temporary directory is the default runtime; set
+// GYF_ACCEPTANCE_BACKEND=postgres to opt in to Postgres on the server named by GYF_TEST_DATABASE_URL
+// (see scripts/with-postgres.mjs at the repository root).
 async function createDatabase() {
+  const backend = process.env.GYF_ACCEPTANCE_BACKEND || 'sqlite';
+  assert(['sqlite', 'postgres'].includes(backend), 'GYF_ACCEPTANCE_BACKEND must be sqlite or postgres');
+  if (backend === 'sqlite') {
+    const dataDir = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-data-'));
+    return { env: { GYF_DATA_DIR: dataDir }, drop: () => rm(dataDir, { recursive: true, force: true }) };
+  }
   const adminURL = process.env.GYF_TEST_DATABASE_URL;
   assert(adminURL, 'Set GYF_TEST_DATABASE_URL, or run through `node scripts/with-postgres.mjs`.');
   const name = `acceptance_${randomBytes(6).toString('hex')}`;
@@ -82,7 +90,7 @@ async function createDatabase() {
   const url = new URL(adminURL);
   url.pathname = `/${name}`;
   return {
-    url: url.toString(),
+    env: { DATABASE_URL: url.toString() },
     async drop() {
       const client = new pg.Client({ connectionString: adminURL });
       await client.connect();
@@ -114,7 +122,7 @@ try {
     if (!stubMode) database = await createDatabase();
     const authSecret = randomBytes(32).toString('hex');
     secrets.add(authSecret);
-    const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, HOST: '127.0.0.1', PORT: String(appPort), GYF_PORT: String(appPort), ...(database ? { DATABASE_URL: database.url } : {}), APP_URL: baseURL };
+    const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, HOST: '127.0.0.1', PORT: String(appPort), GYF_PORT: String(appPort), ...(database?.env ?? {}), APP_URL: baseURL };
     if (stubMode) {
       server = spawn(process.execPath, [path.join(here, 'stub-server.mjs')], { env: { ...env, MUTATION: process.env.MUTATION || '' }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
       runtime = 'contract-stub';

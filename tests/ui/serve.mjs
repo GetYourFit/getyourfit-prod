@@ -3,23 +3,23 @@ import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createTestDatabase } from '../support/database.mjs';
+import { createStore } from '../support/store.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const port = process.env.UI_PORT;
 if (!port) throw new Error('UI_PORT is required.');
-const database = await createTestDatabase();
+const store = await createStore(process.env.GYF_UI_BACKEND);
 const server = spawn(process.execPath, ['server/index.mjs'], {
   cwd: root,
   stdio: 'inherit',
   env: {
     PATH: process.env.PATH, NODE_ENV: 'production', GYF_PORT: port, BETTER_AUTH_URL: `http://127.0.0.1:${port}`,
-    DATABASE_URL: database.url, BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
+    ...store.env, BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
   },
 });
 const stop = () => { server.kill('SIGTERM'); };
 process.on('SIGTERM', stop);
 process.on('SIGINT', stop);
 server.on('exit', (code) => {
-  void database.drop().finally(() => process.exit(code ?? 0));
+  void store.drop().finally(() => process.exit(code ?? 0));
 });

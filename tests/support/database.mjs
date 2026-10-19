@@ -2,10 +2,9 @@
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
 
-const adminUrl = process.env.GYF_TEST_DATABASE_URL;
-if (!adminUrl) throw new Error('GYF_TEST_DATABASE_URL is not set. Run through `npm test`, or `node scripts/with-postgres.mjs <command>`.');
-
 export async function createTestDatabase() {
+  const adminUrl = process.env.GYF_TEST_DATABASE_URL;
+  if (!adminUrl) throw new Error('GYF_TEST_DATABASE_URL is not set. Run through `npm test`, or `node scripts/with-postgres.mjs <command>`.');
   const name = `gyf_${randomBytes(8).toString('hex')}`;
   const admin = new pg.Client({ connectionString: adminUrl });
   await admin.connect();

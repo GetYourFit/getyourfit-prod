@@ -6,7 +6,7 @@ Journey assertions use public browser and API behavior observed against the loca
 
 `npm run build` produces the release build. `npm start` serves that build and its API using `HOST`, `PORT`, `APP_URL`, `GYF_DATA_DIR`, `DATABASE_URL` and `BETTER_AUTH_SECRET`; the production service additionally reads `BETTER_AUTH_URL` and `GYF_MAIL_TRANSPORT=disabled`, which the runner also sets. The runner generates a disposable random 64 character secret for each run and never persists it. Storage for a run must stay inside `GYF_DATA_DIR`.
 
-The main runner supplies a disposable Postgres `DATABASE_URL`. The application has no mail transport, and no prerequisite external identity or email provider is needed. The no-mail signup observations below describe the product: email confirmation is off.
+The main runner supplies a disposable database: a temporary `GYF_DATA_DIR` by default, or a disposable Postgres `DATABASE_URL` with `GYF_ACCEPTANCE_BACKEND=postgres`. The application has no mail transport, and no prerequisite external identity or email provider is needed. The no-mail signup observations below describe the product: email confirmation is off.
 
 ## Browser journey
 

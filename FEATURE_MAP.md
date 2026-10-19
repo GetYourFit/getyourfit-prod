@@ -1,7 +1,7 @@
 <!-- Generated from src/verification/features.json. Edit that file, then run npm run feature-map. -->
 # GetYourFit feature map
 
-Local responsive browser app, loopback Node service, and private Postgres account and wardrobe data. Each entry links to user steps and observable proof.
+Local responsive browser app, loopback Node service, and private SQLite (default) or Postgres account and wardrobe data. Each entry links to user steps and observable proof.
 
 - [Create and protect an account](./.cursor/skills/verify-getyourfit/features/account-access.md) - Sign-in page at /sign-in.
 - [Add and correct real garments](./.cursor/skills/verify-getyourfit/features/wardrobe.md) - Wardrobe at /wardrobe after sign-in.

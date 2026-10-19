@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
-import { assertAuthSchema, auth, clearLockout, isLockedOut, recordSignInResult } from './auth.mjs';
-import { audit, pool, query, runMigrations } from './database.mjs';
+import { auth, clearLockout, isLockedOut, prepareAuthSchema, recordSignInResult } from './auth.mjs';
+import { audit, closeDatabase, query, reclaimDeletedData, runMigrations } from './database.mjs';
 import { ensureFunnelSchema, funnelRouter } from './funnel.mjs';
 import { exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
 import { allowedHosts, allowedOrigins, apiPort, trustedProxies } from './config.mjs';
@@ -115,6 +115,7 @@ app.delete('/api/data', requireUser, async (request, response) => {
   if (request.body?.confirm !== 'delete my account') return response.status(400).json({ error: 'Confirm deletion to erase your local account.' });
   const { id, email } = request.user;
   await query('DELETE FROM "user" WHERE id = $1', [id]);
+  await reclaimDeletedData();
   await clearLockout(email);
   await audit('account-deleted');
   response.setHeader('Set-Cookie', '__Secure-gyf.session_token=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
@@ -158,7 +159,7 @@ if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
 }
 
 await runMigrations();
-await assertAuthSchema();
+await prepareAuthSchema();
 ensureFunnelSchema();
 const server = http.createServer(app);
 server.keepAliveTimeout = 65_000;
@@ -166,7 +167,7 @@ server.headersTimeout = 66_000;
 server.listen(apiPort, '127.0.0.1', () => {});
 
 const shutdown = () => {
-  server.close(() => { void pool.end().finally(() => process.exit(0)); });
+  server.close(() => { void closeDatabase().finally(() => process.exit(0)); });
   setTimeout(() => process.exit(0), 5000).unref();
 };
 process.on('SIGTERM', shutdown);
