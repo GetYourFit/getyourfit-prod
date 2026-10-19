@@ -24,11 +24,11 @@ The foundation delivered the buildable app shell, and the next increment deliver
 
 ## Stack
 
-React, TypeScript, and Vite serve the browser UI. A loopback Node.js service uses Express and SQLite. Better Auth provides email/password authentication with Argon2id hashing and optional TOTP. The default account path needs no mail provider and includes session controls, full export, and deletion. Zod schemas share runtime validation across browser and service; Sharp decodes and canonicalizes untrusted image bytes; a bounded Swift process performs macOS-local Apple Vision classification. The preserved opt-in email path requires verification and uses hashed, short-lived, single-use reset tokens plus TLS-protected SMTP. Its automated tests enable a runner-only in-memory catcher; browser mailbox requests remain unavailable. No provider is configured, so those tests do not prove real-user email delivery.
+React, TypeScript, and Vite serve the browser UI. A loopback Node.js service uses Express and SQLite. Better Auth provides email/password authentication with Argon2id hashing and optional TOTP. Accounts include session controls, full export, and deletion. Zod schemas share runtime validation across browser and service; Sharp decodes and canonicalizes untrusted image bytes; a bounded Swift process performs macOS-local Apple Vision classification. [Mail settings](../README.md#mail-settings) owns account delivery modes and configuration.
 
 ## Account and privacy decisions
 
-The default account mode now disables email delivery, immediately signs in a new adult account, and preserves an honest unverified status in exports. It hides password recovery and rejects reset requests instead of claiming mail was sent. Both runtime modes require the same retained authentication key across restarts. Existing SMTP verification/recovery and restricted test-mailbox code remain available for controlled local validation.
+The earlier no-mail default is superseded by [Mail settings](../README.md#mail-settings). [Run locally](../README.md#run-locally) owns authentication-key requirements across restarts.
 
 The captain replaced the earlier passkey decision with email/password authentication, verified email, short-lived single-use password-reset links stored as hashes, optional TOTP, secure cookies, origin checks, rate limits, safe logs, sign-out everywhere, export, deletion, configurable SMTP delivery, and an explicit 18+ gate. Optional Google sign-in is deferred unless a free configuration becomes available. The isolated verification runner enables an in-memory catcher with a per-run bearer token; browser users receive no mailbox content.
 

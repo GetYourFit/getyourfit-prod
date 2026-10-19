@@ -19,7 +19,7 @@ Use an exact `main` revision with successful `quality` and `acceptance` checks. 
 | `GYF_PORT` | A chosen loopback port from 1 through 65535, matching the ingress upstream; the default is 4174 |
 | `GYF_DATA_DIR` | A persistent directory outside the release checkout, writable by the service identity |
 | `BETTER_AUTH_SECRET` | A stable random key of at least 32 characters, injected from the vault; supply the vault reference and workload access, never a literal value in Git or logs |
-| `GYF_MAIL_TRANSPORT` | Leave unset. The SMTP transport is selected when `GYF_SMTP_HOST` is present; without it the app reports that email delivery is not connected |
+| Mail configuration | Supply the provider values in the [mail release handoff](#mail-release-handoff); [Mail settings](../README.md#mail-settings) owns transport behavior |
 
 Retain the secret with the database across releases and restores. Changing it invalidates sessions and makes existing authenticator secrets unreadable.
 
@@ -38,7 +38,7 @@ The deployment owner supplies these values from the vault as service environment
 
 Never put the literal app password in the repository or logs. Also set `GYF_SMTP_PORT=587` and `GYF_SMTP_SECURE=false`; port 587 requires STARTTLS in [server/mail.mjs](../server/mail.mjs). Do not set `GYF_MAIL_TRANSPORT`.
 
-Until that handoff is complete, the live app reports that email delivery is not connected yet. Signup and password-reset requests return HTTP 503 with code `EMAIL_NOT_CONNECTED`, and nothing is mocked. Once the values exist, verification and password reset are enforced and delivered, and accounts created earlier must verify their email before they can sign in. After activation, the deployment owner must verify signup verification and password reset through the public HTTPS browser path using real delivered messages before calling mail live.
+Account behavior before and after configuration follows [Mail settings](../README.md#mail-settings). After activation, the deployment owner must verify signup verification and password reset through the public HTTPS browser path using real delivered messages before calling mail live.
 
 `getyourfit.sqlite` holds accounts, wardrobe records, garment photos as BLOBs, and private starter plans. Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
 
@@ -52,7 +52,7 @@ Set `GYF_TRUSTED_PROXIES` only to the addresses of controlled ingress hops, neve
 
 `npm test` exercises the real production HTTP service on free ports with disposable databases and per-run credentials: loopback and public requests, foreign rejection, secure signup cookies, forwarding spoof resistance, separate ingress clients, and invalid startup configuration.
 
-Verify signup, session continuity, real photo upload and refresh, an owned-outfit result, and cross-user isolation through the public HTTPS browser path. While SMTP values are absent, verify that signup and password-reset requests return HTTP 503 `EMAIL_NOT_CONNECTED`. After SMTP activation, follow the mail release handoff above. `npm run acceptance` starts its own isolated local service and cannot verify a deployed URL. Keep both required checks bound to the release revision; [workflow-kit.md](workflow-kit.md) records protection.
+Verify signup, session continuity, real photo upload and refresh, an owned-outfit result, and cross-user isolation through the public HTTPS browser path. Check account availability against [Mail settings](../README.md#mail-settings) and follow the mail release handoff above for provider activation. `npm run acceptance` starts its own isolated local service and cannot verify a deployed URL. Keep both required checks bound to the release revision; [workflow-kit.md](workflow-kit.md) records protection.
 
 ## Starter-plan release handoff
 
