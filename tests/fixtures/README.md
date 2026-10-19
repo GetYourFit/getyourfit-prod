@@ -2,7 +2,7 @@
 
 These photographs are verification inputs only. They are never seeded into a wearer's wardrobe or shipped in the browser bundle. Each is the original downloaded file, without alterations. Browser and service verification resize and strip metadata from the account's stored copy.
 
-All three files are published under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/). Source pages identify the photographs as the authors' own work. The shirt and trousers show one garment; the footwear photograph includes black trainers and pink sandals, and the test wearer explicitly records the black trainers.
+The three photographs in the table are published under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/). Source pages identify the photographs as the authors' own work. The shirt and trousers show one garment; the footwear photograph includes black trainers and pink sandals, and the test wearer explicitly records the black trainers.
 
 | File | Author | Original source and licence record |
 | --- | --- | --- |

@@ -12,7 +12,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | R4 | slice1-local | Account, real photo, correction, wardrobe, one outfit, export, and deletion; fit, purchase, social, and long-term memory are deferred. |
 | R5 | slice1-local | Occasion, weather, and dress code feed one clear outfit action; unknown required facts produce one question. Natural-language parsing is deferred. Consumer shopping scope is owned by [Build my wardrobe](../README.md#build-my-wardrobe). |
 | R6 | next | This slice asks only the questions required to complete its decision. Broader adaptive onboarding needs outcome evidence. |
-| R7 | slice1-local | One consented real photo is resized in the browser, classified on the server, reviewed, corrected, and stored with provenance. Additional ownership states and ingestion channels are deferred. |
+| R7 | slice1-local | One consented real photo is reviewed, corrected, and stored with provenance through the [photo recognition flow](photo-recognition.md). Additional ownership states and ingestion channels are deferred. |
 | R8 | next | Persisted user corrections are the first memory signal; the broader typed style memory and decay model need repeated outcomes. |
 | R9 | slice1-local | Owned garment records require photos and confirmed facts. Separate starter-plan states are described in [Build my wardrobe](../README.md#build-my-wardrobe). Imports remain deferred. |
 | R10 | slice1-local | Store category, color, size, fit, availability, weather, and dress-code facts with source and inference provenance. Extended material, measurement, and commerce fields are deferred. |
