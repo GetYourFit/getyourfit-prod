@@ -39,7 +39,7 @@ export function LandingPage() {
               <li><Check size={18} aria-hidden="true" /><span>Fit and availability are confirmed by the wearer.</span></li>
             </ul>
             <p className="example-disclosure">These are illustrative facts. The garment photographs are stand-ins for similar pieces. Your outfits use only clothes you add. You confirm fit; we don't predict it.</p>
-            </details><p className="example-label">Stand-in garment photos. Your wardrobe starts empty.</p>
+            </details><p className="example-label">Illustrative example with stand-in garment photos. Your wardrobe starts empty.</p>
           </div>
         </div>
       </section>
