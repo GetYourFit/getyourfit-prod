@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Delegated by the task constraints: React, TypeScript, Vite, and a local Node.js service with SQLite. This keeps the first slice conventional, local-first, and free to run.
+Delegated by the task constraints: React, TypeScript, Vite, and a local Node.js service with SQLite. This kept the first slice conventional and free to run. The data layer has since moved to Postgres on Supabase's free plan, still at zero cost; see [Supabase](supabase.md).
 
 ## Users
 
