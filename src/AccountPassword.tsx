@@ -31,7 +31,7 @@ export function AccountPassword() {
     <div className="settings-icon" aria-hidden="true"><KeyRound size={20} /></div>
     <div className="settings-copy">
       <h2 id="password-title" className="card-title">Change password</h2>
-      <p className="muted">Password reset by email is not available yet, so changing it here while you are signed in is the way to recover control of your account. Other devices are signed out.</p>
+      <p className="muted">Changing your password requires your current password. A forgotten password cannot be recovered until email reset is connected, even if you are signed in. Other devices are signed out after a password change.</p>
       <form onSubmit={(event) => void change(event)} className="settings-form">
         <Field label="Current password">{(control) => <input {...control} className="input" name="current-password" type="password" autoComplete="current-password" value={current} onChange={(event) => setCurrent(event.target.value)} maxLength={1024} required />}</Field>
         <Field label="New password" hint="At least 12 characters. Choose a password you don’t use elsewhere." hintId="new-password-help">{(control) => <input {...control} className="input" name="new-password" type="password" autoComplete="new-password" value={next} onChange={(event) => setNext(event.target.value)} minLength={12} maxLength={1024} required />}</Field>

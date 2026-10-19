@@ -141,6 +141,8 @@ test('authentication titles follow every signed-out view', async ({ page }) => {
   await page.getByRole('button', { name: 'Forgot password?' }).click();
   await expect(page).toHaveTitle('Forgot your password? · GetYourFit');
   await expect(page.getByText('We can’t email password reset links yet.')).toBeVisible();
+  await expect(page.getByText('Changing your password requires your current password.')).toBeVisible();
+  await expect(page.getByText('A forgotten password cannot be recovered until email reset is connected, even if you are signed in.')).toBeVisible();
   await page.getByRole('button', { name: 'Back to sign in' }).click();
   await expect(page).toHaveTitle('Sign in · GetYourFit');
   await page.route('**/api/auth/sign-in/email', (route) => route.fulfill({ json: { twoFactorRedirect: true } }));

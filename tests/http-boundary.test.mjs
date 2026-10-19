@@ -109,7 +109,7 @@ for (const backend of backends) {
 }
 
 for (const backend of backends) {
-  test(`email reset and verification say email is unavailable, and a signed-in password change recovers the account [${backend}]`, async (t) => {
+  test(`email reset is unavailable and password changes require the current password [${backend}]`, async (t) => {
     const { request, origin } = await start(t, {}, { backend });
     const headers = { Origin: origin, 'Content-Type': 'application/json' };
     const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
@@ -124,7 +124,8 @@ for (const backend of backends) {
       const refused = await request({ method: 'POST', route, headers, body: { email, token: 'x', newPassword: password } });
       assert.equal(refused.status, 503, route);
       assert.equal(refused.body.code, 'EMAIL_NOT_AVAILABLE', route);
-      assert.match(refused.body.message, /Change your password from Account/);
+      assert.match(refused.body.message, /Changing your password from Account requires your current password/);
+      assert.match(refused.body.message, /A forgotten password cannot be recovered until email reset is connected, even if you are signed in/);
     }
     assert.equal((await request({ route: '/api/auth/verify-email?token=x', headers: { Origin: origin } })).status, 404);
     const cookie = signedUp.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');

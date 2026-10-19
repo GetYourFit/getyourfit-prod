@@ -105,6 +105,8 @@ try {
   }
   click('Forgot password?');
   await shown('We can’t email password reset links yet.');
+  await shown('Changing your password requires your current password.');
+  await shown('A forgotten password cannot be recovered until email reset is connected, even if you are signed in.');
   click('Back to sign in');
   await shown('Welcome back.');
   click('Create an account');
@@ -118,6 +120,8 @@ try {
   await shown('Your wardrobe');
   follow('Account');
   await shown('Signed in as');
+  await shown('Changing your password requires your current password.');
+  await shown('A forgotten password cannot be recovered until email reset is connected, even if you are signed in.');
   if (proofDir) {
     chrome(['screenshot', path.join(proofDir, 'v01-account-desktop.png')]);
     chrome(['emulate', '--viewport', '390x844x1,mobile,touch']);

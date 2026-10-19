@@ -28,7 +28,7 @@ The app uses the **session pooler**, `aws-0-ap-south-1.pooler.supabase.com:5432`
 - The direct host `db.<ref>.supabase.co` is IPv6-only on the free plan, and most hosts (including the development Mac) have no IPv6 route.
 - The transaction pooler (port 6543) does not support session state such as the advisory lock the migration runner takes.
 
-TLS is always verified. [`server/certs/supabase-root-2021-ca.crt`](../server/certs/supabase-root-2021-ca.crt) is Supabase's public root CA (valid to 2031-04-26, from `supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt`); it is used automatically for `*.supabase.com` and `*.supabase.co` hosts. `GYF_DATABASE_CA_FILE` supplies another CA, and `GYF_DATABASE_SSL=disable` is only for a loopback database. `GYF_DATABASE_POOL_SIZE` (default 10) must stay well under the free plan's connection limits.
+TLS is verified for remote databases. [`server/certs/supabase-root-2021-ca.crt`](../server/certs/supabase-root-2021-ca.crt) is Supabase's public root CA (valid to 2031-04-26, from `supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt`); it is used automatically for `*.supabase.com` and `*.supabase.co` hosts. `GYF_DATABASE_CA_FILE` supplies another CA. Connection-string SSL options cannot override the application's CA or certificate verification. Loopback databases use plaintext, and `GYF_DATABASE_SSL=disable` explicitly permits plaintext for an isolated test service such as the CI Postgres container. `GYF_DATABASE_POOL_SIZE` (default 10) must stay well under the free plan's connection limits.
 
 ## Schema and migrations
 
@@ -91,7 +91,7 @@ Email is off. There is no mail code, no SMTP setting, and no third-party mail pr
 
 - Sign-up needs no confirmation: the account is usable immediately and `emailVerified` stays false.
 - `/api/auth/request-password-reset`, `forget-password`, `reset-password`, `send-verification-email`, `verify-email` and `change-email` answer 503 `EMAIL_NOT_AVAILABLE` (404 for GET).
-- Forgot password? says reset links cannot be emailed yet. Recovery is Account > Change password while signed in (current password required; other devices are signed out). A wearer who has lost both password and session cannot recover the account.
+- Forgot password? says reset links cannot be emailed yet. Account > Change password requires the current password and signs out other devices. A forgotten password cannot be recovered until email reset is connected, even with a signed-in session.
 - Because nothing proves who owns an address, sign-up reports "already exists" for a registered email. This is the accepted cost of confirmation being off.
 
 ### Turning email on later

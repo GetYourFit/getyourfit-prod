@@ -3,14 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { parse } from 'pg-connection-string';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const migrationsDirectory = path.join(root, 'migrations');
 const supabaseRootCa = path.join(root, 'server/certs/supabase-root-2021-ca.crt');
 
-function sslFor(url) {
-  const { hostname } = new URL(url);
-  if (['localhost', '127.0.0.1', '[::1]'].includes(hostname) || process.env.GYF_DATABASE_SSL === 'disable') return false;
+function sslFor(hostname) {
+  if (['localhost', '127.0.0.1', '::1'].includes(hostname) || process.env.GYF_DATABASE_SSL === 'disable') return false;
   const caFile = process.env.GYF_DATABASE_CA_FILE || (/\.supabase\.(com|co)$/.test(hostname) ? supabaseRootCa : '');
   return { rejectUnauthorized: true, ...(caFile ? { ca: fs.readFileSync(caFile, 'utf8') } : {}) };
 }
@@ -19,7 +19,9 @@ function sslFor(url) {
 pg.types.setTypeParser(pg.types.builtins.INT8, Number);
 
 export function createPool(url, max = Number(process.env.GYF_DATABASE_POOL_SIZE || 10)) {
-  const created = new pg.Pool({ connectionString: url, ssl: sslFor(url), max, idleTimeoutMillis: 30_000 });
+  const config = parse(url);
+  delete config.connectionString;
+  const created = new pg.Pool({ ...config, ssl: sslFor(config.host), max, idleTimeoutMillis: 30_000 });
   // An idle client dropped by the server (a Supabase restart or free-tier pause) must not crash the process.
   created.on('error', () => {});
   return created;

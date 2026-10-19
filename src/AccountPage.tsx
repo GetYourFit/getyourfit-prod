@@ -72,7 +72,7 @@ export function AccountPage({ session }: { session: SignedInSession }) {
           <li>Your photos, garment facts, plans and outfit corrections are stored in your private account on the GetYourFit server, not in this browser.</li>
           <li>They are never sold or used for model training.</li>
           <li>Your password is stored as a one-way hash.</li>
-          <li>Your email address is not verified, and password reset by email is not available yet. Keep your password safe, and change it here while you are signed in.</li>
+          <li>Your email address is not verified. Password changes require your current password. A forgotten password cannot be recovered until email reset is connected, even if you are signed in.</li>
         </ul>
       </div>
     </section>

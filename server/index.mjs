@@ -62,9 +62,7 @@ app.use('/api/wardrobe', wardrobeRouter(requireUser));
 app.use('/api/funnel', funnelRouter());
 app.use(express.json({ limit: '32kb' }));
 
-// Email is not connected, so there is no reset or verification link to send. The signed-in password change in
-// Better Auth (/api/auth/change-password) is the recovery path until a mail provider is added.
-const emailUnavailable = { status: false, code: 'EMAIL_NOT_AVAILABLE', message: 'Email is not available yet, so password reset links cannot be sent. Change your password from Account while signed in.' };
+const emailUnavailable = { status: false, code: 'EMAIL_NOT_AVAILABLE', message: 'Email is not available yet, so password reset links cannot be sent. Changing your password from Account requires your current password. A forgotten password cannot be recovered until email reset is connected, even if you are signed in.' };
 const emailRoutes = new Set(['/request-password-reset', '/forget-password', '/reset-password', '/send-verification-email', '/verify-email', '/change-email']);
 
 // A real query, so a monitor or keep-alive request also counts as database activity for Supabase's free-plan pause check.
