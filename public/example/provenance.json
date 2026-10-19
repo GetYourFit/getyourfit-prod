@@ -157,25 +157,25 @@
       "license_record": "https://creativecommons.org/licenses/by-sa/4.0",
       "collection": "Wikimedia Commons",
       "retrieved": "2026-10-19",
-      "output_sha256": "08720fa9bb11b095853dc4666c804a7fb63cb901b83808352ff78dc7f8401fc0",
+      "output_sha256": "000cdadbcca68d87468ab4e8ea0592381620942395460297c0c8b92c413485ad",
       "width": 900,
       "height": 600,
-      "bytes": 29566,
-      "transformation": "Trimmed near-white outer margins, resized whole photograph with white padding; WebP quality 86. No generative edits. Derivatives retain the source licence.",
+      "bytes": 27454,
+      "transformation": "Background removed: edge-connected backdrop whitened and the sole bottom traced by hand, then resized on white. WebP quality 86. No generated content. Derivative retains source licence.",
       "variants": [
         {
           "file": "oxfords-360.webp",
           "width": 360,
           "height": 240,
-          "bytes": 4806,
-          "sha256": "1908cbdccc0387ae366c8104df882c1951c72fc35384efc92ffaaab70f7efbe5"
+          "bytes": 4478,
+          "sha256": "ee3a14f2d9a18a1c2057aa65afaaad8c9277ed60c05f47ae5b0b19532b330902"
         },
         {
           "file": "oxfords-600.webp",
           "width": 600,
           "height": 400,
-          "bytes": 12486,
-          "sha256": "0c39d4a38fe5cd6890ff368a354a8d5cdbd15d505175173f763a5ee2f327f250"
+          "bytes": 11768,
+          "sha256": "1fd6de453ecd75baad709074b72fde176e4e704fa0ed2c5d4ba2e8ee3b3f2196"
         }
       ],
       "download_url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/%E3%83%97%E3%83%AC%E3%83%BC%E3%83%B3%E3%83%88%E3%82%A5%E3%83%BB%E3%83%80%E3%83%BC%E3%83%93%E3%83%BC%E3%82%B7%E3%83%A5%E3%83%BC%E3%82%BA.jpg",
@@ -268,25 +268,25 @@
       "collection": "Pexels",
       "retrieved": "2026-10-19",
       "download_sha256": "f0cf9d417a3ebe8a8dfd94adacb3ab418d73aa83bc17b1686f2b9d4895edd5e2",
-      "output_sha256": "2b9c21cb879d1a713f846cfb95a02e730d940a52ddfb6abd86e5a059ae3f30bc",
+      "output_sha256": "2e4fd31fe481630d69f4044f5cb7549bd6425fa1b403a599cfbe29e88a2c8140",
       "width": 778,
       "height": 1200,
-      "bytes": 109958,
-      "transformation": "Background and hanger removed with a hand-traced silhouette mask, then resized on white. WebP quality 86; no generated content.",
+      "bytes": 105826,
+      "transformation": "Hanger and backdrop fringe removed with a mask, then resized on white. WebP quality 86. No generated content. Derivative retains source licence.",
       "variants": [
         {
           "file": "dress-silk-360.webp",
           "width": 360,
           "height": 555,
-          "bytes": 24996,
-          "sha256": "c82ba4439b543b0295c8facabe233c7593a064fd48c5d327d950deec5f636172"
+          "bytes": 24520,
+          "sha256": "6264110ffcf6029cd100454895c2e71b5b585d9c80d579e66f7335f737eb3bda"
         },
         {
           "file": "dress-silk-600.webp",
           "width": 600,
           "height": 925,
-          "bytes": 68452,
-          "sha256": "4e900cea25bc44279749776a132f54e91a1010e9b98ecb2cf60b3de3a47e1adb"
+          "bytes": 63868,
+          "sha256": "d6d3241e29e8ed105bded86864be4095bbbd7d5afef4bd27d7b554b18577efd0"
         }
       ]
     },
@@ -304,25 +304,25 @@
       "collection": "Wikimedia Commons",
       "retrieved": "2026-10-19",
       "download_sha256": "0984b44da5a578cd49af6762ff27b07264762f37f50e078dfdfcd581b054d0fa",
-      "output_sha256": "7cd0fd032af6bf9bbdf258c8f7d3e9f1003d58368f084527acadc2f1adb64404",
+      "output_sha256": "5acffff3c5538f7a8cad2b298783a21d8b3cdd7ffff8a4656b602f22c04e3a2c",
       "width": 900,
       "height": 600,
-      "bytes": 34004,
-      "transformation": "Whole photograph resized on white padding; WebP quality 86. Derivatives retain CC-BY-SA-4.0.",
+      "bytes": 31974,
+      "transformation": "Edge-connected grey backdrop whitened, then resized on white. WebP quality 86. No generated content. Derivative retains source licence.",
       "variants": [
         {
           "file": "pumps-360.webp",
           "width": 360,
           "height": 240,
-          "bytes": 7324,
-          "sha256": "763d5dc7d32b9d734c602fc949e0c515157cd0362375ba6e76af8c6666f5a793"
+          "bytes": 6640,
+          "sha256": "3b53e23ebfedfae7c36bd8a574e0dde4f31a5a7488d37dea34b2ce082ed4a4c3"
         },
         {
           "file": "pumps-600.webp",
           "width": 600,
           "height": 400,
-          "bytes": 16510,
-          "sha256": "e6180856e97cb9759152e3946a49d9bb6a7a898a14b47746db0425d6505bef30"
+          "bytes": 15292,
+          "sha256": "887e3de7cede45d72deb588e65210d41dfa93388d186139258c98ef9ab12d8ee"
         }
       ]
     }
