@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { account, caseNames, contract } from './contract.js';
+import { isPinnedModelDownload } from './model-download.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const suiteRoot = path.resolve(here, '..');
@@ -953,7 +954,10 @@ async function browserJourney(context, page) {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await context.route('**/*', async route => {
-    if (new URL(route.request().url()).origin !== baseURL) { outsideRequests.push(route.request().url()); await route.abort(); }
+    if (new URL(route.request().url()).origin !== baseURL) {
+      if (!await isPinnedModelDownload(route.request(), baseURL)) outsideRequests.push(route.request().url());
+      await route.abort();
+    }
     else await route.continue();
   });
   await page.goto(baseURL);
@@ -1023,6 +1027,7 @@ async function browserJourney(context, page) {
   ]);
   const item = await jsonOK(uploaded, 'Browser garment upload');
   assertGarmentFacts(item, shirt, 'Browser upload');
+  if (!stubMode) assert.equal(item.interpretation.kind, 'unavailable', 'Blocked model downloads must retain manual fallback');
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   const outfitForm = page.locator('form').filter({ has: page.getByLabel('Occasion', { exact: true }) });
   await outfitForm.getByLabel('Occasion', { exact: true }).fill(facts.occasion);
