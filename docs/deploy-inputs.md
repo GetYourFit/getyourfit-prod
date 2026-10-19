@@ -18,6 +18,7 @@ Use an exact `main` revision with successful `quality` and `acceptance` checks. 
 | `GYF_TRUSTED_PROXIES` | Comma-separated ingress IP addresses or narrow CIDRs; empty trusts no forwarded client addresses |
 | `GYF_PORT` | A chosen loopback port from 1 through 65535, matching the ingress upstream; the default is 4174 |
 | `GYF_DATA_DIR` | A persistent directory outside the release checkout, writable by the service identity. Holds `getyourfit.sqlite` and is used only while `DATABASE_URL` is unset |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Optional, with `DATABASE_URL` only: store garment photos in a private Supabase Storage bucket instead of the database ([Photo storage](supabase.md#photo-storage)). The key comes from the vault and is never a literal in Git or logs |
 | `DATABASE_URL` | Unset by default, which keeps SQLite. Set at cutover to the Supabase session pooler connection string (port 5432), injected from the vault as `SUPABASE_DATABASE_URL`; never a literal value in Git or logs. The server applies pending `migrations/` at startup |
 | `BETTER_AUTH_SECRET` | A stable random key of at least 32 characters, injected from the vault; supply the vault reference and workload access, never a literal value in Git or logs |
 

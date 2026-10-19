@@ -45,7 +45,7 @@ export async function start(t, overrides = {}, { backend = 'sqlite', seedSqlite 
         let text = '';
         response.setEncoding('utf8');
         response.on('data', (chunk) => { text += chunk; });
-        response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: text ? JSON.parse(text) : null }));
+        response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: !text ? null : /json/.test(response.headers['content-type'] ?? '') ? JSON.parse(text) : text }));
       });
       connection.on('error', reject);
       connection.setTimeout(timeout, () => connection.destroy(new Error('Request timed out.')));

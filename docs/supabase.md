@@ -19,7 +19,7 @@ Vault entries (injected with `av inject +NAME -- command`, never printed or comm
 | `SUPABASE_ACCESS_TOKEN` | Management API token for the organization |
 | `SUPABASE_DB_PASSWORD` | Generated database password |
 | `SUPABASE_DATABASE_URL` | Session pooler connection string, the app's `DATABASE_URL` |
-| `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY` | Project API keys (the secret key is for server-side Storage use only) |
+| `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY` | Project API keys (the secret key is the app's `SUPABASE_SECRET_KEY` for server-side Storage use only) |
 
 ## Connecting
 
@@ -39,7 +39,17 @@ With `DATABASE_URL` set, the schema is the SQL in [`migrations/`](../migrations)
 
 The SQLite schema is unchanged and still created in code (`server/db/sqlite.mjs`) with Better Auth's own migration, so an existing `getyourfit.sqlite` keeps working; `tests/legacy-sqlite.test.mjs` opens a file written by the release before this work. Both drivers sit behind one `query(text, values)` interface using `$1` placeholders and the SQL subset the two databases share.
 
-Garment photos are still stored in the database (`bytea` or BLOB). Moving them to Supabase Storage is the next stage.
+## Photo storage
+
+By default a garment photo is stored in its database row (`bytea` or BLOB). Setting `SUPABASE_URL` (`https://<ref>.supabase.co`) and `SUPABASE_SECRET_KEY` (vault) together, with `DATABASE_URL`, moves new photos to Supabase Storage; setting only one, or using SQLite, stops the server at startup with a clear message. `0004_photo_storage.sql` lets a row hold either the bytes or an object path.
+
+Per-user access rules:
+
+- One **private** bucket, `garment-photos` (`GYF_PHOTO_BUCKET` overrides), created at startup if missing with a 1 MB limit and JPEG only. The server refuses to start if the bucket exists and is public.
+- Objects live at `<user id>/<garment id>.jpg`. The browser never talks to Storage and never receives a Storage URL: `GET /api/wardrobe/:id/photo` checks in the database that the signed-in user owns the garment, then the server reads the object with the secret key, so another account cannot fetch the path even by guessing it.
+- The secret key stays on the server. Supabase Storage policies keyed on `auth.uid()` do not apply because logins are Better Auth sessions (see [Supabase Auth or Better Auth](#supabase-auth-or-better-auth)); the bucket has no `anon` or `authenticated` policies, so those roles get nothing, and live verification must show the publishable key cannot read an object.
+- Upload happens before the row is written and is removed again if the row cannot be saved. Removing a garment erases its object first, and deleting an account erases the whole `<user id>/` folder first; if Storage is down both stop with a 503 and nothing is half-deleted, so the wearer can retry.
+- Existing photos stay in the database until the import in the next stage uploads them. `tests/photo-storage.test.mjs` runs the whole flow against a local stand-in for the Storage API; it has not yet run against the live project (the vault was locked), and the checklist for that run is in [Migration status](#migration-status).
 
 ## Development and tests
 
@@ -111,6 +121,6 @@ Docs only; nothing below is implemented.
 | --- | --- |
 | 1. Free-tier project in Mumbai, secrets in the vault | Done |
 | 2. Opt-in Postgres data layer beside the default SQLite, migrations, tests on both, Better Auth kept, email off | This change. Default runtime stays SQLite |
-| 3. Garment photos in Supabase Storage with per-user access | Next |
+| 3. Garment photos in Supabase Storage with per-user access | This change, opt-in. Live check pending: start the app against the Supabase project, add and delete a garment, then confirm with the publishable key that the object is unreadable |
 | 4. Export of the SQLite data and rehearsed import | Next |
 | 5. Rollback to SQLite and the cutover runbook | Next. Roll back by redeploying the last SQLite release (`ef2860f`) with its untouched `getyourfit.sqlite`; data written to Postgres after cutover needs the reverse export built in stage 4 |

@@ -13,11 +13,15 @@ import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanAc
 import { shoppingSourceListSchema } from '../shared/shopping.ts';
 import shoppingSourceRecords from './shopping-sources.json' with { type: 'json' };
 import { browserInterpretationSchema } from '../shared/classification.ts';
+import { getPhoto, objectPathFor, photoStorageEnabled, putPhoto, removePhotos } from './photos.mjs';
 
 const execute = promisify(execFile);
 const shoppingSources = shoppingSourceListSchema.parse(shoppingSourceRecords);
 const factsPatchSchema = factsSchema.partial().refine((facts) => Object.keys(facts).length > 0);
 const classifyScript = fileURLToPath(new URL('./classify.swift', import.meta.url));
+// The bytes live in the row, or in Supabase Storage when the row names an object.
+const photoBytes = async (row) => row.photo ?? (row.photo_object ? getPhoto(row.photo_object) : null);
+
 function garment(row) {
   return garmentSchema.parse({ id: row.id, facts: asJson(row.facts), provenance: asJson(row.provenance),
     interpretation: asJson(row.interpretation), photoConsent: { scope: 'local-processing-and-storage', recordedAt: asIso(row.created_at) }, photoUrl: `/api/wardrobe/${row.id}/photo`, createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) });
@@ -34,8 +38,10 @@ const listStarterPlans = async (userId) => (await query('SELECT * FROM starter_p
 
 export async function exportWardrobe(userId) {
   const exclusions = (await query('SELECT garment_id AS "garmentId", context, recorded_at AS "recordedAt" FROM outfit_exclusions WHERE user_id = $1 ORDER BY recorded_at', [userId])).rows;
-  const rows = (await query(`SELECT ${garmentColumns}, photo FROM garments WHERE user_id = $1 ORDER BY created_at, id`, [userId])).rows;
-  return { wardrobe: rows.map((row) => ({ ...garment(row), photo: { mediaType: 'image/jpeg', base64: row.photo.toString('base64') } })),
+  const rows = (await query(`SELECT ${garmentColumns}, photo, photo_object FROM garments WHERE user_id = $1 ORDER BY created_at, id`, [userId])).rows;
+  const wardrobe = [];
+  for (const row of rows) wardrobe.push({ ...garment(row), photo: { mediaType: 'image/jpeg', base64: (await photoBytes(row))?.toString('base64') ?? null } });
+  return { wardrobe,
     outfitCorrections: exclusions.map((row) => ({ ...row, recordedAt: asIso(row.recordedAt), context: JSON.parse(row.context), source: 'wearer-correction', modelVersion: null, confidence: 1 })),
     starterPlans: await listStarterPlans(userId) };
 }
@@ -106,21 +112,32 @@ export function wardrobeRouter(requireUser) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const provenance = Object.fromEntries(Object.keys(facts.data).map((key) => [key, { source: 'wearer-confirmed', modelVersion: null, confidence: 1, recordedAt: now }]));
+    const objectPath = photoStorageEnabled ? objectPathFor(request.user.id, id) : null;
+    if (objectPath) {
+      try { await putPhoto(objectPath, photo); } catch { return response.status(503).json({ error: 'Photo storage is unavailable. Try again in a moment.' }); }
+    }
     // Locking the account row serializes this user's inserts, so the limit holds under concurrent uploads and a deleted account is refused.
     const created = await transaction(async (run) => {
       if (!(await run('SELECT id FROM "user" WHERE id = $1 FOR UPDATE', [request.user.id])).rows.length) return 'signed-out';
       if (await countGarments(request.user.id, run) >= 50) return 'full';
-      return (await run(`INSERT INTO garments (id, user_id, facts, provenance, interpretation, photo, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING ${garmentColumns}`,
-        [id, request.user.id, JSON.stringify(facts.data), JSON.stringify(provenance), JSON.stringify(interpretation), photo, now])).rows[0];
+      return (await run(`INSERT INTO garments (id, user_id, facts, provenance, interpretation, photo, photo_object, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8) RETURNING ${garmentColumns}`,
+        [id, request.user.id, JSON.stringify(facts.data), JSON.stringify(provenance), JSON.stringify(interpretation), objectPath ? null : photo, objectPath, now])).rows[0];
+    }).catch(async (error) => {
+      if (objectPath) await removePhotos([objectPath]).catch(() => {});
+      throw error;
     });
+    if (objectPath && typeof created === 'string') await removePhotos([objectPath]).catch(() => {});
     if (created === 'signed-out') return response.status(401).json({ error: 'Sign in to continue.' });
     if (created === 'full') return response.status(409).json({ error: 'The wardrobe is full.' });
     response.status(201).json(garment(created));
   });
   router.get('/:id/photo', async (request, response) => {
-    const { rows } = await query('SELECT photo FROM garments WHERE id = $1 AND user_id = $2', [request.params.id, request.user.id]);
+    const { rows } = await query('SELECT photo, photo_object FROM garments WHERE id = $1 AND user_id = $2', [request.params.id, request.user.id]);
     if (!rows.length) return response.status(404).end();
-    response.type('jpeg').send(rows[0].photo);
+    let bytes;
+    try { bytes = await photoBytes(rows[0]); } catch { return response.status(503).end(); }
+    if (!bytes) return response.status(404).end();
+    response.type('jpeg').send(bytes);
   });
   router.patch('/:id', async (request, response) => {
     const changes = factsPatchSchema.safeParse(request.body);
@@ -140,6 +157,12 @@ export function wardrobeRouter(requireUser) {
     response.json(garment(updated));
   });
   router.delete('/:id', async (request, response) => {
+    const found = await query('SELECT photo_object FROM garments WHERE id = $1 AND user_id = $2', [request.params.id, request.user.id]);
+    if (!found.rows.length) return response.status(404).json({ error: 'This garment is not in your wardrobe.' });
+    // Erase the stored photo first: if Storage is down the garment stays, so the wearer can retry instead of leaving an orphaned photo.
+    if (found.rows[0].photo_object) {
+      try { await removePhotos([found.rows[0].photo_object]); } catch { return response.status(503).json({ error: 'Photo storage is unavailable. Try removing this garment again in a moment.' }); }
+    }
     const result = await query('DELETE FROM garments WHERE id = $1 AND user_id = $2', [request.params.id, request.user.id]);
     if (!result.rowCount) return response.status(404).json({ error: 'This garment is not in your wardrobe.' });
     await reclaimDeletedData();
