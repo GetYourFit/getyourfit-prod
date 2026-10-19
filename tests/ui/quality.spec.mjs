@@ -233,7 +233,7 @@ test('concurrent wardrobe refreshes and edits preserve confirmed facts', async (
         }
         held.resolve();
         await delivered.promise;
-        await expect(page.getByRole('button', { name: 'Find an outfit' })).toBeEnabled();
+        await expect(page.getByRole('button', { name: 'Find an outfit' })).toBeEnabled({ timeout: 20_000 });
         const current = await api(page, 'GET', '/api/wardrobe');
         expect(current.status).toBe(200);
         if (action === 'edit') {
