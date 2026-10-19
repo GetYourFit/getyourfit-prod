@@ -2,7 +2,7 @@ interface ApiError {
   error?: string;
 }
 
-export type EmailDeliveryMode = 'disabled' | 'smtp' | 'local-test' | 'unknown';
+export type EmailDeliveryMode = 'disabled' | 'unconfigured' | 'smtp' | 'local-test' | 'unknown';
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;

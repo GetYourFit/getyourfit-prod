@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, consumeEmailVerificationToken, hashPassword, isLockedOut, migrateAuth, recordSignInResult } from './auth.mjs';
-import { emailDeliveryMode, localMailbox, sendMail, settleMailForAccountDeletion } from './mail.mjs';
+import { emailConnected, emailDeliveryMode, localMailbox, sendMail, settleMailForAccountDeletion } from './mail.mjs';
 import { audit, database, ensureAuthSchema } from './database.mjs';
 import { ensureWardrobeSchema, exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
 import { allowedHosts, allowedOrigins, apiOrigin, apiPort, authOrigin, trustedProxies } from './config.mjs';
@@ -72,8 +72,11 @@ function limitSensitiveRequest(request, response, next) {
   next();
 }
 
+const emailNotConnected = { status: false, code: 'EMAIL_NOT_CONNECTED', message: 'Email delivery is not connected to GetYourFit yet, so we cannot send a reset link. Try again once it is.' };
+
 app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, response) => {
   if (emailDeliveryMode === 'disabled') return response.status(404).json({ message: 'Password recovery is unavailable in this local version.' });
+  if (!emailConnected) return response.status(503).json(emailNotConnected);
   const email = typeof request.body?.email === 'string' ? request.body.email.trim().toLowerCase() : '';
   const user = database.prepare('SELECT id FROM user WHERE lower(email) = ?').get(email);
   if (user) {
@@ -90,6 +93,7 @@ app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, re
 
 app.post('/api/auth/reset-password', limitSensitiveRequest, async (request, response) => {
   if (emailDeliveryMode === 'disabled') return response.status(404).json({ message: 'Password recovery is unavailable in this local version.' });
+  if (!emailConnected) return response.status(503).json(emailNotConnected);
   const token = typeof request.body?.token === 'string' ? request.body.token : '';
   const password = typeof request.body?.newPassword === 'string' ? request.body.newPassword : '';
   if (password.length < 12 || password.length > 1024) return response.status(400).json({ message: 'Use a password between 12 and 1024 characters.' });
@@ -117,7 +121,7 @@ app.get('/api/session', async (request, response) => {
 });
 
 app.get('/__mail', (request, response) => {
-  if (process.env.GYF_MAIL_TRANSPORT !== 'local' || process.env.NODE_ENV === 'production') return response.status(404).end();
+  if (emailDeliveryMode !== 'local-test') return response.status(404).end();
   const expected = process.env.GYF_MAILBOX_RUNNER_TOKEN;
   const authorization = request.get('authorization') ?? '';
   const prefix = 'Bearer ';
@@ -188,6 +192,9 @@ app.use('/api/auth', (request, response, next) => {
       }
     });
     if (!callbackIsTrusted || !consumeEmailVerificationToken(request.query.token)) return response.redirect(302, errorURL);
+  }
+  if (request.method === 'POST' && request.path === '/sign-up/email' && emailDeliveryMode === 'unconfigured') {
+    return response.status(503).json({ ...emailNotConnected, message: 'Email delivery is not connected to GetYourFit yet, so we cannot verify new accounts. Please try again once it is.' });
   }
   if (request.method === 'POST' && request.path === '/sign-in/email') {
     const email = typeof request.body?.email === 'string' ? request.body.email : '';

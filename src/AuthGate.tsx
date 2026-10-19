@@ -12,6 +12,10 @@ const deliveryCopy: Record<EmailDeliveryMode, { sent: string; privacy: string }>
     sent: "Email delivery isn't available here.",
     privacy: "Email is unverified. Password reset isn't available here; keep your password safe.",
   },
+  unconfigured: {
+    sent: 'Email delivery is not connected yet, so we cannot send verification or reset links.',
+    privacy: 'Email delivery is not connected yet, so new accounts and password reset are unavailable until it is.',
+  },
   smtp: {
     sent: 'Check your inbox for the next step. We could not confirm delivery.',
     privacy: 'Verification and recovery messages are sent by email.',
@@ -25,6 +29,8 @@ const deliveryCopy: Record<EmailDeliveryMode, { sent: string; privacy: string }>
     privacy: 'We could not confirm whether email delivery is available.',
   },
 };
+
+class EmailNotConnectedError extends Error {}
 
 async function authRequest(path: string, body: Record<string, string | boolean>) {
   let response: Response;
@@ -46,6 +52,8 @@ async function authRequest(path: string, body: Record<string, string | boolean>)
     const message = typeof result === 'object' && result !== null && 'message' in result && typeof result.message === 'string' ? result.message : '';
     console.error(`GetYourFit auth request rejected ${JSON.stringify({ url: `/api/auth/${path}`, method: 'POST', status: response.status, code, message, origin: window.location.origin })}`);
     if (response.status >= 500) throw new Error('GetYourFit is temporarily unavailable. Try again in a moment.');
+    if (response.status === 503 && code === 'EMAIL_NOT_CONNECTED') throw new EmailNotConnectedError(message);
+    if (path === 'sign-in/email' && code === 'EMAIL_NOT_VERIFIED') throw new Error('Verify your email first. We sent a fresh link to your inbox.');
     if (path === 'sign-in/email') throw new Error('We could not sign you in. Check your email and password, then try again.');
     if (path === 'sign-up/email' && ['PASSWORD_TOO_SHORT', 'PASSWORD_TOO_LONG'].includes(code)) throw new Error('Use a password between 12 and 1024 characters.');
     if (path === 'sign-up/email') throw new Error('We could not create the account. If you may already have one, try signing in.');
@@ -58,7 +66,7 @@ async function authRequest(path: string, body: Record<string, string | boolean>)
 }
 
 export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSignedIn: () => Promise<void>; deliveryMode: EmailDeliveryMode; initialError?: string }) {
-  const resetToken = deliveryMode === 'disabled' ? null : new URLSearchParams(window.location.search).get('token');
+  const resetToken = deliveryMode === 'disabled' || deliveryMode === 'unconfigured' ? null : new URLSearchParams(window.location.search).get('token');
   const verificationError = new URLSearchParams(window.location.search).get('error');
   const [mode, setMode] = useState<Mode>(resetToken ? 'reset' : window.location.pathname === '/sign-up' ? 'sign-up' : 'sign-in');
   const [email, setEmail] = useState('');
@@ -145,6 +153,7 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
 
   const title = authTitle(mode, needsCode);
   const intro = mode === 'sign-up' ? 'Use an email address you can access. Your wardrobe is private to your account.' : mode === 'forgot' ? 'We’ll send a single-use reset link if this address has an account.' : mode === 'reset' ? 'Use a long, unique password you do not use elsewhere.' : mode === 'sent' ? 'If this request can be completed, follow the link sent to your email address.' : needsCode ? 'Enter the six-digit code from your authenticator app.' : 'Welcome back. Sign in to see your wardrobe.';
+  const notConnected = deliveryMode === 'unconfigured' && (mode === 'sign-up' || mode === 'forgot');
   const showCredential = mode === 'sign-up' || mode === 'sign-in' || mode === 'forgot';
   const submitLabel = mode === 'sign-up' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : mode === 'reset' ? 'Save new password' : 'Sign in';
 
@@ -154,7 +163,7 @@ export function AuthGate({ onSignedIn, deliveryMode, initialError = '' }: { onSi
       <div className="auth-panel">
         <div className="auth-intro"><h1 className="page-title">{title}</h1><p className="muted">{intro}</p></div>
         {error && <Notice ref={errorRef} id="auth-error" tone="error" role="alert" focusable>{error}{error.includes('connect to GetYourFit') && <span><button type="button" className="text-link" onClick={() => void retryService()} disabled={busy}>Try the connection again</button></span>}</Notice>}
-        {mode === 'sent' ? <Notice tone="info">{deliveryCopy[deliveryMode].sent}</Notice> : needsCode ? <form ref={formRef} onSubmit={verifyCode} className="auth-form" aria-busy={busy}>
+        {notConnected ? <Notice tone="info" role="status">{deliveryCopy.unconfigured.sent}</Notice> : mode === 'sent' ? <Notice tone="info">{deliveryCopy[deliveryMode].sent}</Notice> : needsCode ? <form ref={formRef} onSubmit={verifyCode} className="auth-form" aria-busy={busy}>
           <Field label="Authenticator code">{(control) => <input {...control} className="input" name="code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} required />}</Field>
           <button className="button button-primary button-block" disabled={busy}>{busy ? 'Checking…' : 'Verify code'}</button>
         </form> : <form ref={formRef} onSubmit={(event) => void submit(event)} className="auth-form" aria-busy={busy} aria-describedby={error ? 'auth-error' : undefined}>

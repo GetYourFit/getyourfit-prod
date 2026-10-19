@@ -30,7 +30,7 @@ Requirements: Node.js 22.18 or later. Local Apple Vision classification addition
 
 Set `BETTER_AUTH_SECRET` to a random key of at least 32 characters from your local secret store. Generate it once, retain it with the database, and reuse it on every restart. Changing it invalidates sessions and makes existing authenticator secrets unreadable. The server refuses startup without this key before opening the database. You can generate a key with `node -e 'process.stdout.write(require("node:crypto").randomBytes(48).toString("base64url"))'`; store its output privately, outside the repository.
 
-Email delivery defaults to `GYF_MAIL_TRANSPORT=disabled`. Signup creates a session immediately, keeps `emailVerified=false`, and recovery endpoints return HTTP 404 by design. Keep your password safe while mail is disabled; the service cannot email a reset link in that mode.
+Email verification and password reset are always enforced and delivered through SMTP. Until SMTP is configured, the app says email delivery is not connected yet, and signup and password reset are unavailable. See the mail settings below.
 
 ```sh
 npm install
@@ -39,19 +39,30 @@ npm run dev
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-Run `npm run verify:local-account` to prove the default account path in a production build with a disposable database and random key. It checks consent, signup without mail, wrong-password failure, restart continuity, export, and deletion through real browser controls.
+Run `npm run verify:local-account` to prove the explicit no-mail path (`GYF_MAIL_TRANSPORT=disabled`, for tests only) in a production build with a disposable database and random key. It checks consent, signup without mail, wrong-password failure, restart continuity, export, and deletion through real browser controls.
 
-Mail delivery is infrastructure-only preparation. The [mail release handoff](docs/deploy-inputs.md#mail-release-handoff) owns the chosen provider, sender, cost, vault mappings, and activation requirements.
+### Mail settings
 
-The application supports these `GYF_MAIL_TRANSPORT` values:
+Production mail goes through a real SMTP provider configured only by these environment values. Never commit them; the [mail release handoff](docs/deploy-inputs.md#mail-release-handoff) owns the chosen provider and vault mappings.
 
-- `disabled` (default): no mail is sent.
-- `smtp`: set `SMTP_HOST` and `SMTP_FROM`. `SMTP_PORT` defaults to `587`; `SMTP_SECURE` defaults to true on port `465` and false otherwise. Non-implicit TLS connections require STARTTLS. Set both `SMTP_USER` and `SMTP_PASS` when authentication is required.
-- `local`: development and test only. It starts an in-memory SMTP catcher and exposes messages at `/__mail` to the holder of `GYF_MAILBOX_RUNNER_TOKEN`.
+| Variable | Purpose |
+| --- | --- |
+| `GYF_SMTP_HOST` | SMTP server host. Setting it selects the SMTP transport |
+| `GYF_SMTP_PORT` | Defaults to `587` |
+| `GYF_SMTP_SECURE` | `true` or `false`; defaults to true on port `465` and false otherwise. Without implicit TLS, STARTTLS is required |
+| `GYF_SMTP_USER`, `GYF_SMTP_PASS` | Provider login. Set both or neither |
+| `GYF_MAIL_FROM` | Sender address, required with the host |
 
-With any mail transport enabled, signup requires email verification before sign-in, and password recovery is available. A failed delivery is recorded in the audit log without failing the signup request or revealing whether an account exists. Sign-in still requires verification. No provider credentials are configured in this repository. Browser requests to `/__mail` return no messages in default or SMTP mode.
+`GYF_MAIL_TRANSPORT` is normally unset. Its values:
 
-`npm run verify:mail-delivery` exercises SMTP delivery against controlled local receivers through the real browser: STARTTLS enforcement, signup verification, forgot-password and reset, insecure relay rejection, and deletion waiting for in-flight mail. `npm test` covers transport selection and startup validation. `npm run verify:auth` runs the broader account checks with the local catcher, then runs the SMTP verifier. None of these send real email or prove provider delivery.
+- `smtp`: chosen automatically when `GYF_SMTP_HOST` is set. Verification and reset links are delivered by the provider, and sign-in requires a verified email.
+- unset, without `GYF_SMTP_HOST`: email delivery is not connected. Signup and password reset return HTTP 503 `EMAIL_NOT_CONNECTED` and the app says so. Nothing is mocked or silently skipped.
+- `local`: development and test only, refused when `NODE_ENV=production`. It starts the bundled mock mailbox, an authenticated SMTP server on loopback (`GYF_MOCK_SMTP_PORT`, default `1025`) that exposes messages at `/__mail` to the holder of `GYF_MAILBOX_RUNNER_TOKEN`. The mock account is `GYF_MOCK_MAIL_USER` and `GYF_MOCK_MAIL_PASS`; their defaults are placeholders, not a real account. Verification and reset are enforced exactly as with `smtp`.
+- `disabled`: explicit opt-out for automated tests. Signup signs in unverified and recovery returns HTTP 404. Do not use it for real users.
+
+A failed delivery is recorded in the audit log without failing the signup request or revealing whether an account exists. Browser requests to `/__mail` return no messages unless the mock mailbox is active.
+
+`npm run acceptance:mail-delivery --prefix tests/acceptance` runs in CI. It starts a real SMTP server with STARTTLS and authentication, configures the app only through the `GYF_SMTP_*` and `GYF_MAIL_FROM` values, and drives signup, the delivered verification link, sign-in, forgot-password and reset in a real browser. `npm run verify:mail-delivery` adds STARTTLS enforcement, insecure relay rejection, and deletion waiting for in-flight mail. `npm test` covers transport selection, the mock mailbox, the unconfigured state, and startup validation. `npm run verify:auth` runs the broader account checks with the mock mailbox, then the SMTP verifier. None of these prove delivery by a real provider.
 
 ## Check
 

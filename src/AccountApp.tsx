@@ -5,10 +5,10 @@ import { AccountPage } from './AccountPage';
 import { Wardrobe } from './Wardrobe';
 import { request, type EmailDeliveryMode } from './api';
 import { LoadingScreen } from './LoadingScreen';
-import { Brand } from './ui';
+import { Brand, Notice } from './ui';
 
-export type SignedInSession = { signedIn: true; email: string; twoFactorEnabled: boolean; emailDeliveryMode: EmailDeliveryMode };
-type SessionState = { signedIn: false; emailDeliveryMode: EmailDeliveryMode } | SignedInSession;
+export type SignedInSession = { signedIn: true; email: string; twoFactorEnabled: boolean; emailDeliveryMode: Exclude<EmailDeliveryMode, 'unconfigured'> };
+type SessionState = { signedIn: false; emailDeliveryMode: EmailDeliveryMode } | (Omit<SignedInSession, 'emailDeliveryMode'> & { emailDeliveryMode: EmailDeliveryMode });
 type Route = '/wardrobe' | '/account';
 
 const titles: Record<Route, string> = { '/wardrobe': 'Wardrobe', '/account': 'Account' };
@@ -65,6 +65,8 @@ export default function AccountApp() {
   if (!session) return <LoadingScreen />;
   if (!session.signedIn) return <AuthGate onSignedIn={refresh} deliveryMode={session.emailDeliveryMode} initialError={error} />;
 
+  const accountSession: SignedInSession = { ...session, emailDeliveryMode: session.emailDeliveryMode === 'unconfigured' ? 'unknown' : session.emailDeliveryMode };
+
   return <div className="app">
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="app-header">
@@ -78,6 +80,6 @@ export default function AccountApp() {
         </nav>
       </div>
     </header>
-    <main id="main" className="app-main">{route === '/account' ? <AccountPage session={session} /> : <Wardrobe />}</main>
+    <main id="main" className="app-main">{route === '/account' ? <>{session.emailDeliveryMode === 'unconfigured' && <Notice tone="info" role="status">Email delivery is not connected yet, so password reset is unavailable until it is.</Notice>}<AccountPage session={accountSession} /></> : <Wardrobe />}</main>
   </div>;
 }
