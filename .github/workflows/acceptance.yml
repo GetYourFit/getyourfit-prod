@@ -31,6 +31,9 @@ jobs:
         run: npm run acceptance
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/acceptance/production
+      - name: Prove signup, verification, sign-in and reset against a real SMTP server
+        if: ${{ !cancelled() }}
+        run: npm run acceptance:mail-delivery --prefix tests/acceptance
       - name: Preserve acceptance evidence
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4

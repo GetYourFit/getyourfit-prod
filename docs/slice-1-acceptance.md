@@ -5,9 +5,9 @@ The 2026-10-12 version ladder targets v0.1: email/password signup without mail, 
 | ID | User action | Passing observation | Result |
 | --- | --- | --- | --- |
 | A01 | Open the app as a new wearer | Purpose and one primary action are clear; layout works at desktop and 390px mobile width. | Passed locally; sign-in and outfit screenshots visually reviewed at both widths |
-| A02 | Create an account | Valid email, password, and explicit 18+ confirmation create an unverified account and immediate session without mail; under-18 or weak-password attempts fail. | Passed locally in production browser via `npm run verify:local-account`; v0.1 |
+| A02 | Create an account | Signup follows [Mail settings](../README.md#mail-settings); explicit 18+ confirmation and a valid password are required. | Historical no-mail production-browser proof via `npm run verify:local-account` covers only the explicit disabled mode |
 | A03 | Verify email, replay link, and sign in | A current email link verifies once; reuse reports invalid/used; an unverified sign-in gives a safe response and a fresh link. | Controlled tests only, real-provider delivery pending |
-| A04 | Request and use password recovery | Known and unknown addresses have the same public response; reset expires, works once, updates password, and revokes sessions. | Default mode hides recovery and rejects reset requests; activation follows the mail release handoff |
+| A04 | Request and use password recovery | Known and unknown addresses have the same public response; reset expires, works once, updates password, and revokes sessions. | Availability follows [Mail settings](../README.md#mail-settings); real-provider delivery remains unverified |
 | A05 | Probe origin and rate controls | Cross-origin and missing-origin mutations fail; reset and sign-in rate limits trigger; a successful sign-in clears the user's failure count. | Passed locally in `npm run verify:auth` |
 | A06 | Configure TOTP, use an invalid code, then sign in with a valid code | Invalid codes fail; enrollment and a valid code work; setup data is not exposed during sign-in. | Passed locally in `npm run verify:auth` |
 | A07 | Sign out locally and everywhere | Local sign-out ends this session. Revoke-all deletes every account session and clears the configured secure cookie. | Passed locally in `npm run verify:auth` |

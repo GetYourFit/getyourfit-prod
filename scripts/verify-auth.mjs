@@ -33,7 +33,7 @@ let serverOutputRemainder = '';
 let serverErrorOutput = '';
 let currentStage = 'startup';
 const verificationEvents = [];
-const verificationMailer = nodemailer.createTransport({ host: '127.0.0.1', port: 1025, secure: false, ignoreTLS: true });
+const verificationMailer = nodemailer.createTransport({ host: '127.0.0.1', port: 1025, secure: false, ignoreTLS: true, auth: { user: 'mock-mailbox@mock.getyourfit.invalid', pass: 'mock-mailbox-password' } });
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -214,8 +214,8 @@ function queryError(location) {
 
 async function browserSignup(session, accountEmail, accountPassword, deliveryMode = 'local-test') {
   const deliveryCopy = deliveryMode === 'unknown'
-    ? { privacy: 'Email delivery mode is unknown.', sent: 'Email delivery mode is unknown.' }
-    : { privacy: 'Automated test messages are restricted to the verification runner.', sent: 'Automated verification and recovery messages are available only to the test runner.' };
+    ? { privacy: 'We could not confirm whether email delivery is available.', sent: 'We could not confirm whether email delivery is available.' }
+    : { privacy: 'Email delivery is configured for a test environment.', sent: 'Email delivery is configured for a test environment.' };
   click(session, 'button', 'Create an account');
   pageContains(session, 'Create a private account with an email address you can access.');
   pageContains(session, deliveryCopy.privacy);
@@ -394,9 +394,9 @@ async function main() {
   }
   currentStage = 'web app starts before its session API';
   await startWebApp();
-  chrome(sessionA, ['open', webOrigin]);
+  chrome(sessionA, ['open', `${webOrigin}/account`]);
   await waitForPage(sessionA, 'Welcome back.');
-  pageContains(sessionA, 'Email delivery mode is unknown.');
+  pageContains(sessionA, 'We could not confirm whether email delivery is available.');
 
   currentStage = 'session API starts after the browser shows unknown delivery mode';
   await startServer();
@@ -404,7 +404,7 @@ async function main() {
   await browserSignup(sessionA, email, password, 'unknown');
   const anonymousSession = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/api/session")).json()'));
   assert.deepEqual(anonymousSession, { signedIn: false, emailDeliveryMode: 'local-test' }, 'The service did not report its local-test delivery mode after startup.');
-  chrome(sessionA, ['open', origin]);
+  chrome(sessionA, ['open', `${origin}/account`]);
   await waitForPage(sessionA, 'Welcome back.');
   pageContains(sessionA, 'Automated test messages are restricted to the verification runner.');
   const anonymousMailboxStatus = evalResult(evalInBrowser(sessionA, 'async () => await (await fetch("/__mail")).status'));
@@ -424,7 +424,7 @@ async function main() {
   const sessionsAfterFirstUse = verificationDb.prepare('SELECT count(*) AS count FROM session WHERE userId = (SELECT id FROM user WHERE email = ?)').get(email).count;
   verificationDb.close();
   assert.ok(sessionsAfterFirstUse > 0, 'First verification did not create a session.');
-  chrome(sessionA, ['open', origin]);
+  chrome(sessionA, ['open', `${origin}/account`]);
   await waitForPage(sessionA, 'Your account, in your hands.');
   await stopWebApp();
 
@@ -465,7 +465,7 @@ async function main() {
   assert.equal(unknownSignIn.status, wrongPasswordSignIn.status, 'Unknown email and wrong password have different responses.');
 
   currentStage = 'launch second browser session';
-  chrome(sessionB, ['open', origin]);
+  chrome(sessionB, ['open', `${origin}/account`]);
   await waitForPage(sessionB, 'Welcome back.');
   currentStage = 'unverified account browser sign-in and resend';
   try {
@@ -572,7 +572,7 @@ async function main() {
   sessionsAfterRevoke.close();
   assert.equal(revokedB.signedIn, false, `Sign out everywhere left a second session active (database sessions=${activeSessionCount}).`);
 
-  chrome(sessionA, ['open', origin]);
+  chrome(sessionA, ['open', `${origin}/account`]);
   await waitForPage(sessionA, 'Welcome back.');
   await signInWithTotp(sessionA, email, updatedPassword);
   await waitForPage(sessionA, 'Your account, in your hands.');
@@ -597,7 +597,7 @@ async function main() {
 
   await stopServer();
   const offlineForm = readRefs(sessionA);
-  if (!offlineForm.includes('Welcome back.')) chrome(sessionA, ['open', origin]);
+  if (!offlineForm.includes('Welcome back.')) chrome(sessionA, ['open', `${origin}/account`]);
   await waitForPage(sessionA, 'Welcome back.');
   fill(sessionA, 'EMAIL ADDRESS', email);
   fill(sessionA, 'PASSWORD', updatedPassword);

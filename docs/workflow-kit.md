@@ -15,7 +15,7 @@ python3 .workflow/checks.py
 
 Local Git hooks are explicitly opted out for this adoption. A clone owner with authority to replace its hook configuration can run `python3 .workflow/checks.py install-hooks`; owners of managed hooks can chain `.workflow/hooks/pre-commit` and `.workflow/hooks/pre-push` instead. The commit hook checks the kit; the push hook also runs production acceptance.
 
-The [acceptance workflow](../.github/workflows/acceptance.yml) adds a separate job named `acceptance` on every pull request and push. It proves the checker against the good stub and known-bad variants, then runs the production suite. Application, stub, and local mail ports are chosen from free ephemeral loopback ports per run. CI retains the reports as artifacts. The `workflow-kit` job also runs the production acceptance hook as a step.
+The [acceptance workflow](../.github/workflows/acceptance.yml) adds a separate job named `acceptance` on every pull request and push. Its required checks and artifact retention are documented in the [acceptance guide](../tests/acceptance/README.md#ci-integration). The `workflow-kit` job also runs the production acceptance hook as a step.
 
 Protection verified on 2026-10-13: `main` requires `quality` and `acceptance`, requires up-to-date branches, and enforces the rules for admins. `acceptance` is bound to app ID `15368` (GitHub Actions). Force pushes and branch deletion are disabled. The `quality` app binding remains its original value.
 

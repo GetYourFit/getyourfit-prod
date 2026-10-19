@@ -1,6 +1,6 @@
 # GetYourFit acceptance
 
-This independent checker covers email/password signup, confirmed garment facts, private photos, complete outfits from owned garments, the one-shirt and missing-fact alternatives, zero-garment starter plans, India shopping links, no real mail, public explained examples, phone account entry, and text contrast. Its twelve cases cover R4, R5, R7, R9, R10, R11, R19, R26, R27, R30, S1 and A-1. Every case is mandatory. Neither product readiness labels nor a missing route can turn a failure into a pass.
+The main independent checker covers email/password signup, confirmed garment facts, private photos, complete outfits from owned garments, the one-shirt and missing-fact alternatives, zero-garment starter plans, India shopping links, no real mail, public explained examples, phone account entry, and text contrast. Its twelve cases cover R4, R5, R7, R9, R10, R11, R19, R26, R27, R30, S1 and A-1. Every case is mandatory. Neither product readiness labels nor a missing route can turn a failure into a pass.
 
 From the repository root:
 
@@ -15,7 +15,15 @@ The existing root npm script invokes this package. Playwright runs an actual hea
 
 The runner first requires an `npm start` production service. If it is missing, the runner records a mandatory failure and stops without building or serving a static preview. Otherwise it builds the app and launches `npm start` on a free ephemeral loopback port chosen per run. The contract stub and local mail sink also use free ephemeral loopback ports. A private temporary directory is supplied as `GYF_DATA_DIR`; `DATABASE_URL` names a SQLite database inside it. The service must honor these isolation settings. Only a small process-environment allowlist is inherited; deployment credentials and mail-provider keys are excluded. `NODE_ENV=production`, `APP_URL`, `HOST` and `PORT` define the production-equivalent local boundary.
 
-For v0.1, `GYF_MAIL_MODE=disabled`. A local SMTP sink on a free ephemeral loopback port is configured through `SMTP_HOST`, `SMTP_PORT` and `SMTP_URL`, and any message received causes a failure. Signup must immediately yield a usable account without email verification. The browser refuses external requests. No real user, production database, external mailbox or service signup is used. Future provider-backed mail reopens at v0.2 when a provider is named.
+The main runner explicitly selects the disabled test transport defined in [CONTRACT.md](CONTRACT.md#production-process). Any message received by its local SMTP sink causes a failure. The browser refuses external requests. No real user, production database, external mailbox or service signup is used. This test configuration does not describe the application's default mail mode; see [Mail settings](../../README.md#mail-settings).
+
+Run the separate SMTP browser check from the repository root after installing the dependencies and Chromium above:
+
+```sh
+npm run acceptance:mail-delivery --prefix tests/acceptance
+```
+
+This check also requires `openssl` on PATH to generate a disposable certificate. It starts Vite and the API in development mode with a temporary database under `.gyf-data/`, plus an authenticated loopback SMTP server with STARTTLS. It drives signup, blocked unverified sign-in, verification-link replacement, verification, sign-in, and password reset, including rejection of the old password. It configures delivery through environment values without the bundled mock mailbox. It does not prove a production build or delivery by an external provider.
 
 Set `ACCEPTANCE_OUTPUT` to an absolute scratch directory for stable report paths. Otherwise the runner creates a directory under the system temporary directory and prints its report location. The machine-readable `report.json` records release, exact local HEAD, runtime, case requirements, errors, durations and screenshot paths. Email/password inputs and visible generated credentials are masked in screenshots; diagnostics redact generated credentials. Service logs stay in memory and are checked for generated passwords and emails. Process groups, browser contexts, mail sockets and disposable storage are cleaned up after the run.
 
@@ -41,10 +49,10 @@ Stubs are test oracles for the checker, never product evidence. Normal `npm run 
 
 ## CI integration
 
-The [active acceptance workflow](../../.github/workflows/acceptance.yml) installs both locked dependency sets and Chromium on Node.js 24. Its job is named `acceptance` and runs on every pull request and push. It requires the good stub to pass, all known-bad variants to fail as intended, and all production cases to pass through `npm start`. Reports and screenshots are retained as a CI artifact for seven days. [ci/acceptance.yml](ci/acceptance.yml) preserves the original handoff template.
+The [active acceptance workflow](../../.github/workflows/acceptance.yml) installs both locked dependency sets and Chromium on Node.js 24. Its job is named `acceptance` and runs on every pull request and push. It requires the good stub to pass, all known-bad variants to fail as intended, all production cases to pass through `npm start`, and the separate SMTP browser check above to pass. The main runner's reports and screenshots are retained as a CI artifact for seven days. [ci/acceptance.yml](ci/acceptance.yml) preserves the original handoff template.
 
 `acceptance` passed on the integration merge on `main` and is required beside `quality`; [workflow-kit.md](../../docs/workflow-kit.md) records the verified protection state and exact run. Let a deploy depend on both checks from the same revision. For a separate deploy workflow, verify successful checks on its exact commit SHA; a green check on an ancestor is insufficient. Do not use path filters, `continue-on-error`, readiness-based skipping or contract-stub output to satisfy that gate.
 
 ## Sequenced coverage
 
-The eight v0.1 journey cases and the v0.2 public-journey and text-contrast cases are not full R1-R37 acceptance. Real mail, verification/reset links, lockout, global signout, TOTP, account export/deletion, vision correction and provenance, model judgment evaluation, accessibility beyond the documented automated scans and account-entry checks, security headers, offline/server-down recovery, performance and deployed-environment evidence reopen with the next corresponding version. A green result makes no claim about those capabilities. The wider requirements remain in the canonical requirements document. Historical product findings are recorded in [FINDINGS.md](FINDINGS.md); current findings are in [acceptance-findings.md](../../docs/acceptance-findings.md).
+The main journey cases are not full R1-R37 acceptance. Verification and reset links have the separate SMTP browser check above. External-provider delivery, lockout, global signout, TOTP, account export/deletion, vision correction and provenance, model judgment evaluation, accessibility beyond the documented automated scans and account-entry checks, security headers, offline/server-down recovery, performance, and deployed-environment evidence remain outside this suite's proof. The wider requirements remain in the canonical requirements document. Historical product findings are recorded in [FINDINGS.md](FINDINGS.md); current findings are in [acceptance-findings.md](../../docs/acceptance-findings.md).

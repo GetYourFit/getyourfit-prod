@@ -26,7 +26,7 @@ Wearer-first fashion decisions grounded in the wearer's real wardrobe and contex
 
 Help a first wearer decide what to wear for one stated occasion, with a complete explained outfit assembled from their own available clothes. Make “you already own it” a useful answer. The wearer can correct every suggestion and their correction wins.
 
-The v0.1 local path supports email/password signup without mail, optional TOTP, consented real photo upload, local garment review, a compact wardrobe, one factual outfit suggestion, wearer correction, and full data export or deletion. Account mail behavior is documented in [Run locally](../README.md#run-locally); provider activation requires the [mail release handoff](deploy-inputs.md#mail-release-handoff). [Workflow-kit documentation](workflow-kit.md) records the required checks. Public deployment still requires the operator configuration in [deployment inputs](deploy-inputs.md).
+The local path supports email/password accounts, optional TOTP, consented real photo upload, local garment review, a compact wardrobe, one factual outfit suggestion, wearer correction, and full data export or deletion. Account mail behavior is documented in [Mail settings](../README.md#mail-settings); provider activation requires the [mail release handoff](deploy-inputs.md#mail-release-handoff). [Workflow-kit documentation](workflow-kit.md) records the required checks. Public deployment still requires the operator configuration in [deployment inputs](deploy-inputs.md).
 
 For people starting without garments, [Build my wardrobe](../README.md#build-my-wardrobe) owns the scope and usage of starter plans and shopping links.
 

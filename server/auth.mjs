@@ -4,7 +4,7 @@ import { twoFactor } from 'better-auth/plugins';
 import { hash, verify } from '@node-rs/argon2';
 import { allowedOrigins, authOrigin, authSecret } from './config.mjs';
 import { audit, database } from './database.mjs';
-import { emailEnabled, sendMail } from './mail.mjs';
+import { emailEnabled, emailEnforced, sendMail } from './mail.mjs';
 
 const argon2id = { memoryCost: 65536, timeCost: 3, parallelism: 2, outputLen: 32, algorithm: 2 };
 export const hashPassword = (password) => hash(password, argon2id);
@@ -44,7 +44,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: emailEnabled,
+    requireEmailVerification: emailEnforced,
     minPasswordLength: 12,
     maxPasswordLength: 1024,
     password: {
@@ -55,7 +55,7 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendOnSignUp: emailEnabled,
-    sendOnSignIn: emailEnabled,
+    sendOnSignIn: emailEnforced,
     autoSignInAfterVerification: true,
     expiresIn: 60 * 60,
     sendVerificationEmail: async ({ user, url, token }) => {

@@ -149,6 +149,24 @@ test('public signup issues a secure private cookie and retains the account sessi
   assert.equal(session.body.emailDeliveryMode, 'disabled');
 });
 
+test('production without SMTP values says email is not connected instead of creating unverifiable accounts', async (t) => {
+  const { request } = await start(t, { BETTER_AUTH_URL: publicOrigin, GYF_MAIL_TRANSPORT: '' });
+  const headers = { Host: 'app.getyourfit.co', Origin: publicOrigin, 'Content-Type': 'application/json' };
+  const session = await request({ headers: { Host: 'app.getyourfit.co' } });
+  assert.deepEqual(session.body, { signedIn: false, emailDeliveryMode: 'unconfigured' });
+  const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
+  for (const [route, body] of [
+    ['/api/auth/sign-up/email', { name: 'Wearer', email, password: randomBytes(32).toString('base64url'), adultConfirmed: true }],
+    ['/api/auth/request-password-reset', { email }],
+    ['/api/auth/reset-password', { token: 'x', newPassword: randomBytes(32).toString('base64url') }],
+  ]) {
+    const refused = await request({ method: 'POST', route, headers, body });
+    assert.equal(refused.status, 503, route);
+    assert.equal(refused.body.code, 'EMAIL_NOT_CONNECTED', route);
+    assert.match(refused.body.message, /not connected/);
+  }
+});
+
 async function rateLimit(request, origin, forwarded) {
   for (let attempt = 1; attempt <= 6; attempt += 1) {
     const headers = {

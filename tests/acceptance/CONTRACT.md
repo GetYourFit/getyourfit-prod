@@ -4,7 +4,9 @@ This checker uses only public browser and API behavior observed against the loca
 
 ## Production process
 
-`npm run build` produces the release build. `npm start` serves that build and its API using `HOST`, `PORT`, `APP_URL`, `GYF_DATA_DIR`, `DATABASE_URL` and `BETTER_AUTH_SECRET`; the production service additionally reads `BETTER_AUTH_URL` and `GYF_MAIL_TRANSPORT=disabled`, which the runner also sets. The runner generates a disposable random 64 character secret for each run and never persists it. Storage for a run must stay inside `GYF_DATA_DIR`. Mail is disabled through `GYF_MAIL_MODE=disabled`; SMTP settings point exclusively to the local sink. No prerequisite external identity or email provider is needed.
+`npm run build` produces the release build. `npm start` serves that build and its API using `HOST`, `PORT`, `APP_URL`, `GYF_DATA_DIR`, `DATABASE_URL` and `BETTER_AUTH_SECRET`; the production service additionally reads `BETTER_AUTH_URL` and `GYF_MAIL_TRANSPORT=disabled`, which the runner also sets. The runner generates a disposable random 64 character secret for each run and never persists it. Storage for a run must stay inside `GYF_DATA_DIR`.
+
+The main runner explicitly disables application mail through `GYF_MAIL_TRANSPORT=disabled`. It also supplies `GYF_MAIL_MODE=disabled` and legacy `SMTP_*` sink values; these do not configure application delivery. No prerequisite external identity or email provider is needed. The no-mail signup observations below apply to this explicit test mode, not the default described in [Mail settings](../../README.md#mail-settings). The [acceptance guide](README.md) documents the separate SMTP browser check.
 
 ## Browser journey
 
