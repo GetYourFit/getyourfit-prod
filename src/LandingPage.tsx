@@ -43,7 +43,7 @@ export function LandingPage() {
       </section>
       <section className="public-privacy" aria-labelledby="public-privacy-title">
         <LockKeyhole size={24} aria-hidden="true" />
-        <div><h2 id="public-privacy-title">Your wardrobe stays private.</h2><p>Your photos go to the GetYourFit server that holds your account, where they are reviewed without an external AI service. They are never sold or used for model training. You can download or delete your data.</p></div>
+        <div><h2 id="public-privacy-title">Your wardrobe stays private.</h2><p>Photo recognition runs on your device. Saving sends your photo to your private account on the GetYourFit server. Photos are never sold or used for model training. You can download or delete your data.</p></div>
       </section>
     </main>
     <footer className="public-footer"><span>GetYourFit</span><details><summary>Example photo credits</summary><p>Real garment photographs from The Metropolitan Museum of Art, shared under <a href="https://www.metmuseum.org/hubs/open-access">CC0 Open Access</a>: <a href="https://www.metmuseum.org/art/collection/search/91159">shirt</a>, <a href="https://www.metmuseum.org/art/collection/search/91001">trousers</a>, and <a href="https://www.metmuseum.org/art/collection/search/90428">lace-ups</a>. <a href="/example/provenance.json">Source records and image provenance</a>.</p></details></footer>

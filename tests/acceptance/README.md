@@ -15,7 +15,7 @@ The existing root npm script invokes this package. Playwright runs an actual hea
 
 The runner first requires an `npm start` production service. If it is missing, the runner records a mandatory failure and stops without building or serving a static preview. Otherwise it builds the app and launches `npm start` on a free ephemeral loopback port chosen per run. The contract stub and local mail sink also use free ephemeral loopback ports. A private temporary directory is supplied as `GYF_DATA_DIR`; `DATABASE_URL` names a SQLite database inside it. The service must honor these isolation settings. Only a small process-environment allowlist is inherited; deployment credentials and mail-provider keys are excluded. `NODE_ENV=production`, `APP_URL`, `HOST` and `PORT` define the production-equivalent local boundary.
 
-The main runner explicitly selects the disabled test transport defined in [CONTRACT.md](CONTRACT.md#production-process). Any message received by its local SMTP sink causes a failure. The browser refuses external requests. No real user, production database, external mailbox or service signup is used. This test configuration does not describe the application's default mail mode; see [Mail settings](../../README.md#mail-settings).
+The main runner explicitly selects the disabled test transport defined in [CONTRACT.md](CONTRACT.md#production-process). Any message received by its local SMTP sink causes a failure. The browser network policy and pinned-model exception are defined in the [browser journey contract](CONTRACT.md#browser-journey). No real user, production database, external mailbox or service signup is used. This test configuration does not describe the application's default mail mode; see [Mail settings](../../README.md#mail-settings).
 
 Run the separate SMTP browser check from the repository root after installing the dependencies and Chromium above:
 
@@ -27,7 +27,7 @@ This check also requires `openssl` on PATH to generate a disposable certificate.
 
 Set `ACCEPTANCE_OUTPUT` to an absolute scratch directory for stable report paths. Otherwise the runner creates a directory under the system temporary directory and prints its report location. The machine-readable `report.json` records release, exact local HEAD, runtime, case requirements, errors, durations and screenshot paths. Email/password inputs and visible generated credentials are masked in screenshots; diagnostics redact generated credentials. Service logs stay in memory and are checked for generated passwords and emails. Process groups, browser contexts, mail sockets and disposable storage are cleaned up after the run.
 
-The public boundary expected by this checker is in [CONTRACT.md](CONTRACT.md). No application imports, builder verification scripts or implementation-derived assertions are used. A transport mismatch is a finding to reconcile against this written boundary, never a reason to silently weaken the behavior being checked.
+The public boundary expected by this checker is in [CONTRACT.md](CONTRACT.md). Journey assertions use public browser and API behavior, without builder verification scripts. The [browser journey contract](CONTRACT.md#browser-journey) documents the shared model identity used by the network guard. A transport mismatch is a finding to reconcile against this written boundary, never a reason to silently weaken the behavior being checked.
 
 ## Proof that the checker detects failures
 

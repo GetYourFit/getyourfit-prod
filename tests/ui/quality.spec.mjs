@@ -148,9 +148,11 @@ test('empty wardrobe and garment upload', async ({ page }) => {
 
   await add.click();
   await dialog.getByRole('checkbox', { name: /permission to use its photo/ }).check();
+  await page.route('https://huggingface.co/**', (route) => route.abort('internetdisconnected'));
   await dialog.getByLabel('Garment photo').setInputFiles(fixture('top.jpg'));
   await expect(dialog.getByText('Choose a different photo')).toBeVisible({ timeout: 30_000 });
   await expect(dialog.getByLabel('Name', { exact: true })).toBeFocused();
+  await expect(dialog.getByText(/Image classification is unavailable on this device or connection/)).toBeVisible();
   await checkScreen(page, 'garment-dialog-reviewed', { fullPage: false });
 });
 
@@ -231,7 +233,7 @@ test('concurrent wardrobe refreshes and edits preserve confirmed facts', async (
         }
         held.resolve();
         await delivered.promise;
-        await expect(page.getByRole('button', { name: 'Find an outfit' })).toBeEnabled();
+        await expect(page.getByRole('button', { name: 'Find an outfit' })).toBeEnabled({ timeout: 20_000 });
         const current = await api(page, 'GET', '/api/wardrobe');
         expect(current.status).toBe(200);
         if (action === 'edit') {

@@ -4,7 +4,7 @@ Target `https://app.getyourfit.co` with email/password signup with verified emai
 
 ## Host and release
 
-Supply a Linux host running Node.js 24, a service identity with vault access, a durable writable data directory, and HTTPS ingress reaching the loopback listener. Linux uses wearer-confirmed facts without Apple Vision; the macOS Swift cold-start finding is deferred to v0.2.
+Supply a Linux host running Node.js 24, a service identity with vault access, a durable writable data directory, and HTTPS ingress reaching the loopback listener. Linux needs no Swift or Apple Vision: browsers recognize garments on-device ([photo recognition](photo-recognition.md)), and the macOS Swift cold-start finding for the optional server path is deferred to v0.2.
 
 Use an exact `main` revision with successful `quality` and `acceptance` checks. Build with `npm ci` and `npm run build`, then run `npm start`. Keep `server/`, `shared/`, package manifests, runtime dependencies, and `dist/` together.
 

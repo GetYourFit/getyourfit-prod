@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { browserInterpretationSchema } from './classification.ts';
 
 export const categorySchema = z.enum(['top', 'bottom', 'one-piece', 'footwear']);
 export const weatherSchema = z.enum(['warm', 'mild', 'cold']);
@@ -20,11 +21,11 @@ export const provenanceSchema = z.strictObject({
   confidence: z.literal(1),
   recordedAt: z.iso.datetime(),
 });
-export const interpretationSchema = z.discriminatedUnion('kind', [
+export const interpretationSchema = z.union([browserInterpretationSchema, z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('classified'), source: z.literal('Apple Vision'), modelVersion: z.string(),
     label: z.string().max(80), confidence: z.number().min(0).max(1) }),
   z.strictObject({ kind: z.literal('unavailable'), reason: z.enum(['unsupported-device', 'no-clothing-label', 'classification-failed']) }),
-]);
+])]);
 export const garmentSchema = z.strictObject({
   id: z.uuid(), facts: factsSchema,
   provenance: z.record(factsSchema.keyof(), provenanceSchema),

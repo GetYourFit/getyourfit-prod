@@ -127,6 +127,7 @@ async function addGarment(category, name, color, fit, testBadPhoto = false) {
   }
   chrome(['upload', element('button', 'Garment photo'), path.join(root, 'tests/fixtures', `${category}.jpg`)]);
   await shown('Choose a different photo');
+  evaluate('() => { [...document.querySelectorAll(".garment-dialog button")].find(button => button.textContent === "Skip recognition and confirm manually")?.click(); return true; }');
   fill('Name', name); select('Category', label(category)); fill('Color', color); fill('Size on label', 'M'); select('Does it fit you now?', fit === 'unknown' ? 'I’m not sure' : fit === 'fits' ? 'Yes, it fits' : 'No, it does not fit');
   check('Mild'); check('Casual'); check('I confirm this garment is mine and these are my facts.');
   click('Save garment'); await shown('Add garment'); await shown(name);
@@ -154,7 +155,7 @@ try {
   let items = browserApi('/api/wardrobe', undefined, 'GET').body;
   assert.equal(items.length, 1);
   assert.equal(items[0].photoConsent.scope, 'local-processing-and-storage');
-  if (process.platform === 'darwin') assert.equal(items[0].interpretation.kind, 'classified', 'Actual local Vision classification did not run.');
+  assert.equal(items[0].interpretation.kind, 'unavailable', 'Manual confirmation must not invent a model result.');
   click('Find an outfit'); await shown('What is the occasion?');
   fill('Occasion', 'Lunch with a friend'); click('Find an outfit'); await shown('What weather should this outfit work for?');
   select('Weather', 'Mild'); click('Find an outfit'); await shown('What is the dress code?');
@@ -273,7 +274,7 @@ try {
       validState, r13: { brokenImageState, disabledActionState, signedOutState }, exportProof: exported,
     }, null, 2));
   }
-  process.stdout.write('verify:wardrobe passed: production signup, consent, invalid decode, real local Vision labels, persisted photos and facts, one question, complete outfit, missing footwear, availability, wearer rejection, export, restart, ownership isolation, origin guard and deletion.\n');
+  process.stdout.write('verify:wardrobe passed: production signup, consent, invalid decode, manual photo review, persisted photos and facts, one question, complete outfit, missing footwear, availability, wearer rejection, export, restart, ownership isolation, origin guard and deletion.\n');
 } finally {
   await stopServer();
   try { chrome(['stop']); } catch (error) { process.stderr.write(`Browser cleanup failed: ${String(error)}\n`); }

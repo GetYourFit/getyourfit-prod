@@ -13,7 +13,7 @@ Run `npm install` once. Set a stable random `BETTER_AUTH_SECRET` of at least 32 
 
 For v0.1 account coverage, `npm run verify:local-account` builds and starts a production service, isolated database, and named Chrome session. It proves signup without mail, consent, restart continuity, sign-in failure, export, and deletion. For opt-in email coverage, follow the [account guide](features/account-access.md). The account verifiers stop only their own processes and remove their temporary databases.
 
-For the wardrobe-to-outfit path, run `npm run verify:wardrobe`. It uses the real licensed photographs in `tests/fixtures`, never remote assets or a seeded wardrobe. It drives photo consent, known-bad decode, local interpretation, facts, one-question clarification, complete outfit and abstention, persisted rejection, export, cross-account isolation, restart, and deletion. Set `GYF_PROOF_DIR` outside the repository to retain screenshots and snapshots. macOS with Swift proves actual Apple Vision; other platforms must expose the manual-confirmation state honestly.
+For the wardrobe-to-outfit path, run `npm run verify:wardrobe`. It uses the real licensed photographs in `tests/fixtures`, never remote photo assets or a seeded wardrobe. It drives photo consent, known-bad decode, manual confirmation, facts, one-question clarification, complete outfit and abstention, persisted rejection, export, cross-account isolation, restart, and deletion. Set `GYF_PROOF_DIR` outside the repository to retain screenshots and snapshots. For real model inference and recognition recovery, follow [photo recognition](../../../docs/photo-recognition.md#verify-recognition).
 
 ## Drive
 
