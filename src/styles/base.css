@@ -1,0 +1,61 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--color-canvas); }
+
+h1, h2, h3, h4, p, figure, ul, ol, dl, dd { margin: 0; }
+h1, h2, h3, h4 { font-weight: var(--weight-strong); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+img { display: block; max-width: 100%; }
+a { color: inherit; text-underline-offset: 4px; }
+summary { cursor: pointer; }
+::selection { background: var(--color-selection); color: var(--color-ink); }
+
+:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+[tabindex='-1']:focus:not(:focus-visible) { outline: none; }
+/* Headings receive programmatic focus to announce a new view; they are not controls, so they draw no ring. */
+:is(h1, h2, h3, h4, [data-result-focus])[tabindex='-1']:focus { outline: none; }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  z-index: 10;
+  top: var(--space-3);
+  left: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font-weight: var(--weight-strong);
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

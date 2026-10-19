@@ -9,3 +9,6 @@ dist/
 *.sqlite-*
 *.db
 .DS_Store
+test-results/
+tests/ui/screenshots/*
+!tests/ui/screenshots/linux/

@@ -73,7 +73,7 @@ export function decideOutfit(context: Context, garments: Garment[], excluded: st
   const candidates = garments.filter(({ id, facts }) => !excluded.includes(id) && facts.owned && facts.available && facts.fit !== 'does-not-fit' && facts.weather.includes(weather) && facts.dressCode.includes(dressCode));
   const set = completeSet(candidates.filter((item) => item.facts.fit === 'fits'));
   if (set) return { kind: 'complete', items: set, excludedCount: excluded.length,
-    explanation: `For ${context.occasion}: you confirmed every item is yours, available, fits you, and works for ${weather} weather and the ${dressCode} dress code. You already own it; nothing to buy. This checks your facts, without judging taste or predicting fit.` };
+    explanation: `You confirmed every piece is yours, available and fits you, and each is marked for ${weather} weather and a ${dressCode.replace('-', ' ')} dress code. You already own it, so there’s nothing to buy. This checks your facts; it doesn’t judge taste or predict fit.` };
   const possible = completeSet(candidates);
   const uncertain = possible?.find((item) => item.facts.fit === 'unknown');
   if (uncertain) return { kind: 'fit-question', garmentId: uncertain.id, question: `Does ${uncertain.facts.name} fit you now?` };

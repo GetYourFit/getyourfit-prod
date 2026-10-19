@@ -93,7 +93,7 @@ try {
     runtime = 'production-start-missing';
     results.push({ name: 'V01 production API service', requirement_ids: ['R4', 'A-1'], status: 'failed', error: 'package.json has no npm start production service contract.' });
   } else {
-    mailPort = await freePort();
+    mailPort = await freePort([appPort]);
     mailCatcher = tcpServer(socket => {
       smtpSockets.add(socket); socket.on('close', () => smtpSockets.delete(socket));
       socket.on('error', () => {});
@@ -176,12 +176,14 @@ await writeFile(path.join(output, 'report.json'), `${JSON.stringify(report, null
 console.log(JSON.stringify({ ...report.summary, report: path.join(output, 'report.json') }));
 process.exitCode = report.summary.failed ? 1 : 0;
 
-async function freePort() {
-  const probe = tcpServer();
-  await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(0, '127.0.0.1', resolve); });
-  const { port } = probe.address();
-  await new Promise(resolve => probe.close(resolve));
-  return port;
+async function freePort(excluded = []) {
+  for (;;) {
+    const probe = tcpServer();
+    await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(0, '127.0.0.1', resolve); });
+    const { port } = probe.address();
+    await new Promise(resolve => probe.close(resolve));
+    if (!excluded.includes(port)) return port;
+  }
 }
 async function requiredControl(locator, message) {
   try { await locator.waitFor(); } catch (error) {
@@ -471,7 +473,7 @@ async function starterPlanJourney(context, page) {
     page.getByRole('button', { name: /create account/i }).click(),
   ]);
   assert(registered.ok(), `Signup from the wardrobe entry returned HTTP ${registered.status()}`);
-  await page.getByRole('heading', { name: /a wardrobe worth knowing/i }).waitFor();
+  await page.getByRole('heading', { name: /^your wardrobe$/i }).waitFor();
   await page.locator('#build-plan').getByText('Opening your saved plans…', { exact: true }).waitFor();
   const planListResponse = page.waitForResponse(response => new URL(response.url()).pathname === contract.starterPlans && response.request().method() === 'GET');
   releasePlans();
@@ -1012,7 +1014,7 @@ async function browserJourney(context, page) {
   await factsForm.getByLabel(/size on label/i).fill(shirt.size);
   await selectByText(factsForm.getByLabel(/does it fit you now/i), /^(yes, it )?fits$/i);
   await factsForm.getByLabel(/^mild$/i).check();
-  await factsForm.getByLabel(/^smart-casual$/i).check();
+  await factsForm.getByLabel(/^smart[ -]casual$/i).check();
   await factsForm.getByLabel(/available to wear now/i).check();
   await factsForm.getByLabel(/confirm this garment is mine/i).check();
   const [uploaded] = await Promise.all([
@@ -1021,6 +1023,7 @@ async function browserJourney(context, page) {
   ]);
   const item = await jsonOK(uploaded, 'Browser garment upload');
   assertGarmentFacts(item, shirt, 'Browser upload');
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
   const outfitForm = page.locator('form').filter({ has: page.getByLabel('Occasion', { exact: true }) });
   await outfitForm.getByLabel('Occasion', { exact: true }).fill(facts.occasion);
   await selectByText(outfitForm.getByLabel(/weather/i), /^mild$/i);

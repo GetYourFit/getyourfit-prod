@@ -1,15 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { z } from 'zod';
+import { ImagePlus, X } from 'lucide-react';
 import { categorySchema, dressCodeSchema, factsSchema, garmentSchema, interpretationSchema, weatherSchema, type Facts, type Garment, type Interpretation } from '../shared/wardrobe';
 import { wardrobeRequest } from './wardrobe-api';
+import { categoryLabel, dressCodeLabel, weatherLabel } from './labels';
+import { Field, Notice } from './ui';
 
 type PhotoState = { kind: 'empty' } | { kind: 'processing' } | { kind: 'ready'; image: string; interpretation: Interpretation };
-export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment | null; onSaved: () => Promise<void>; onCancel: () => void }) {
+
+export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment | null; onSaved: (saved: Garment) => Promise<void>; onCancel: () => void }) {
   const [consent, setConsent] = useState(false);
   const [photo, setPhoto] = useState<PhotoState>({ kind: 'empty' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const defaults = garment?.facts;
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const [defaults] = useState(() => garment?.facts);
+  const locked = busy || photo.kind === 'processing';
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    dialog?.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    return () => dialog?.close();
+  }, []);
+  useEffect(() => { if (photo.kind === 'ready') dialogRef.current?.querySelector<HTMLInputElement>('input[name=name]')?.focus(); }, [photo.kind]);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
+
+  function cancel(event?: SyntheticEvent) {
+    event?.preventDefault();
+    if (!locked) onCancel();
+  }
 
   async function review(file: File | undefined) {
     setPhoto({ kind: 'empty' });
@@ -51,7 +72,7 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
       const interpretation = await wardrobeRequest('/review', interpretationSchema, { consent: true, image });
       setPhoto({ kind: 'ready', image, interpretation });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Photo review failed. Try again.');
+      setError(cause instanceof Error ? cause.message : 'The photo check failed. Try again.');
       setPhoto({ kind: 'empty' });
     }
   }
@@ -60,52 +81,85 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
     const data = new FormData(form);
     const parsed = factsSchema.safeParse({ name: data.get('name'), category: data.get('category'), color: data.get('color'), size: data.get('size'),
       owned: data.get('owned') === 'on', available: data.get('available') === 'on', fit: data.get('fit'), weather: data.getAll('weather'), dressCode: data.getAll('dressCode') });
-    if (!parsed.success) { setError('Confirm ownership and all details, including at least one weather and dress code.'); return; }
-    if (!garment && (!consent || photo.kind !== 'ready')) { setError('Confirm permission and review a real photo first.'); return; }
+    if (!parsed.success) { setError('Confirm ownership and every detail, including at least one weather and one dress code.'); return; }
+    if (!garment && (!consent || photo.kind !== 'ready')) { setError('Confirm permission and add a photo first.'); return; }
+    const changes = Object.fromEntries(factsSchema.keyof().options.filter((key) => {
+      const value = parsed.data[key];
+      const previous = defaults?.[key];
+      return Array.isArray(value) && Array.isArray(previous)
+        ? value.length !== previous.length || value.some((entry) => !previous.some((item) => item === entry))
+        : value !== previous;
+    }).map((key) => [key, parsed.data[key]]));
+    if (garment && Object.keys(changes).length === 0) { onCancel(); return; }
     setBusy(true); setError('');
     try {
-      if (garment) await wardrobeRequest(`/${garment.id}`, garmentSchema, parsed.data, 'PATCH');
-      else if (photo.kind === 'ready') await wardrobeRequest('', garmentSchema, { facts: parsed.data, consent: true, image: photo.image });
-      await onSaved();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'The garment could not be saved.'); }
+      let saved: Garment | null = null;
+      if (garment) saved = await wardrobeRequest(`/${garment.id}`, garmentSchema, changes, 'PATCH');
+      else if (photo.kind === 'ready') saved = await wardrobeRequest('', garmentSchema, { facts: parsed.data, consent: true, image: photo.image });
+      if (saved) await onSaved(saved);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'The garment could not be saved. Try again.'); }
     finally { setBusy(false); }
   }
 
-  return <section className="garment-editor" aria-labelledby="garment-form-title">
-    <div className="section-heading"><div><p className="eyebrow">{garment ? 'YOUR CORRECTION WINS' : 'ONE REAL GARMENT'}</p><h2 id="garment-form-title">{garment ? `Edit ${garment.facts.name}` : 'Start with a photo.'}</h2></div><button className="text-button" onClick={onCancel} disabled={busy || photo.kind === 'processing'}>Cancel</button></div>
-    {!garment && <div className="photo-step">
-      <label className="consent-check"><input type="checkbox" checked={consent} disabled={photo.kind === 'processing' || busy} onChange={(event) => { setConsent(event.target.checked); setPhoto({ kind: 'empty' }); }} />I own this garment and have permission to use its photo. I consent to reviewing and storing it in my private account on the GetYourFit server, without sharing or model training.</label>
-      <label className="photo-upload"><span>Review your photo</span><input type="file" aria-label="Garment photo" accept="image/jpeg,image/png,image/webp" disabled={!consent || busy || photo.kind === 'processing'} onChange={(event) => { void review(event.target.files?.[0]); event.target.value = ''; }} /></label>
-      <p className="form-note" role="status">{photo.kind === 'processing' ? 'Resizing your photo, then reviewing it on the GetYourFit server…' : 'JPEG, PNG, or WebP, up to 10 MB and 16 megapixels. Resized to 1200 px with metadata removed before upload. Photo review runs on the GetYourFit server, without an external AI service.'}</p>
-      {photo.kind === 'ready' && <div className="photo-review"><img src={`data:image/jpeg;base64,${photo.image}`} alt="Your resized garment photo" /><InterpretationNote interpretation={photo.interpretation} /><p>Your choices below are the facts used for outfits. A photo cannot establish fit, ownership, weather, or dress code.</p></div>}
-    </div>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+  const factsLocked = busy || (!garment && photo.kind !== 'ready');
+  return <dialog ref={dialogRef} className="dialog garment-dialog" aria-labelledby="garment-form-title" onCancel={cancel}>
+    <div className="dialog-header">
+      <h2 id="garment-form-title" className="card-title">{garment ? `Edit ${garment.facts.name}` : 'Add a garment'}</h2>
+      <button type="button" className="icon-button" aria-label="Close" onClick={cancel} disabled={locked}><X size={20} aria-hidden="true" /></button>
+    </div>
     <form className="garment-form" onSubmit={(event) => { event.preventDefault(); void save(event.currentTarget); }}>
-      <fieldset disabled={busy || (!garment && photo.kind !== 'ready')}>
-        <legend>Confirm your garment facts</legend>
-        <div className="form-grid">
-          <label>Name<input className="text-input" name="name" maxLength={80} required defaultValue={defaults?.name ?? ''} placeholder="A name you recognize" /></label>
-          <label>Category<select className="text-input" name="category" required defaultValue={defaults?.category ?? ''}><option value="" disabled>Choose a category</option>{categorySchema.options.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-          <label>Color<input className="text-input" name="color" maxLength={40} required defaultValue={defaults?.color ?? ''} /></label>
-          <label>Size on label<input className="text-input" name="size" maxLength={40} required defaultValue={defaults?.size ?? ''} placeholder="Use unknown if there is no label" /></label>
-          <label>Does it fit you now?<select className="text-input" name="fit" defaultValue={defaults?.fit ?? 'unknown'}><option value="unknown">I’m not sure</option><option value="fits">Yes, it fits</option><option value="does-not-fit">No, it does not fit</option></select></label>
-        </div>
-        <FactOptions name="weather" title="Weather you would wear it in" values={weatherSchema.options} selected={defaults?.weather ?? []} />
-        <FactOptions name="dressCode" title="Dress codes you would wear it for" values={dressCodeSchema.options} selected={defaults?.dressCode ?? []} />
-        <label className="consent-check"><input type="checkbox" name="available" defaultChecked={defaults?.available ?? true} />Available to wear now</label>
-        <label className="consent-check"><input type="checkbox" name="owned" defaultChecked={defaults?.owned ?? false} required />I confirm this garment is mine and these are my facts.</label>
-        <p className="form-note">Recorded as {garment ? 'wearer corrections' : 'confirmed by you'}, with no model version. Confidence 1 means you explicitly confirmed the fact; it is not an AI score.</p>
-        <button className="button button-primary" type="submit">{busy ? 'Saving…' : garment ? 'Save correction' : 'Save garment'}</button>
-      </fieldset>
+      <div className="dialog-body">
+        {!garment && <section className="editor-step" aria-labelledby="photo-step-title">
+          <h3 id="photo-step-title" className="step-title"><span className="step-number" aria-hidden="true">1</span>Add a photo</h3>
+          <label className="check"><input type="checkbox" checked={consent} disabled={locked} data-autofocus onChange={(event) => { setConsent(event.target.checked); setPhoto({ kind: 'empty' }); }} /><span>I own this garment and have permission to use its photo. <span className="check-detail">I consent to GetYourFit checking and storing it in my private account on the GetYourFit server, without sharing or model training.</span></span></label>
+          <div className={`dropzone${photo.kind === 'ready' ? ' dropzone-ready' : ''}`} data-disabled={!consent || locked || undefined}>
+            {photo.kind === 'ready' ? <img src={`data:image/jpeg;base64,${photo.image}`} alt="Your resized garment photo" /> : <span className="dropzone-icon" aria-hidden="true">{photo.kind === 'processing' ? <span className="spinner" /> : <ImagePlus size={24} />}</span>}
+            <span className="dropzone-copy"><span className="dropzone-title">{photo.kind === 'ready' ? 'Choose a different photo' : photo.kind === 'processing' ? 'Checking your photo…' : 'Choose a photo'}</span><span className="caption">{consent ? 'JPEG, PNG, or WebP, up to 10 MB' : 'Confirm permission above to choose a photo'}</span></span>
+            <input className="dropzone-input" type="file" aria-label="Garment photo" aria-describedby="photo-help" accept="image/jpeg,image/png,image/webp" disabled={!consent || locked} onChange={(event) => { void review(event.target.files?.[0]); event.target.value = ''; }} />
+          </div>
+          <p id="photo-help" className="caption" role="status">{photo.kind === 'processing' ? 'Resizing your photo, then checking it on the GetYourFit server…' : 'Before upload, your browser resizes the photo to 1200 px and removes camera and location details. The photo check runs on the GetYourFit server, without an external AI service.'}</p>
+          {photo.kind === 'ready' && <InterpretationNote interpretation={photo.interpretation} />}
+        </section>}
+        <fieldset className="editor-step field-group" disabled={factsLocked}>
+          <legend className="step-title">{!garment && <span className="step-number" aria-hidden="true">2</span>}Confirm your garment facts</legend>
+          {!garment && <p className="caption step-note">Your answers are the facts used for outfits. A photo can’t establish fit, ownership, weather, or dress code.</p>}
+          <div className="field-grid">
+            <Field label="Name">{(control) => <input {...control} className="input" data-autofocus={garment ? true : undefined} name="name" maxLength={80} required defaultValue={defaults?.name ?? ''} />}</Field>
+            <Field label="Category">{(control) => <select {...control} className="select" name="category" required defaultValue={defaults?.category ?? ''}><option value="" disabled>Choose a category</option>{categorySchema.options.map((value) => <option key={value} value={value}>{categoryLabel[value]}</option>)}</select>}</Field>
+            <Field label="Color">{(control) => <input {...control} className="input" name="color" maxLength={40} required defaultValue={defaults?.color ?? ''} />}</Field>
+            <Field label="Size on label" hint="Write “unknown” if there’s no label.">{(control) => <input {...control} className="input" name="size" maxLength={40} required defaultValue={defaults?.size ?? ''} />}</Field>
+            <Field label="Does it fit you now?">{(control) => <select {...control} className="select" name="fit" defaultValue={defaults?.fit ?? 'unknown'}><option value="unknown">I’m not sure</option><option value="fits">Yes, it fits</option><option value="does-not-fit">No, it does not fit</option></select>}</Field>
+          </div>
+          <FactOptions name="weather" title="Weather you’d wear it in" values={weatherSchema.options} labels={weatherLabel} selected={defaults?.weather ?? []} />
+          <FactOptions name="dressCode" title="Dress codes you’d wear it for" values={dressCodeSchema.options} labels={dressCodeLabel} selected={defaults?.dressCode ?? []} />
+          <div>
+            <label className="check"><input type="checkbox" name="available" defaultChecked={defaults?.available ?? true} /><span>Available to wear now</span></label>
+            <label className="check"><input type="checkbox" name="owned" defaultChecked={defaults?.owned ?? false} required /><span>I confirm this garment is mine and these are my facts.</span></label>
+          </div>
+        </fieldset>
+        {garment && <details className="disclosure"><summary>How these facts were recorded</summary><p>You confirmed every fact yourself, and edits are saved as your corrections. No model sets outfit facts.</p><InterpretationNote interpretation={garment.interpretation} /></details>}
+        {error && <Notice ref={errorRef} tone="error" role="alert" focusable>{error}</Notice>}
+      </div>
+      <div className="dialog-footer">
+        <button type="button" className="button button-secondary" onClick={cancel} disabled={locked}>Cancel</button>
+        <button type="submit" className="button button-primary" disabled={factsLocked}>{busy ? 'Saving…' : garment ? 'Save changes' : 'Save garment'}</button>
+      </div>
     </form>
-  </section>;
+  </dialog>;
 }
 
-function FactOptions({ name, title, values, selected }: { name: keyof Pick<Facts, 'weather' | 'dressCode'>; title: string; values: readonly string[]; selected: readonly string[] }) {
-  return <fieldset className="fact-options"><legend>{title}</legend>{values.map((value) => <label key={value}><input type="checkbox" name={name} value={value} defaultChecked={selected.includes(value)} />{value}</label>)}</fieldset>;
+function FactOptions<Value extends string>({ name, title, values, labels, selected }: { name: keyof Pick<Facts, 'weather' | 'dressCode'>; title: string; values: readonly Value[]; labels: Record<Value, string>; selected: readonly string[] }) {
+  return <fieldset className="field-group"><legend className="field-label">{title}</legend><div className="chips">{values.map((value) => <label className="chip" key={value}><input type="checkbox" name={name} value={value} defaultChecked={selected.includes(value)} />{labels[value]}</label>)}</div></fieldset>;
+}
+
+function confidenceWord(confidence: number): string {
+  return confidence >= 0.8 ? 'high' : confidence >= 0.5 ? 'medium' : 'low';
 }
 
 export function InterpretationNote({ interpretation }: { interpretation: z.infer<typeof interpretationSchema> }) {
-  if (interpretation.kind === 'unavailable') return <p className="form-note">{interpretation.reason === 'no-clothing-label' ? 'No clothing label was recognized.' : 'Local image classification is unavailable.'} Confirm the details yourself; no confidence score has been invented.</p>;
-  return <p className="form-note">Photo label: <strong>{interpretation.label}</strong> · {(interpretation.confidence * 100).toFixed(1)}% classifier score.<br />{interpretation.source} · {interpretation.modelVersion}. This score is uncertain and does not measure fit or style. Which category is this garment? Confirm it below.</p>;
+  if (interpretation.kind === 'unavailable') return <p className="caption">{interpretation.reason === 'no-clothing-label' ? 'The photo check didn’t recognize a garment type.' : 'The photo check isn’t available right now.'} Enter the details yourself; no score has been invented.</p>;
+  return <div className="photo-check">
+    <p>Photo check suggests <strong>{interpretation.label}</strong>, with {confidenceWord(interpretation.confidence)} confidence ({Math.round(interpretation.confidence * 100)}%). Choose the category yourself below.</p>
+    <p className="caption">{interpretation.source} · {interpretation.modelVersion}. The score is uncertain and doesn’t measure fit or style.</p>
+  </div>;
 }

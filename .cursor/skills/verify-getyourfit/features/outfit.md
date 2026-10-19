@@ -26,7 +26,7 @@ Preconditions:
 - **Clarification.** Request with no occasion, then unknown weather, then unknown dress code. Each result asks exactly one focused question without outfit images. With all context known but one needed item fit unknown, answer Yes, it fits; the garment fact and source update.
 - **Complete.** Find an outfit. The result has two or three actual wardrobe photos, explains confirmed ownership, availability, fit, weather and dress code, and says nothing to buy. It makes no style or size prediction.
 - **Known bad.** Omit footwear, or mark it unavailable, not fitting or incompatible. Find an outfit must abstain with zero outfit items.
-- **Correction.** Choose Don’t use this for this occasion. The item stays excluded after reload and the same request, including case and surrounding-space differences in occasion. Choose Allow excluded items again only to undo your correction.
+- **Correction.** Choose Don’t use for this occasion. The item stays excluded after reload and the same request, including case and surrounding-space differences in occasion. Choose Allow excluded items again only to undo your correction.
 - **Proof.** npm test checks constraint branches and complete-set shape. npm run verify:wardrobe exercises clarification, complete and invalid sets, actual images and persisted corrections through browser controls.
 
 ## Gotchas

@@ -9,6 +9,7 @@ import net from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import sharp from 'sharp';
 
 const publicOrigin = 'https://app.getyourfit.co';
 
@@ -62,6 +63,49 @@ async function start(t, overrides = {}) {
   }
   assert.fail('Production server did not start.');
 }
+
+test('partial garment patches preserve other facts and provenance', async (t) => {
+  const { request, origin } = await start(t);
+  const headers = { Origin: origin, 'Content-Type': 'application/json' };
+  const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {
+    name: 'Wearer', email: 'patches@example.test', password: randomBytes(32).toString('base64url'), adultConfirmed: true,
+  } });
+  assert.equal(signedUp.status, 200);
+  headers.Cookie = signedUp.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
+  const image = (await sharp(new URL('./fixtures/top.jpg', import.meta.url).pathname)
+    .resize(1200, 1200, { fit: 'inside' }).jpeg({ quality: 85 }).toBuffer()).toString('base64');
+  const created = await request({ method: 'POST', route: '/api/wardrobe', headers, body: {
+    consent: true, image, facts: { name: 'Tee', category: 'top', color: 'grey', size: 'M', fit: 'unknown',
+      owned: true, available: true, weather: ['mild'], dressCode: ['casual'] },
+  } });
+  assert.equal(created.status, 201);
+  const route = `/api/wardrobe/${created.body.id}`;
+  let current = created.body;
+  for (const body of [{ fit: 'fits' }, { name: 'Renamed tee' }, { weather: ['warm', 'cold'] }, { dressCode: ['formal'] },
+    { available: false }, { category: 'one-piece' }, { color: 'olive' }, { size: 'L' }, { owned: true }]) {
+    const updated = await request({ method: 'PATCH', route, headers, body });
+    assert.equal(updated.status, 200);
+    assert.deepEqual(updated.body.facts, { ...current.facts, ...body });
+    for (const key of Object.keys(current.facts)) {
+      if (key in body && JSON.stringify(current.facts[key]) !== JSON.stringify(body[key])) {
+        assert.deepEqual(updated.body.provenance[key], { source: 'wearer-correction', modelVersion: null, confidence: 1, recordedAt: updated.body.updatedAt });
+      } else assert.deepEqual(updated.body.provenance[key], current.provenance[key]);
+    }
+    current = updated.body;
+  }
+  for (const body of [{}, { unexpected: true }, { name: 'Ignored', unexpected: true }, { fit: 'invalid' }, { weather: [] }]) {
+    assert.equal((await request({ method: 'PATCH', route, headers, body })).status, 400);
+    const listed = await request({ route: '/api/wardrobe', headers });
+    assert.deepEqual(listed.body, [current]);
+  }
+  const facts = { ...current.facts, name: 'Full update' };
+  const full = await request({ method: 'PATCH', route, headers, body: facts });
+  assert.equal(full.status, 200);
+  assert.deepEqual(full.body.facts, facts);
+  assert.equal(full.body.provenance.name.source, 'wearer-correction');
+  for (const key of Object.keys(facts).filter((key) => key !== 'name')) assert.deepEqual(full.body.provenance[key], current.provenance[key]);
+  assert.deepEqual((await request({ route: '/api/wardrobe', headers })).body, [full.body]);
+});
 
 test('loopback remains allowed and foreign Host, Origin, and originless writes are rejected', async (t) => {
   const { request, origin } = await start(t);

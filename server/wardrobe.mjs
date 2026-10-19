@@ -15,6 +15,7 @@ import shoppingSourceRecords from './shopping-sources.json' with { type: 'json' 
 
 const execute = promisify(execFile);
 const shoppingSources = shoppingSourceListSchema.parse(shoppingSourceRecords);
+const factsPatchSchema = factsSchema.partial().refine((facts) => Object.keys(facts).length > 0);
 const classifyScript = fileURLToPath(new URL('./classify.swift', import.meta.url));
 export function ensureWardrobeSchema() {
   database.exec(`
@@ -145,16 +146,17 @@ export function wardrobeRouter(requireUser) {
     response.type('jpeg').send(row.photo);
   });
   router.patch('/:id', (request, response) => {
-    const facts = factsSchema.safeParse(request.body);
-    if (!facts.success) return response.status(400).json({ error: 'Confirm all garment facts before saving.' });
+    const changes = factsPatchSchema.safeParse(request.body);
+    if (!changes.success) return response.status(400).json({ error: 'Send at least one valid garment fact before saving.' });
     const row = database.prepare('SELECT * FROM garments WHERE id = ? AND user_id = ?').get(request.params.id, request.user.id);
     if (!row) return response.status(404).json({ error: 'This garment is not in your wardrobe.' });
     const now = new Date().toISOString();
     const previous = garment(row);
-    const provenance = Object.fromEntries(Object.keys(facts.data).map((key) => [key, JSON.stringify(previous.facts[key]) === JSON.stringify(facts.data[key])
+    const facts = factsSchema.parse({ ...previous.facts, ...changes.data });
+    const provenance = Object.fromEntries(Object.keys(facts).map((key) => [key, JSON.stringify(previous.facts[key]) === JSON.stringify(facts[key])
       ? previous.provenance[key] : { source: 'wearer-correction', modelVersion: null, confidence: 1, recordedAt: now }]));
     database.prepare('UPDATE garments SET facts = ?, provenance = ?, updated_at = ? WHERE id = ? AND user_id = ?')
-      .run(JSON.stringify(facts.data), JSON.stringify(provenance), now, row.id, request.user.id);
+      .run(JSON.stringify(facts), JSON.stringify(provenance), now, row.id, request.user.id);
     response.json(garment(database.prepare('SELECT * FROM garments WHERE id = ? AND user_id = ?').get(row.id, request.user.id)));
   });
   router.delete('/:id', (request, response) => {

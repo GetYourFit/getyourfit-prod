@@ -4,6 +4,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
 import { ShoppingLinks } from './ShoppingLinks';
 import { wardrobeRequest } from './wardrobe-api';
+import { Notice } from './ui';
 
 type FormValues = Omit<StarterInput, 'budget'> & { budget: string };
 type Draft = { input: StarterInput; roles: StarterRoleState[] };
@@ -248,12 +249,12 @@ export function StarterPlan() {
           <div className="starter-need-copy"><p className="starter-need-label">{starterRoleName(role.role)}</p><p>{role.need}</p><p>{role.state === 'planned' ? `Planned need · allocation ${displayBudget(role.allocation, input.currency)}` : 'You confirmed a suitable item is already owned · allocation 0'}</p></div>
           {role.state === 'planned' && actionable && <div className="starter-need-actions">
             {input.budget > 0 && <a className="starter-search" href={searchHref(role.role)} target="_blank" rel="noopener noreferrer">Open an external search for {starterRoleName(role.role).toLowerCase()} <ArrowUpRight size={15} aria-hidden="true" /></a>}
-            <button className="text-button" disabled={busy !== ''} onClick={() => { setEditingRole(role.role); setNeedText(role.need); }}>Replace need</button>
-            <button className="text-button" disabled={busy !== ''} onClick={() => void confirmOwned(role.role, input, roles)}>I already have this</button>
+            <button className="button button-ghost" disabled={busy !== ''} onClick={() => { setEditingRole(role.role); setNeedText(role.need); }}>Replace need</button>
+            <button className="button button-ghost" disabled={busy !== ''} onClick={() => void confirmOwned(role.role, input, roles)}>I already have this</button>
             {editingRole === role.role && <form className="starter-replace-form" onSubmit={(event) => { event.preventDefault(); void replaceNeed(role.role, input, roles); }}>
-              <label>Replacement need<textarea disabled={busy !== ''} value={needText} maxLength={STARTER_NEED_MAX_LENGTH} required onChange={(event) => setNeedText(event.target.value)} /></label>
+              <label>Replacement need<textarea className="textarea" disabled={busy !== ''} value={needText} maxLength={STARTER_NEED_MAX_LENGTH} required onChange={(event) => setNeedText(event.target.value)} /></label>
               <button className="button button-secondary" disabled={busy !== ''}>{busy === 'replace-need' ? 'Saving…' : 'Save replacement'}</button>
-              <button className="text-button" type="button" disabled={busy !== ''} onClick={closeNeedEditor}>Cancel</button>
+              <button className="button button-ghost" type="button" disabled={busy !== ''} onClick={closeNeedEditor}>Cancel</button>
             </form>}
           </div>}
         </li>)}
@@ -264,7 +265,7 @@ export function StarterPlan() {
       <div className="starter-plan-actions">
         {planStatus === 'draft' && <button className="button button-primary" disabled={busy !== ''} onClick={() => void saveDraft()}>{busy === 'save' ? 'Saving plan…' : 'Save plan'}</button>}
         {saved && planStatus === 'active' && <button className="button button-secondary" disabled={busy !== ''} onClick={startReplacement}>Replace plan</button>}
-        {actionable && <button className="text-button starter-reject" disabled={busy !== ''} onClick={() => void rejectCurrent()}>{busy === 'reject' ? 'Rejecting…' : 'Reject plan'}</button>}
+        {actionable && <button className="button button-danger-ghost starter-reject" disabled={busy !== ''} onClick={() => void rejectCurrent()}>{busy === 'reject' ? 'Rejecting…' : 'Reject plan'}</button>}
         {planStatus === 'rejected' && <button className="button button-primary" disabled={busy !== ''} onClick={startNewPlan}>Start a new plan</button>}
       </div>
     </div>;
@@ -272,9 +273,9 @@ export function StarterPlan() {
 
   const planHistory = plans.filter((plan) => plan.id !== current?.id);
 
-  return <section className="starter-plan-section" id="build-plan" aria-labelledby="starter-plan-title">
-    <div className="starter-plan-heading"><div><h2 id="starter-plan-title">Build my wardrobe</h2><p>Answer a few questions to get a starter capsule: a small set of pieces that mix into several outfits. No garment upload or account at another service is needed to plan.</p></div>{!formOpen && !draft && (current ? <button className="button button-secondary" disabled={busy !== ''} onClick={startNewPlan}>New plan</button> : <button className="button button-primary" disabled={busy !== ''} onClick={() => setFormOpen(true)}>Plan an occasion</button>)}</div>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+  return <section className="starter-plan-section page-section card" id="build-plan" aria-labelledby="starter-plan-title">
+    <div className="starter-plan-heading"><div><h2 id="starter-plan-title" className="section-title">Build my wardrobe</h2><p>Answer a few questions to get a starter capsule: a small set of pieces that mix into several outfits. No garment upload or account at another service is needed to plan.</p></div>{!formOpen && !draft && (current ? <button className="button button-secondary" disabled={busy !== ''} onClick={startNewPlan}>New plan</button> : <button className="button button-primary" disabled={busy !== ''} onClick={() => setFormOpen(true)}>Plan an occasion</button>)}</div>
+    {error && <Notice tone="error" role="alert">{error}</Notice>}
     {loadFailed && <button className="button button-secondary starter-load-retry" disabled={busy !== ''} onClick={() => { setLoading(true); setLoadFailed(false); setLoadAttempt((attempt) => attempt + 1); }}>Try loading saved plans again</button>}
     {status && <p className="starter-status" role="status">{status}</p>}
     {loading ? <p role="status">Opening your saved plans…</p> : <>
@@ -284,23 +285,23 @@ export function StarterPlan() {
       {formOpen && <form className="starter-form" onSubmit={(event) => void submit(event)}>
         <h3 tabIndex={-1}>{replacePlan ? 'Change this plan' : current ? 'Plan another capsule' : 'Start with your occasion'}</h3>
         <p>Tell us what the outfit needs to cover. Unknown details stay unknown.</p>
-        <label>What is the occasion?<input disabled={busy !== ''} required maxLength={120} value={values.occasion} placeholder="For example: a family function" onChange={(event) => setValue('occasion', event.target.value)} /></label>
+        <label>What is the occasion?<input className="input" disabled={busy !== ''} required maxLength={120} value={values.occasion} placeholder="For example: a family function" onChange={(event) => setValue('occasion', event.target.value)} /></label>
         <div className="starter-form-row">
-          <label>Spending ceiling<input disabled={busy !== ''} required type="number" min="0" max="1000000" step="1" inputMode="numeric" value={values.budget} onChange={(event) => setValue('budget', event.target.value)} /></label>
-          <label>Currency<select disabled={busy !== ''} value={values.currency} onChange={(event) => setValue('currency', z.enum(['INR', 'USD', 'GBP']).parse(event.target.value))}><option value="INR">INR · Indian rupee</option><option value="USD">USD · US dollar</option><option value="GBP">GBP · British pound</option></select></label>
+          <label>Spending ceiling<input className="input" disabled={busy !== ''} required type="number" min="0" max="1000000" step="1" inputMode="numeric" value={values.budget} onChange={(event) => setValue('budget', event.target.value)} /></label>
+          <label>Currency<select className="select" disabled={busy !== ''} value={values.currency} onChange={(event) => setValue('currency', z.enum(['INR', 'USD', 'GBP']).parse(event.target.value))}><option value="INR">INR · Indian rupee</option><option value="USD">USD · US dollar</option><option value="GBP">GBP · British pound</option></select></label>
         </div>
         <div className="starter-form-row">
-          <label>Plan weather<select disabled={busy !== ''} value={values.weather} onChange={(event) => setValue('weather', starterWeatherSchema.parse(event.target.value))}><option value="unknown">I am not sure</option><option value="warm">Warm</option><option value="mild">Mild</option><option value="cold">Cold</option></select></label>
-          <label>Plan dress code<select disabled={busy !== ''} value={values.dressCode} onChange={(event) => setValue('dressCode', z.enum(['casual', 'smart-casual', 'formal', 'unknown']).parse(event.target.value))}><option value="unknown">I am not sure</option><option value="casual">Casual</option><option value="smart-casual">Smart casual</option><option value="formal">Formal</option></select></label>
+          <label>Plan weather<select className="select" disabled={busy !== ''} value={values.weather} onChange={(event) => setValue('weather', starterWeatherSchema.parse(event.target.value))}><option value="unknown">I am not sure</option><option value="warm">Warm</option><option value="mild">Mild</option><option value="cold">Cold</option></select></label>
+          <label>Plan dress code<select className="select" disabled={busy !== ''} value={values.dressCode} onChange={(event) => setValue('dressCode', z.enum(['casual', 'smart-casual', 'formal', 'unknown']).parse(event.target.value))}><option value="unknown">I am not sure</option><option value="casual">Casual</option><option value="smart-casual">Smart casual</option><option value="formal">Formal</option></select></label>
         </div>
-        <label>What kind of outfit do you need?<select disabled={busy !== ''} value={values.outfitType} onChange={(event) => setValue('outfitType', z.enum(['separates', 'one-piece']).parse(event.target.value))}><option value="separates">Top, bottom and footwear</option><option value="one-piece">One-piece garment and footwear</option></select></label>
-        <label>Any must-have or coverage requirement? <span className="starter-optional">Optional</span><input disabled={busy !== ''} type="text" maxLength={160} value={values.mustHave} aria-describedby="starter-requirement-help" onChange={(event) => setValue('mustHave', event.target.value)} /></label>
+        <label>What kind of outfit do you need?<select className="select" disabled={busy !== ''} value={values.outfitType} onChange={(event) => setValue('outfitType', z.enum(['separates', 'one-piece']).parse(event.target.value))}><option value="separates">Top, bottom and footwear</option><option value="one-piece">One-piece garment and footwear</option></select></label>
+        <label><span>Any must-have or coverage requirement? <span className="field-optional">(optional)</span></span><input className="input" disabled={busy !== ''} type="text" maxLength={160} value={values.mustHave} aria-describedby="starter-requirement-help" onChange={(event) => setValue('mustHave', event.target.value)} /></label>
         <p className="starter-form-note" id="starter-requirement-help">Add only a clothing requirement you want reflected in the text needs plan.</p>
-        <fieldset className="starter-owned" disabled={busy !== ''}><legend>Do you already have a suitable item for any of these needs?</legend><p>Only your confirmation can close a gap. This does not add a photo or garment to your owned wardrobe.</p>{eligibleRoles(values).map((role) => <label key={role}><input type="checkbox" checked={values.ownedRoles.includes(role)} onChange={(event) => setValue('ownedRoles', event.target.checked ? [...values.ownedRoles, role] : values.ownedRoles.filter((item) => item !== role))} /> I already have suitable {starterRoleName(role).toLowerCase()}</label>)}</fieldset>
+        <fieldset className="starter-owned" disabled={busy !== ''}><legend>Do you already have a suitable item for any of these needs?</legend><p>Only your confirmation can close a gap. This does not add a photo or garment to your owned wardrobe.</p>{eligibleRoles(values).map((role) => <label className="check" key={role}><input type="checkbox" checked={values.ownedRoles.includes(role)} onChange={(event) => setValue('ownedRoles', event.target.checked ? [...values.ownedRoles, role] : values.ownedRoles.filter((item) => item !== role))} /> I already have suitable {starterRoleName(role).toLowerCase()}</label>)}</fieldset>
         <p className="starter-form-note">The result is a text needs plan. We do not have an authorized product catalogue, so we cannot verify products, offers, prices, size, delivery, or checkout totals.</p>
-        <div className="starter-form-actions"><button className="button button-primary" disabled={busy !== ''}>{busy === 'create' ? 'Making your plan…' : replacePlan ? 'Replace with this plan' : 'Make my starter plan'}</button><button className="text-button" type="button" disabled={busy !== ''} onClick={() => { setFormOpen(false); setReplacePlan(false); }}>{current || draft ? 'Cancel' : 'Use my owned clothes instead'}</button></div>
+        <div className="starter-form-actions"><button className="button button-primary" disabled={busy !== ''}>{busy === 'create' ? 'Making your plan…' : replacePlan ? 'Replace with this plan' : 'Make my starter plan'}</button><button className="button button-ghost" type="button" disabled={busy !== ''} onClick={() => { setFormOpen(false); setReplacePlan(false); }}>{current || draft ? 'Cancel' : 'Use my owned clothes instead'}</button></div>
       </form>}
-      {planHistory.length > 0 && <details className="starter-history"><summary>Saved plan history ({planHistory.length})</summary><ul>{planHistory.map((plan) => <li key={plan.id}><button className="text-button" disabled={busy !== ''} onClick={() => { setCurrent(plan); setDraft(null); setFormOpen(false); setReplacePlan(false); closeNeedEditor(); }}>{plan.input.occasion} · {plan.status}</button></li>)}</ul></details>}
+      {planHistory.length > 0 && <details className="starter-history"><summary>Saved plan history ({planHistory.length})</summary><ul>{planHistory.map((plan) => <li key={plan.id}><button className="button button-ghost" disabled={busy !== ''} onClick={() => { setCurrent(plan); setDraft(null); setFormOpen(false); setReplacePlan(false); closeNeedEditor(); }}>{plan.input.occasion} · {plan.status}</button></li>)}</ul></details>}
     </>}
   </section>;
 }

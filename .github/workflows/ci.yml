@@ -10,6 +10,8 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    # The pinned Playwright image fixes the browser build and system libraries, so screenshot baselines stay comparable.
+    container: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
@@ -22,3 +24,17 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: Check accessibility, design rules, and visual regression
+        run: npm run test:ui
+        env:
+          UI_OUTPUT: ${{ runner.temp }}/ui
+      - name: Preserve UI screenshots and diffs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: ui-quality-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/ui
+            tests/ui/screenshots/linux
+          if-no-files-found: ignore
+          retention-days: 7

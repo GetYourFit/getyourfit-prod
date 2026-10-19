@@ -8,7 +8,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const origin = 'http://127.0.0.1:4174';
+const portProbe = net.createServer();
+await new Promise((resolve, reject) => { portProbe.once('error', reject); portProbe.listen(0, '127.0.0.1', resolve); });
+const port = portProbe.address().port;
+await new Promise((resolve) => portProbe.close(resolve));
+const origin = `http://127.0.0.1:${port}`;
 const session = `gyf-local-account-${process.pid}`;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-local-account-'));
 const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
@@ -39,6 +43,7 @@ function element(role, name) {
 
 function click(name) { chrome(['click', element('button', name)]); }
 function fill(name, value) { chrome(['fill', element('textbox', name), value]); }
+function follow(name) { chrome(['click', element('link', name)]); }
 
 function evaluate(expression) {
   const output = chrome(['eval', expression]);
@@ -67,7 +72,7 @@ async function startServer() {
   serverError = '';
   server = spawn(process.execPath, ['server/index.mjs'], {
     cwd: root, stdio: ['ignore', 'ignore', 'pipe'],
-    env: { ...process.env, NODE_ENV: 'production', GYF_MAIL_TRANSPORT: 'disabled', GYF_DATA_DIR: dataDir, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: '4174' },
+    env: { ...process.env, NODE_ENV: 'production', GYF_MAIL_TRANSPORT: 'disabled', GYF_DATA_DIR: dataDir, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: String(port) },
   });
   server.stderr.on('data', (chunk) => { serverError += chunk; });
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -82,12 +87,6 @@ async function startServer() {
 }
 
 try {
-  const available = await new Promise((resolve) => {
-    const socket = net.createConnection({ host: '127.0.0.1', port: 4174 });
-    socket.once('connect', () => { socket.destroy(); resolve(false); });
-    socket.once('error', () => resolve(true));
-  });
-  assert.ok(available, 'Port 4174 is occupied; this verifier never stops another service.');
   run('npm', ['run', 'build']);
   const refusedData = path.join(dataDir, 'missing-key');
   const refused = spawnSync(process.execPath, ['server/index.mjs'], {
@@ -99,7 +98,7 @@ try {
   assert.equal(fs.existsSync(refusedData), false, 'A refused startup created persistent account data.');
 
   await startServer();
-  chrome(['open', origin]);
+  chrome(['open', `${origin}/sign-in`]);
   await shown('Welcome back.');
   if (proofDir) {
     fs.mkdirSync(proofDir, { recursive: true, mode: 0o700 });
@@ -108,14 +107,16 @@ try {
   }
   assert.ok(!chrome(['snapshot']).includes('Forgot password?'));
   click('Create an account');
-  fill('YOUR NAME', 'Local wearer');
-  fill('EMAIL ADDRESS', email);
-  fill('PASSWORD', password);
+  fill('Your name', 'Local wearer');
+  fill('Email', email);
+  fill('Password', password);
   click('Create account');
-  await shown('Confirm that you are at least 18');
-  chrome(['click', element('checkbox', 'I confirm I am at least 18 years old. GetYourFit does not create an account for minors.')]);
+  await shown('18 or older to create an account');
+  chrome(['click', element('checkbox', 'I’m 18 or older. GetYourFit doesn’t create accounts for minors.')]);
   click('Create account');
-  await shown('Your account, in your hands.');
+  await shown('Your wardrobe');
+  follow('Account');
+  await shown('Signed in as');
   if (proofDir) {
     chrome(['screenshot', path.join(proofDir, 'v01-account-desktop.png')]);
     chrome(['emulate', '--viewport', '390x844x1,mobile,touch']);
@@ -139,20 +140,26 @@ try {
   await startServer();
   assert.equal(evaluate('async () => (await (await fetch("/api/session")).json()).signedIn'), true, 'Restart lost the browser session.');
   click('Sign out');
+  await shown('Example outfit');
+  chrome(['open', `${origin}/sign-in`]);
   await shown('Welcome back.');
-  fill('EMAIL ADDRESS', email);
-  fill('PASSWORD', randomBytes(32).toString('base64url'));
+  fill('Email', email);
+  fill('Password', randomBytes(32).toString('base64url'));
   click('Sign in');
   await shown('We could not sign you in.');
-  fill('PASSWORD', password);
+  fill('Password', password);
   click('Sign in');
-  await shown('Your account, in your hands.');
+  await shown('Your wardrobe');
+  follow('Account');
+  await shown('Signed in as');
   click('Delete my data');
   click('Erase permanently');
+  await shown('Example outfit');
+  chrome(['open', `${origin}/sign-in`]);
   await shown('Welcome back.');
   assert.equal(evaluate('async () => (await fetch("/api/data/export")).status'), 401);
-  fill('EMAIL ADDRESS', email);
-  fill('PASSWORD', password);
+  fill('Email', email);
+  fill('Password', password);
   click('Sign in');
   await shown('We could not sign you in.');
   process.stdout.write('verify:local-account passed: production browser signup without mail, adult consent, restricted mailbox and reset, unverified export, stable-key restart, wrong password, sign-out/sign-in, and permanent deletion.\n');

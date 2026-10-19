@@ -14,7 +14,7 @@ Local responsive browser app, loopback Node service, and private SQLite account 
 
 ## Features
 
-- [Create and protect an account](./account-access.md) - Sign-in page at /.
-- [Add and correct real garments](./wardrobe.md) - Wardrobe at / after sign-in.
-- [Choose one complete owned outfit](./outfit.md) - Outfit at /#outfit after sign-in.
-- [Export or delete your data](./data-control.md) - Account page at / after sign-in.
+- [Create and protect an account](./account-access.md) - Sign-in page at /sign-in.
+- [Add and correct real garments](./wardrobe.md) - Wardrobe at /wardrobe after sign-in.
+- [Choose one complete owned outfit](./outfit.md) - Outfit at /wardrobe#outfit after sign-in.
+- [Export or delete your data](./data-control.md) - Account page at /account after sign-in.

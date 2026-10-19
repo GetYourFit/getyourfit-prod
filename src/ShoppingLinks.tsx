@@ -3,6 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { shoppingSourceListSchema, suggestShopping, type ShopDepartment, type ShoppingPick, type ShoppingSource } from '../shared/shopping';
 import { starterRoleName, type StarterInput, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
 import { wardrobeRequest } from './wardrobe-api';
+import { Notice } from './ui';
 
 let sourceRequest: Promise<ShoppingSource[]> | null = null;
 
@@ -45,21 +46,21 @@ export function ShoppingLinks({ input, roles }: { input: StarterInput; roles: St
   if (sources && !source) return null;
 
   return <section className="shopping" aria-labelledby={`${id}-title`}>
-    <h4 id={`${id}-title`}>Where to shop for this outfit</h4>
-    {failed && <><p className="inline-error" role="alert">Shopping links could not be loaded. Your plan is unaffected.</p><button className="button button-secondary" type="button" onClick={() => { setFailed(false); setAttempt((value) => value + 1); }}>Try loading shopping links again</button></>}
+    <h4 id={`${id}-title`} className="card-title">Where to shop for this outfit</h4>
+    {failed && <Notice tone="error" role="alert"><p>Shopping links could not be loaded. Your plan is unaffected.</p><div><button className="button button-secondary" type="button" onClick={() => { setFailed(false); setAttempt((value) => value + 1); }}>Try loading shopping links again</button></div></Notice>}
     {!failed && !source && <p className="shopping-note" role="status">Loading shopping links…</p>}
     {source && suggestion?.kind === 'unavailable' && <p className="shopping-note">{suggestion.reason === 'currency'
       ? `Shopping links cover India only for now. ${source.retailer} sells in Indian rupees and delivers within India, and your plan uses ${input.currency}, so no shop is suggested.`
       : `${source.retailer}, the only shop we have checked so far, has no section for ${input.dressCode === 'formal' ? 'a formal dress code' : 'these needs'}, so no shop is suggested. Try the external search links above.`}</p>}
     {source && suggestion && suggestion.kind !== 'unavailable' && <>
       <p className="shopping-note">{source.retailer} is the only shop we have checked so far. It mostly sells sports and outdoor clothing, so another shop may suit your occasion better.</p>
-      <fieldset className="shopping-department">
-        <legend>Which {source.retailer} department should we open?</legend>
-        <p id={`${id}-department-help`}>{source.retailer} groups clothes this way. Your choice only picks the sections below and is not saved.</p>
-        <div className="shopping-department-options">{(['men', 'women'] as const).map((value) => <label key={value}><input type="radio" name={`${id}-department`} value={value} checked={department === value} aria-describedby={`${id}-department-help`} onChange={() => setDepartment(value)} /> {departmentNames[value]}</label>)}</div>
+      <fieldset className="shopping-department field-group">
+        <legend className="field-label">Which {source.retailer} department should we open?</legend>
+        <p id={`${id}-department-help`} className="field-hint">{source.retailer} groups clothes this way. Your choice only picks the sections below and is not saved.</p>
+        <div className="chips">{(['men', 'women'] as const).map((value) => <label className="chip" key={value}><input type="radio" name={`${id}-department`} value={value} checked={department === value} aria-describedby={`${id}-department-help`} onChange={() => setDepartment(value)} />{departmentNames[value]}</label>)}</div>
       </fieldset>
       {suggestion.kind === 'picks' && <>
-        <p className="shopping-disclosure" id={`${id}-disclosure`}><strong>We may earn a commission.</strong> If you buy after opening a Browse link below, {source.retailer} may pay GetYourFit a commission through {source.affiliate.network}. Commission does not change which sections we suggest.</p>
+        <Notice id={`${id}-disclosure`} tone="info" title="We may earn a commission."><p>If you buy after opening a Browse link below, {source.retailer} may pay GetYourFit a commission through {source.affiliate.network}. Commission does not change which sections we suggest.</p></Notice>
         <ul className="shopping-picks" aria-label="Shopping links for each need">
           {suggestion.picks.map((pick) => <ShoppingPickRow key={pick.role} pick={pick} input={input} source={source} disclosureId={`${id}-disclosure`} />)}
         </ul>
@@ -98,7 +99,7 @@ function ShoppingPickRow({ pick, input, source, disclosureId }: { pick: Shopping
       <p>Your planning share: {money(pick.allocation, input.currency)}.</p>
     </div>
     <div className="shopping-actions">
-      <a className="shopping-link" href={destination.affiliateUrl} target="_blank" rel="sponsored noopener noreferrer" aria-describedby={disclosureId}><span className="shopping-link-text">Browse {destination.label.charAt(0).toLowerCase()}{destination.label.slice(1)}</span><span className="shopping-badge">Affiliate link</span><ArrowUpRight size={15} aria-hidden="true" /><span className="visually-hidden"> (opens in a new tab)</span></a>
+      <a className="shopping-link" href={destination.affiliateUrl} target="_blank" rel="sponsored noopener noreferrer" aria-describedby={disclosureId}><span className="shopping-link-text">Browse {destination.label.charAt(0).toLowerCase()}{destination.label.slice(1)}</span><ArrowUpRight size={15} aria-hidden="true" /><span className="badge shopping-badge">Affiliate link</span><span className="visually-hidden"> (opens in a new tab)</span></a>
       <a className="shopping-direct" href={destination.url} target="_blank" rel="noopener noreferrer">Open without the affiliate link<span className="visually-hidden"> (opens in a new tab)</span></a>
     </div>
   </li>;
