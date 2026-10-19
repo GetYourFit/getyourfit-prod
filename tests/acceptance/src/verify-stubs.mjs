@@ -78,11 +78,12 @@ try {
   assert.deepEqual(new Set(mutations.map(([, name]) => name)), new Set(good.report.cases.map(item => item.name)), 'Every case needs a known-bad variant');
   for (const [mutation, name, intended] of mutations) {
     const result = await run(mutation, name);
-    assert.equal(result.exitCode, 1, `Mutation ${mutation} did not fail the process`);
-    assert.equal(result.report.cases.length, 1, `Mutation ${mutation} failed setup instead of its case`);
-    assert.equal(result.report.cases[0].name, name);
-    assert.equal(result.report.cases[0].status, 'failed', `Mutation ${mutation} escaped`);
-    assert.match(result.report.cases[0].error, intended, `Mutation ${mutation} failed for a different reason than intended`);
+    const diagnostics = result.report.cases.map(item => `${item.name}: ${item.error ?? item.status}`).join('\n');
+    assert.equal(result.exitCode, 1, `Mutation ${mutation} did not fail the process\n${diagnostics}`);
+    assert.equal(result.report.cases.length, 1, `Mutation ${mutation} failed setup instead of its case\n${diagnostics}`);
+    assert.equal(result.report.cases[0].name, name, `Mutation ${mutation} failed setup instead of its case\n${diagnostics}`);
+    assert.equal(result.report.cases[0].status, 'failed', `Mutation ${mutation} escaped\n${diagnostics}`);
+    assert.match(result.report.cases[0].error, intended, `Mutation ${mutation} failed for a different reason than intended\n${diagnostics}`);
     detections.push({ mutation, name, detected: true, evidence: result.report.cases[0].error });
     console.log(`detected ${mutation}`);
   }

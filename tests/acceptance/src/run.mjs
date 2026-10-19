@@ -93,7 +93,7 @@ try {
     runtime = 'production-start-missing';
     results.push({ name: 'V01 production API service', requirement_ids: ['R4', 'A-1'], status: 'failed', error: 'package.json has no npm start production service contract.' });
   } else {
-    mailPort = await freePort();
+    mailPort = await freePort([appPort]);
     mailCatcher = tcpServer(socket => {
       smtpSockets.add(socket); socket.on('close', () => smtpSockets.delete(socket));
       socket.on('error', () => {});
@@ -176,12 +176,14 @@ await writeFile(path.join(output, 'report.json'), `${JSON.stringify(report, null
 console.log(JSON.stringify({ ...report.summary, report: path.join(output, 'report.json') }));
 process.exitCode = report.summary.failed ? 1 : 0;
 
-async function freePort() {
-  const probe = tcpServer();
-  await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(0, '127.0.0.1', resolve); });
-  const { port } = probe.address();
-  await new Promise(resolve => probe.close(resolve));
-  return port;
+async function freePort(excluded = []) {
+  for (;;) {
+    const probe = tcpServer();
+    await new Promise((resolve, reject) => { probe.once('error', reject); probe.listen(0, '127.0.0.1', resolve); });
+    const { port } = probe.address();
+    await new Promise(resolve => probe.close(resolve));
+    if (!excluded.includes(port)) return port;
+  }
 }
 async function requiredControl(locator, message) {
   try { await locator.waitFor(); } catch (error) {
