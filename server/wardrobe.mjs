@@ -7,6 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import express from 'express';
 import sharp from 'sharp';
+import { rateLimit } from './rate-limit.mjs';
 import { database } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
 import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
@@ -116,7 +117,21 @@ async function classify(photo) {
 
 export function wardrobeRouter(requireUser) {
   const router = express.Router();
-  router.use(requireUser, express.json({ limit: '2mb' }));
+  const uploadIPBudget = rateLimit({ max: 30 });
+  const uploadUserBudget = rateLimit({ max: 10, key: (request) => request.user.id });
+  const writeIPBudget = rateLimit({ max: 60 });
+  const writeUserBudget = rateLimit({ max: 30, key: (request) => request.user.id });
+  const uploadRequest = (request) => request.method === 'POST' && ['/', '/review'].includes(request.path.toLowerCase().replace(/\/+$/, '') || '/');
+  router.use((request, response, next) => {
+    if (uploadRequest(request)) return uploadIPBudget(request, response, next);
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return writeIPBudget(request, response, next);
+    next();
+  });
+  router.use(requireUser, (request, response, next) => {
+    if (uploadRequest(request)) return uploadUserBudget(request, response, next);
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return writeUserBudget(request, response, next);
+    next();
+  }, express.json({ limit: '2mb' }));
   router.get('/', (request, response) => response.json(listRows(request.user.id).map(garment)));
   router.post('/review', async (request, response) => {
     const photo = await decodePhoto(request.body);

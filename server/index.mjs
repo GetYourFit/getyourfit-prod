@@ -6,6 +6,7 @@ import compression from 'compression';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
+import { rateLimit } from './rate-limit.mjs';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, consumeEmailVerificationToken, hashPassword, isLockedOut, migrateAuth, recordSignInResult } from './auth.mjs';
 import { emailConnected, emailDeliveryMode, localMailbox, sendMail, settleMailForAccountDeletion } from './mail.mjs';
@@ -27,11 +28,13 @@ app.use(helmet({
       baseUri: ["'none'"], frameAncestors: ["'none'"], formAction: ["'self'"],
     },
   },
+  frameguard: { action: 'deny' },
   referrerPolicy: { policy: 'no-referrer' },
   crossOriginEmbedderPolicy: false,
 }));
 app.use((request, response, next) => {
   response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
   if (!allowedHosts.has(request.headers.host?.toLowerCase())) return response.status(403).json({ error: 'This service only accepts configured GetYourFit hosts.' });
   const origin = request.headers.origin;
   if (origin && !allowedOrigins.has(origin)) return response.status(403).json({ error: 'This service only accepts configured GetYourFit origins.' });
@@ -60,23 +63,23 @@ async function requireUser(request, response, next) {
 
 app.use('/api/wardrobe', wardrobeRouter(requireUser));
 app.use('/api/funnel', funnelRouter());
-app.use(express.json({ limit: '32kb' }));
-
-const requestLimits = new Map();
-function limitSensitiveRequest(request, response, next) {
-  const now = Date.now();
-  const key = `${request.path}:${request.ip}`;
-  const current = requestLimits.get(key);
-  const active = current && current.expiresAt > now ? current : { count: 0, expiresAt: now + 60_000 };
-  active.count += 1;
-  requestLimits.set(key, active);
-  if (active.count > (request.path.endsWith('request-password-reset') ? 3 : 5)) return response.status(429).json({ message: 'Please wait before trying again.' });
+const authBudget = rateLimit({ max: 30 });
+const signInBudget = rateLimit({ max: 5 });
+const signUpBudget = rateLimit({ max: 5 });
+const recoveryBudget = rateLimit({ max: 3 });
+const resetBudget = rateLimit({ max: 5 });
+app.use('/api/auth', authBudget, (request, response, next) => {
+  const route = request.path.toLowerCase().replace(/\/+$/, '');
+  const budget = { '/sign-in/email': signInBudget, '/sign-up/email': signUpBudget,
+    '/request-password-reset': recoveryBudget, '/reset-password': resetBudget }[route];
+  if (budget) return budget(request, response, next);
   next();
-}
+});
+app.use(express.json({ limit: '32kb' }));
 
 const emailNotConnected = { status: false, code: 'EMAIL_NOT_CONNECTED', message: 'Email delivery is not connected to GetYourFit yet, so we cannot send a reset link. Try again once it is.' };
 
-app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, response) => {
+app.post('/api/auth/request-password-reset', (request, response) => {
   if (emailDeliveryMode === 'disabled') return response.status(404).json({ message: 'Password recovery is unavailable in this local version.' });
   if (!emailConnected) return response.status(503).json(emailNotConnected);
   const email = typeof request.body?.email === 'string' ? request.body.email.trim().toLowerCase() : '';
@@ -93,7 +96,7 @@ app.post('/api/auth/request-password-reset', limitSensitiveRequest, (request, re
   response.json({ status: true, message: 'If this email has an account, a reset message will be sent.' });
 });
 
-app.post('/api/auth/reset-password', limitSensitiveRequest, async (request, response) => {
+app.post('/api/auth/reset-password', async (request, response) => {
   if (emailDeliveryMode === 'disabled') return response.status(404).json({ message: 'Password recovery is unavailable in this local version.' });
   if (!emailConnected) return response.status(503).json(emailNotConnected);
   const token = typeof request.body?.token === 'string' ? request.body.token : '';
