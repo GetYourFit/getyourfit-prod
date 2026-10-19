@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.mjs';
 import sharp from 'sharp';
 
 const password = randomUUID();
-let accountCookies;
 
 async function post(page, url, data) {
   return page.evaluate(async ({ url, data }) => {
@@ -12,28 +11,13 @@ async function post(page, url, data) {
   }, { url, data });
 }
 
-test.beforeAll(async ({ browser }, testInfo) => {
-  const page = await browser.newPage({ baseURL: testInfo.project.use.baseURL });
+async function signedIn(page, { uncertainFit = false } = {}) {
   await page.goto('/sign-in');
   const response = await post(page, '/api/auth/sign-up/email', {
     name: 'Review regression', email: `${randomUUID()}@example.test`, password, adultConfirmed: true,
     callbackURL: new URL(page.url()).origin,
   });
   expect(response.status).toBe(200);
-  accountCookies = await page.context().cookies();
-  await page.close();
-});
-
-async function signedIn(page, { uncertainFit = false } = {}) {
-  await page.context().addCookies(accountCookies);
-  await page.goto('/wardrobe');
-  await page.evaluate(async () => {
-    const items = await (await fetch('/api/wardrobe')).json();
-    for (const item of items) {
-      const response = await fetch(`/api/wardrobe/${item.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Could not reset the test wardrobe.');
-    }
-  });
   const items = [];
   for (const category of ['top', 'bottom', 'footwear']) {
     const image = (await sharp(new URL(`../fixtures/${category}.jpg`, import.meta.url).pathname)
