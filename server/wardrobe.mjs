@@ -196,6 +196,12 @@ export function wardrobeRouter(requireUser) {
     else database.prepare('DELETE FROM outfit_exclusions WHERE user_id = ? AND garment_id = ? AND context = ?').run(request.user.id, garmentId, contextKey(context));
     response.json({ saved: true });
   });
+  router.post('/correction/reset', (request, response) => {
+    const context = contextSchema.safeParse(request.body);
+    if (!context.success) return response.status(400).json({ error: 'Choose an outfit context to correct.' });
+    database.prepare('DELETE FROM outfit_exclusions WHERE user_id = ? AND context = ?').run(request.user.id, contextKey(context.data));
+    response.json({ saved: true });
+  });
   router.get('/starter-plans', (request, response) => response.json(listStarterPlans(request.user.id)));
   router.get('/shopping-sources', (_request, response) => response.json(shoppingSources));
   router.post('/starter-plans', (request, response) => {
