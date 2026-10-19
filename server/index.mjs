@@ -1,5 +1,4 @@
 import http from 'node:http';
-import { inspect } from 'node:util';
 import { isIP } from 'node:net';
 import express from 'express';
 import compression from 'compression';
@@ -140,8 +139,10 @@ app.use('/api/auth', async (request, response, next) => {
   }
 }, toNodeHandler(auth));
 app.use((error, _request, response, next) => {
-  if (response.headersSent) return next(error);
-  process.stderr.write(`request failed: ${error?.stack || inspect(error)}\n`);
+  if (response.headersSent) return next(new Error('Request failed after response headers were sent.'));
+  const type = ['entity.parse.failed', 'entity.too.large'].includes(error?.type) ? error.type : 'internal';
+  const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
+  process.stderr.write(`request failed: ${JSON.stringify({ type, status })}\n`);
   void audit('request-failed');
   response.status(500).json({ error: 'Something went wrong on our side. Try again.' });
 });

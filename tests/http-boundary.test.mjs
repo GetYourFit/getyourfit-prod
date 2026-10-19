@@ -14,6 +14,46 @@ import { backends, start } from './support/server.mjs';
 const publicOrigin = 'https://app.getyourfit.co';
 
 for (const backend of backends) {
+  test(`malformed JSON and oversized bodies never disclose request data in stderr [${backend}]`, async (t) => {
+    const server = await start(t, {}, { backend });
+    const markers = [];
+    const expected = [];
+    for (const route of ['/api/auth/sign-in/email', '/api/funnel']) {
+      for (const field of ['p', 'password', 'email']) {
+        const marker = `S${randomBytes(3).toString('hex')}`;
+        markers.push(marker);
+        const response = await fetch(`${server.origin}${route}`, {
+          method: 'POST', headers: { Origin: server.origin, 'Content-Type': 'application/json' }, body: `{"${field}":${marker}}`,
+        });
+        assert.equal(response.status, 500);
+        assert.deepEqual(await response.json(), { error: 'Something went wrong on our side. Try again.' });
+        expected.push({ type: 'entity.parse.failed', status: 400 });
+      }
+      const marker = randomBytes(16).toString('hex');
+      markers.push(marker);
+      const response = await fetch(`${server.origin}${route}`, {
+        method: 'POST', headers: { Origin: server.origin, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: marker, padding: 'x'.repeat(route === '/api/funnel' ? 1100 : 33_000) }),
+      });
+      assert.equal(response.status, 500);
+      assert.deepEqual(await response.json(), { error: 'Something went wrong on our side. Try again.' });
+      expected.push({ type: 'entity.too.large', status: 413 });
+    }
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if ((server.stderr.match(/^request failed: .*\n/gm) ?? []).length >= expected.length) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    for (const marker of markers) assert.equal(server.stderr.includes(marker), false, 'Submitted sensitive data reached stderr.');
+    const records = server.stderr.split('\n').filter((line) => line.startsWith('request failed: '))
+      .map((line) => JSON.parse(line.slice('request failed: '.length)));
+    assert.deepEqual(records, expected);
+    assert.equal((await server.request()).status, 200);
+    assert.equal((await server.request({ method: 'POST', route: '/api/funnel',
+      headers: { Origin: server.origin, 'Content-Type': 'application/json' }, body: { event: 'plan_opened' } })).status, 204);
+  });
+}
+
+for (const backend of backends) {
   test(`partial garment patches preserve other facts and provenance [${backend}]`, async (t) => {
     const { request, origin } = await start(t, {}, { backend });
     const headers = { Origin: origin, 'Content-Type': 'application/json' };

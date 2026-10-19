@@ -56,7 +56,7 @@ export async function start(t, overrides = {}, { backend = 'sqlite', seedSqlite 
   while (Date.now() < startupDeadline) {
     assert.equal(server.exitCode, null, error);
     try {
-      if ((await request()).status === 200) return { request, origin: `http://127.0.0.1:${port}`, store, backend };
+      if ((await request()).status === 200) return { request, origin: `http://127.0.0.1:${port}`, store, backend, get stderr() { return error; } };
     } catch (failure) {
       if (failure.code !== 'ECONNREFUSED') throw failure;
     }
