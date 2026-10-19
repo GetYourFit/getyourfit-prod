@@ -259,9 +259,12 @@ try {
   await stopServer(); await startServer(); chrome(['open', `${origin}/wardrobe`]); await shown('White T-shirt');
   assert.equal(evaluate('() => document.querySelectorAll(".garment-card img").length'), 2);
   assert.equal(evaluate('() => [...document.querySelectorAll(".garment-card img")].every(img => img.complete && img.naturalWidth > 0)'), true);
+  const [{ id: ownerId }] = await store.query('SELECT id FROM "user" WHERE email = $1', [email]);
+  assert.equal(Number((await store.query('SELECT count(*) AS n FROM garments WHERE user_id = $1', [ownerId]))[0].n), 2);
+  assert.equal(Number((await store.query('SELECT count(*) AS n FROM outfit_exclusions WHERE user_id = $1', [ownerId]))[0].n), 1);
   follow('Account'); await shown('Signed in as'); click('Download export'); click('Delete my data'); click('Erase permanently'); await shown('Example outfit');
-  assert.equal(Number((await store.query('SELECT count(*) AS n FROM garments WHERE user_id IN (SELECT id FROM "user" WHERE email = $1)', [email]))[0].n), 0);
-  assert.equal(Number((await store.query('SELECT count(*) AS n FROM outfit_exclusions WHERE user_id IN (SELECT id FROM "user" WHERE email = $1)', [email]))[0].n), 0);
+  assert.equal(Number((await store.query('SELECT count(*) AS n FROM garments WHERE user_id = $1', [ownerId]))[0].n), 0);
+  assert.equal(Number((await store.query('SELECT count(*) AS n FROM outfit_exclusions WHERE user_id = $1', [ownerId]))[0].n), 0);
   assert.equal(evaluate(`async () => (await fetch(${JSON.stringify(items[0].photoUrl)})).status`), 401);
   assert.equal((await fetch(`${origin}${items[0].photoUrl}`, { headers: otherHeaders })).status, 404);
   await fetch(`${origin}/api/data`, { method: 'DELETE', headers: otherHeaders, body: JSON.stringify({ confirm: 'delete my account' }) });

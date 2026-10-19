@@ -23,7 +23,8 @@ function garment(row) {
     interpretation: asJson(row.interpretation), photoConsent: { scope: 'local-processing-and-storage', recordedAt: asIso(row.created_at) }, photoUrl: `/api/wardrobe/${row.id}/photo`, createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) });
 }
 
-const listRows = async (userId, run = query) => (await run('SELECT * FROM garments WHERE user_id = $1 ORDER BY created_at, id', [userId])).rows;
+const garmentColumns = 'id, facts, provenance, interpretation, created_at, updated_at';
+const listRows = async (userId) => (await query(`SELECT ${garmentColumns} FROM garments WHERE user_id = $1 ORDER BY created_at, id`, [userId])).rows;
 const countGarments = async (userId, run = query) => Number((await run('SELECT count(*) AS count FROM garments WHERE user_id = $1', [userId])).rows[0].count);
 function starterPlan(row) {
   return starterPlanSchema.parse({ id: row.id, status: row.status, input: asJson(row.input), roles: asJson(row.roles),
@@ -33,7 +34,8 @@ const listStarterPlans = async (userId) => (await query('SELECT * FROM starter_p
 
 export async function exportWardrobe(userId) {
   const exclusions = (await query('SELECT garment_id AS "garmentId", context, recorded_at AS "recordedAt" FROM outfit_exclusions WHERE user_id = $1 ORDER BY recorded_at', [userId])).rows;
-  return { wardrobe: (await listRows(userId)).map((row) => ({ ...garment(row), photo: { mediaType: 'image/jpeg', base64: row.photo.toString('base64') } })),
+  const rows = (await query(`SELECT ${garmentColumns}, photo FROM garments WHERE user_id = $1 ORDER BY created_at, id`, [userId])).rows;
+  return { wardrobe: rows.map((row) => ({ ...garment(row), photo: { mediaType: 'image/jpeg', base64: row.photo.toString('base64') } })),
     outfitCorrections: exclusions.map((row) => ({ ...row, recordedAt: asIso(row.recordedAt), context: JSON.parse(row.context), source: 'wearer-correction', modelVersion: null, confidence: 1 })),
     starterPlans: await listStarterPlans(userId) };
 }
@@ -108,7 +110,7 @@ export function wardrobeRouter(requireUser) {
     const created = await transaction(async (run) => {
       if (!(await run('SELECT id FROM "user" WHERE id = $1 FOR UPDATE', [request.user.id])).rows.length) return 'signed-out';
       if (await countGarments(request.user.id, run) >= 50) return 'full';
-      return (await run('INSERT INTO garments (id, user_id, facts, provenance, interpretation, photo, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING *',
+      return (await run(`INSERT INTO garments (id, user_id, facts, provenance, interpretation, photo, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING ${garmentColumns}`,
         [id, request.user.id, JSON.stringify(facts.data), JSON.stringify(provenance), JSON.stringify(interpretation), photo, now])).rows[0];
     });
     if (created === 'signed-out') return response.status(401).json({ error: 'Sign in to continue.' });
@@ -124,14 +126,14 @@ export function wardrobeRouter(requireUser) {
     const changes = factsPatchSchema.safeParse(request.body);
     if (!changes.success) return response.status(400).json({ error: 'Send at least one valid garment fact before saving.' });
     const updated = await transaction(async (run) => {
-      const { rows } = await run('SELECT * FROM garments WHERE id = $1 AND user_id = $2 FOR UPDATE', [request.params.id, request.user.id]);
+      const { rows } = await run(`SELECT ${garmentColumns} FROM garments WHERE id = $1 AND user_id = $2 FOR UPDATE`, [request.params.id, request.user.id]);
       if (!rows.length) return null;
       const now = new Date().toISOString();
       const previous = garment(rows[0]);
       const facts = factsSchema.parse({ ...previous.facts, ...changes.data });
       const provenance = Object.fromEntries(Object.keys(facts).map((key) => [key, JSON.stringify(previous.facts[key]) === JSON.stringify(facts[key])
         ? previous.provenance[key] : { source: 'wearer-correction', modelVersion: null, confidence: 1, recordedAt: now }]));
-      return (await run('UPDATE garments SET facts = $1, provenance = $2, updated_at = $3 WHERE id = $4 AND user_id = $5 RETURNING *',
+      return (await run(`UPDATE garments SET facts = $1, provenance = $2, updated_at = $3 WHERE id = $4 AND user_id = $5 RETURNING ${garmentColumns}`,
         [JSON.stringify(facts), JSON.stringify(provenance), now, rows[0].id, request.user.id])).rows[0];
     });
     if (!updated) return response.status(404).json({ error: 'This garment is not in your wardrobe.' });

@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, isLockedOut, prepareAuthSchema, recordSignInResult } from './auth.mjs';
 import { audit, closeDatabase, query, reclaimDeletedData, runMigrations } from './database.mjs';
-import { ensureFunnelSchema, funnelRouter } from './funnel.mjs';
+import { funnelRouter } from './funnel.mjs';
 import { exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
 import { allowedHosts, allowedOrigins, apiPort, trustedProxies } from './config.mjs';
 
@@ -160,7 +160,6 @@ if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
 
 await runMigrations();
 await prepareAuthSchema();
-ensureFunnelSchema();
 const server = http.createServer(app);
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 66_000;

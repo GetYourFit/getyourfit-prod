@@ -57,6 +57,12 @@ export function sqliteDriver(dataDirectory = process.env.GYF_DATA_DIR) {
     }),
     async migrate() {
       database.exec(`
+        CREATE TABLE IF NOT EXISTS funnel_counts (
+          day TEXT NOT NULL,
+          event TEXT NOT NULL,
+          count INTEGER NOT NULL,
+          PRIMARY KEY (day, event)
+        );
         CREATE TABLE IF NOT EXISTS auth_audit (
           id TEXT PRIMARY KEY,
           action TEXT NOT NULL,

@@ -41,7 +41,7 @@ test('migrations build the whole schema once and are safe to rerun', async (t) =
   assert.deepEqual(await applyMigrations(own), files);
   assert.deepEqual(await applyMigrations(own), []);
   const tables = (await admin.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1")).rows.map((row) => row.table_name);
-  for (const table of ['user', 'session', 'account', 'verification', 'twoFactor', 'rateLimit', 'auth_audit', 'auth_lockouts', 'garments', 'outfit_exclusions', 'starter_plans', 'schema_migrations']) {
+  for (const table of ['user', 'session', 'account', 'verification', 'twoFactor', 'rateLimit', 'auth_audit', 'auth_lockouts', 'garments', 'outfit_exclusions', 'starter_plans', 'funnel_counts', 'schema_migrations']) {
     assert.ok(tables.includes(table), `${table} is missing`);
   }
   assert.ok(!tables.some((name) => /token|mail/i.test(name)), 'Mail-era token tables must not exist.');
