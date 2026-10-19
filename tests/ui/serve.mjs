@@ -16,6 +16,7 @@ const server = spawn(process.execPath, ['server/index.mjs'], {
   env: {
     PATH: process.env.PATH, NODE_ENV: 'production', GYF_PORT: port, BETTER_AUTH_URL: `http://127.0.0.1:${port}`,
     GYF_DATA_DIR: dataDir, BETTER_AUTH_SECRET: randomBytes(32).toString('hex'), GYF_MAIL_TRANSPORT: 'disabled',
+    GYF_TRUSTED_PROXIES: '127.0.0.1/32,::1/128',
   },
 });
 const stop = () => { server.kill('SIGTERM'); };

@@ -114,11 +114,11 @@ function evalResult(output) {
   return typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
 }
 
-async function api(pathname, body, { method = 'POST', requestOrigin = origin } = {}) {
+async function api(pathname, body, { method = 'POST', requestOrigin = origin, clientIP = '192.0.2.1' } = {}) {
   try {
     const response = await fetch(`${origin}${pathname}`, {
       method,
-      headers: { Origin: requestOrigin, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { Origin: requestOrigin, 'X-Forwarded-For': clientIP, ...(body ? { 'Content-Type': 'application/json' } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     await response.arrayBuffer();
@@ -131,7 +131,7 @@ async function api(pathname, body, { method = 'POST', requestOrigin = origin } =
 async function requestPasswordReset(email) {
   const response = await fetch(`${origin}/api/auth/request-password-reset`, {
     method: 'POST',
-    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    headers: { Origin: origin, 'X-Forwarded-For': '192.0.2.1', 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
   return { status: response.status, body: await response.json() };
@@ -314,6 +314,7 @@ async function startServer() {
       BETTER_AUTH_URL: origin,
       BETTER_AUTH_SECRET: authSecret,
       GYF_TRACE_AUTH_REDIRECTS: '1',
+      GYF_TRUSTED_PROXIES: '127.0.0.1/32,::1/128',
     },
   });
   server.stdout.setEncoding('utf8').on('data', (chunk) => {
@@ -530,14 +531,10 @@ async function main() {
   assert.equal(limitedReset.status, 429, 'Password reset rate limiting did not trigger.');
 
   currentStage = 'sign-in rate limiting after invalid credentials';
-  let limitedSignIn;
-  for (let index = 0; index < 3; index += 1) {
-    limitedSignIn = await api('/api/auth/sign-in/email', { email: `rate-signin-${Date.now()}-${index}@example.test`, password });
+  for (let index = 0; index < 6; index += 1) {
+    const limitedSignIn = await api('/api/auth/sign-in/email', { email: `rate-signin-${Date.now()}-${index}@example.test`, password }, { clientIP: '192.0.2.2' });
+    assert.equal(limitedSignIn.status, index < 5 ? 401 : 429, 'Sign-in rate limiting did not enforce its configured threshold.');
   }
-  assert.equal(limitedSignIn.status, 429, 'Sign-in rate limiting did not trigger.');
-  const rateLimitDb = new Database(databasePath);
-  rateLimitDb.prepare('DELETE FROM rateLimit').run();
-  rateLimitDb.close();
 
   const wrongOrigin = await api('/api/auth/sign-in/email', { email, password: updatedPassword }, { requestOrigin: 'https://attacker.example' });
   assert.equal(wrongOrigin.status, 403, 'A wrong-origin request was accepted.');

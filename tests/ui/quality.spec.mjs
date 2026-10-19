@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.mjs';
 import sharp from 'sharp';
 
 const axeSource = await readFile(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
@@ -80,15 +80,10 @@ async function api(page, method, url, body) {
   }, [method, url, body]);
 }
 
-// The server allows five sign-ups a minute across the whole run, so a refused sign-up waits out the window rather than weakening the limit.
 async function signUp(page, email) {
   await page.goto('/sign-in');
-  for (let attempt = 0; ; attempt += 1) {
-    const response = await api(page, 'POST', '/api/auth/sign-up/email', { name: 'Quality check', email, password, adultConfirmed: true, callbackURL: new URL(page.url()).origin });
-    if (response.status === 429 && attempt < 2) { test.setTimeout(test.info().timeout + 65_000); await page.waitForTimeout(61_000); continue; }
-    expect(response.status).toBe(200);
-    return;
-  }
+  const response = await api(page, 'POST', '/api/auth/sign-up/email', { name: 'Quality check', email, password, adultConfirmed: true, callbackURL: new URL(page.url()).origin });
+  expect(response.status).toBe(200);
 }
 
 async function addWardrobe(page, { uncertainFit = false } = {}) {
@@ -292,11 +287,6 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('checkbox', { name: /18 or older/ }).check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  if (await page.getByRole('alert').first().isVisible({ timeout: 1500 }).catch(() => false)) {
-    test.setTimeout(test.info().timeout + 65_000);
-    await page.waitForTimeout(61_000);
-    await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  }
   const builder = page.locator('#build-plan');
   await expect(builder.getByRole('heading', { name: 'Needs for Dinner with friends' })).toBeVisible();
   await builder.getByRole('button', { name: 'Save plan' }).click();
