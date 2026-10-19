@@ -64,7 +64,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | Area | Status | Evidence boundary |
 | --- | --- | --- |
 | Understand value, secure account, minimal onboarding | slice1-local | v0.1 email/password creation and sign-in, 18+ confirmation and local session; email activation follows the [mail release handoff](deploy-inputs.md#mail-release-handoff). |
-| Real photo and correctable interpretation | slice1-local | Browser resize, explicit photo consent, server-side Apple Vision classification, persisted wearer correction, and private image load from the account. |
+| Real photo and correctable interpretation | slice1-local | Browser resize, explicit photo consent, on-device browser recognition ([photo recognition](photo-recognition.md)), persisted wearer correction, and private image load from the account. |
 | Wardrobe and outfit judgment | slice1-local | Complete outfit only from owned, available, fitting items matching known weather and dress code; one clarifying question or an abstention otherwise. |
 | Zero-garment starter-plan precursor | starter-plan-local | Scope and usage: [Build my wardrobe](../README.md#build-my-wardrobe). Observable API behavior and acceptance coverage: [starter-plan contract](../tests/acceptance/CONTRACT.md#zero-garment-starter-plan-precursor). |
 | Zero-garment India shopping links | shopping-links-local | Scope and usage: [Build my wardrobe](../README.md#build-my-wardrobe). Source verification and rights: [shopping sources](shopping-sources.md). Observable API behavior and acceptance coverage: [shopping-links contract](../tests/acceptance/CONTRACT.md#india-shopping-links). |

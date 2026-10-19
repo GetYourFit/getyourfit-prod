@@ -24,7 +24,7 @@ The foundation delivered the buildable app shell, and the next increment deliver
 
 ## Stack
 
-React, TypeScript, and Vite serve the browser UI. A loopback Node.js service uses Express and SQLite. Better Auth provides email/password authentication with Argon2id hashing and optional TOTP. Accounts include session controls, full export, and deletion. Zod schemas share runtime validation across browser and service; Sharp decodes and canonicalizes untrusted image bytes; a bounded Swift process performs macOS-local Apple Vision classification. [Mail settings](../README.md#mail-settings) owns account delivery modes and configuration.
+React, TypeScript, and Vite serve the browser UI. A loopback Node.js service uses Express and SQLite. Better Auth provides email/password authentication with Argon2id hashing and optional TOTP. Accounts include session controls, full export, and deletion. Zod schemas share runtime validation across browser and service; Sharp decodes and canonicalizes untrusted image bytes; browser-side FashionCLIP performs on-device garment recognition, with an optional bounded Swift process for macOS-local Apple Vision. [Mail settings](../README.md#mail-settings) owns account delivery modes and configuration.
 
 ## Account and privacy decisions
 
