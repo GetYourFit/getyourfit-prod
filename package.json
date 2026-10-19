@@ -22,9 +22,13 @@
     "verify:mail-delivery": "node scripts/verify-mail-delivery.mjs",
     "feature-map": "node scripts/gyf.mjs map",
     "funnel": "node scripts/funnel-report.mjs",
-    "acceptance": "npm --prefix tests/acceptance run acceptance"
+    "acceptance": "npm --prefix tests/acceptance run acceptance",
+    "predev": "node scripts/copy-onnx.mjs",
+    "prebuild": "node scripts/copy-onnx.mjs",
+    "verify:classification": "node scripts/verify-classification.mjs"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "@node-rs/argon2": "^2.2.1",
     "better-auth": "^1.7.7",
     "better-sqlite3": "^12.4.1",

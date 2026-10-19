@@ -5,6 +5,7 @@ import { categorySchema, dressCodeSchema, factsSchema, garmentSchema, interpreta
 import { wardrobeRequest } from './wardrobe-api';
 import { categoryLabel, dressCodeLabel, weatherLabel } from './labels';
 import { Field, Notice } from './ui';
+import { reviewOnDevice } from './classification';
 
 type PhotoState = { kind: 'empty' } | { kind: 'processing' } | { kind: 'ready'; image: string; interpretation: Interpretation };
 
@@ -13,6 +14,9 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
   const [photo, setPhoto] = useState<PhotoState>({ kind: 'empty' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [recognition, setRecognition] = useState('');
+  const cancelRecognition = useRef<() => void>(() => {});
+  const mounted = useRef(true);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const [defaults] = useState(() => garment?.facts);
@@ -27,12 +31,19 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
   useEffect(() => { if (photo.kind === 'ready') dialogRef.current?.querySelector<HTMLInputElement>('input[name=name]')?.focus(); }, [photo.kind]);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; cancelRecognition.current(); };
+  }, []);
+
   function cancel(event?: SyntheticEvent) {
     event?.preventDefault();
     if (!locked) onCancel();
   }
 
   async function review(file: File | undefined) {
+    cancelRecognition.current();
+    setRecognition('');
     setPhoto({ kind: 'empty' });
     setError('');
     if (!file || !consent) return;
@@ -68,13 +79,13 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
       setError('This file could not be opened as an image. Choose a different JPEG, PNG, or WebP photo.');
       setPhoto({ kind: 'empty' }); return;
     }
-    try {
-      const interpretation = await wardrobeRequest('/review', interpretationSchema, { consent: true, image });
+    if (!mounted.current) return;
+    setPhoto({ kind: 'ready', image, interpretation: { kind: 'unavailable', reason: 'manual-review' } });
+    setRecognition('Loading recognition model (about 154 MB on first use). You can confirm details now.');
+    cancelRecognition.current = reviewOnDevice(image, (interpretation) => {
       setPhoto({ kind: 'ready', image, interpretation });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The photo check failed. Try again.');
-      setPhoto({ kind: 'empty' });
-    }
+      setRecognition('');
+    }, setRecognition);
   }
 
   async function save(form: HTMLFormElement) {
@@ -95,7 +106,11 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
     try {
       let saved: Garment | null = null;
       if (garment) saved = await wardrobeRequest(`/${garment.id}`, garmentSchema, changes, 'PATCH');
-      else if (photo.kind === 'ready') saved = await wardrobeRequest('', garmentSchema, { facts: parsed.data, consent: true, image: photo.image });
+      else if (photo.kind === 'ready') {
+        cancelRecognition.current();
+        setRecognition('');
+        saved = await wardrobeRequest('', garmentSchema, { facts: parsed.data, consent: true, image: photo.image, interpretation: photo.interpretation });
+      }
       if (saved) await onSaved(saved);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'The garment could not be saved. Try again.'); }
     finally { setBusy(false); }
@@ -111,13 +126,14 @@ export function GarmentForm({ garment, onSaved, onCancel }: { garment: Garment |
       <div className="dialog-body">
         {!garment && <section className="editor-step" aria-labelledby="photo-step-title">
           <h3 id="photo-step-title" className="step-title"><span className="step-number" aria-hidden="true">1</span>Add a photo</h3>
-          <label className="check"><input type="checkbox" checked={consent} disabled={locked} data-autofocus onChange={(event) => { setConsent(event.target.checked); setPhoto({ kind: 'empty' }); }} /><span>I own this garment and have permission to use its photo. <span className="check-detail">I consent to GetYourFit checking and storing it in my private account on the GetYourFit server, without sharing or model training.</span></span></label>
+          <label className="check"><input type="checkbox" checked={consent} disabled={locked} data-autofocus onChange={(event) => { cancelRecognition.current(); setRecognition(''); setConsent(event.target.checked); setPhoto({ kind: 'empty' }); }} /><span>I own this garment and have permission to use its photo. <span className="check-detail">I consent to GetYourFit checking and storing it in my private account on the GetYourFit server, without sharing or model training.</span></span></label>
           <div className={`dropzone${photo.kind === 'ready' ? ' dropzone-ready' : ''}`} data-disabled={!consent || locked || undefined}>
             {photo.kind === 'ready' ? <img src={`data:image/jpeg;base64,${photo.image}`} alt="Your resized garment photo" /> : <span className="dropzone-icon" aria-hidden="true">{photo.kind === 'processing' ? <span className="spinner" /> : <ImagePlus size={24} />}</span>}
-            <span className="dropzone-copy"><span className="dropzone-title">{photo.kind === 'ready' ? 'Choose a different photo' : photo.kind === 'processing' ? 'Checking your photo…' : 'Choose a photo'}</span><span className="caption">{consent ? 'JPEG, PNG, or WebP, up to 10 MB' : 'Confirm permission above to choose a photo'}</span></span>
+            <span className="dropzone-copy"><span className="dropzone-title">{photo.kind === 'ready' ? 'Choose a different photo' : photo.kind === 'processing' ? 'Resizing your photo…' : 'Choose a photo'}</span><span className="caption">{consent ? 'JPEG, PNG, or WebP, up to 10 MB' : 'Confirm permission above to choose a photo'}</span></span>
             <input className="dropzone-input" type="file" aria-label="Garment photo" aria-describedby="photo-help" accept="image/jpeg,image/png,image/webp" disabled={!consent || locked} onChange={(event) => { void review(event.target.files?.[0]); event.target.value = ''; }} />
           </div>
-          <p id="photo-help" className="caption" role="status">{photo.kind === 'processing' ? 'Resizing your photo, then checking it on the GetYourFit server…' : 'Before upload, your browser resizes the photo to 1200 px and removes camera and location details. The photo check runs on the GetYourFit server, without an external AI service.'}</p>
+          <p id="photo-help" className="caption" role="status">{photo.kind === 'processing' ? 'Resizing your photo on this device…' : recognition || 'Your browser resizes the photo to 1200 px and removes camera and location details. Recognition runs on this device without WebGPU. Model files download from Hugging Face and may be cached; your photo is not sent there. Only saving uploads the resized photo to your private GetYourFit account.'}</p>
+          {recognition && <button type="button" className="button button-secondary" onClick={() => { cancelRecognition.current(); setRecognition(''); }}>Skip recognition and confirm manually</button>}
           {photo.kind === 'ready' && <InterpretationNote interpretation={photo.interpretation} />}
         </section>}
         <fieldset className="editor-step field-group" disabled={factsLocked}>
@@ -157,7 +173,7 @@ function confidenceWord(confidence: number): string {
 }
 
 export function InterpretationNote({ interpretation }: { interpretation: z.infer<typeof interpretationSchema> }) {
-  if (interpretation.kind === 'unavailable') return <p className="caption">{interpretation.reason === 'no-clothing-label' ? 'The photo check didn’t recognize a garment type.' : 'The photo check isn’t available right now.'} Enter the details yourself; no score has been invented.</p>;
+  if (interpretation.kind === 'unavailable') return <p className="caption">{interpretation.reason === 'no-clothing-label' ? 'The photo check didn’t recognize a garment type.' : interpretation.reason === 'manual-review' ? 'You can confirm details without a model label.' : interpretation.reason === 'model-timeout' ? 'Recognition took too long on this connection or device.' : 'Image classification is unavailable on this device or connection.'} Enter the details yourself; no score has been invented.</p>;
   return <div className="photo-check">
     <p>Photo check suggests <strong>{interpretation.label}</strong>, with {confidenceWord(interpretation.confidence)} confidence ({Math.round(interpretation.confidence * 100)}%). Choose the category yourself below.</p>
     <p className="caption">{interpretation.source} · {interpretation.modelVersion}. The score is uncertain and doesn’t measure fit or style.</p>

@@ -12,3 +12,4 @@ dist/
 test-results/
 tests/ui/screenshots/*
 !tests/ui/screenshots/linux/
+public/onnx/

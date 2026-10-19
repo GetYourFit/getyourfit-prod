@@ -12,6 +12,7 @@ import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, 
 import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
 import { shoppingSourceListSchema } from '../shared/shopping.ts';
 import shoppingSourceRecords from './shopping-sources.json' with { type: 'json' };
+import { browserInterpretationSchema } from '../shared/classification.ts';
 
 const execute = promisify(execFile);
 const shoppingSources = shoppingSourceListSchema.parse(shoppingSourceRecords);
@@ -100,7 +101,7 @@ async function decodePhoto(body) {
 }
 
 async function classify(photo) {
-  if (process.platform !== 'darwin') return { kind: 'unavailable', reason: 'unsupported-device' };
+  if (process.env.GYF_CLASSIFIER !== 'apple-vision' || process.platform !== 'darwin') return { kind: 'unavailable', reason: 'unsupported-device' };
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'gyf-vision-'));
   try {
     const file = path.join(directory, 'photo.jpg');
@@ -129,7 +130,9 @@ export function wardrobeRouter(requireUser) {
     if (listRows(request.user.id).length >= 50) return response.status(409).json({ error: 'This local wardrobe holds up to 50 garments. Remove an item before adding another.' });
     const photo = await decodePhoto({ consent: request.body.consent, image: request.body.image });
     if (!photo) return response.status(400).json({ error: 'The photo could not be opened. Choose a valid, smaller photo.' });
-    const interpretation = await classify(photo);
+    const submitted = browserInterpretationSchema.safeParse(request.body?.interpretation);
+    if (request.body?.interpretation !== undefined && !submitted.success) return response.status(400).json({ error: 'Invalid on-device photo review. Review the photo again.' });
+    const interpretation = submitted.success ? submitted.data : await classify(photo);
     // Recheck after asynchronous decoding and classification, before insertion.
     if (listRows(request.user.id).length >= 50) return response.status(409).json({ error: 'The wardrobe is full.' });
     if (!database.prepare('SELECT id FROM user WHERE id = ?').get(request.user.id)) return response.status(401).json({ error: 'Sign in to continue.' });

@@ -2,7 +2,7 @@
 
 GetYourFit is a private wardrobe companion: choose an explained outfit from clothes you own, or use [Build my wardrobe](#build-my-wardrobe) to plan clothing needs when starting without garments. "You already own it" is a useful result. This v0.1 increment connects local accounts, garment review, a compact wardrobe, a factual outfit check, starter plans, wearer corrections, export, and deletion. It is a local browser path, not a deployed service or a validated style or fit model.
 
-For outfits from owned clothes, create an adult account with email and password, then add your own garment photos with permission. The browser resizes and strips metadata, then uploads the photo to your private account on the GetYourFit server, which classifies and stores it. On macOS with Swift installed, Apple Vision supplies a fallible clothing label with its revision and confidence; elsewhere the app explicitly asks you to confirm the facts yourself. Every outfit fact comes from the wearer. The owned-clothes outfit check requires an occasion, weather, dress code, availability, and confirmed fit; it asks one question when a required fact is unknown and abstains when no complete set exists. A rejected item stays excluded for the same context until you allow it again.
+For outfits from owned clothes, create an adult account with email and password, then add your own garment photos with permission. The browser resizes and strips metadata, then recognizes the garment on your device with FashionCLIP using CPU/WASM, including on Linux-hosted apps and browsers without WebGPU. First use downloads about 154 MB of model weights from Hugging Face; the photo stays on your device until you save it to your private GetYourFit account. You can skip recognition and confirm facts immediately. Unavailable or uncertain recognition also falls back to manual confirmation. See [photo recognition](docs/photo-recognition.md) for model provenance, privacy, limitations, and acceptance checks. Every outfit fact comes from the wearer. The owned-clothes outfit check requires an occasion, weather, dress code, availability, and confirmed fit; it asks one question when a required fact is unknown and abstains when no complete set exists. A rejected item stays excluded for the same context until you allow it again.
 
 See [Mail settings](#mail-settings) for signup, verification, and password recovery requirements. Privacy controls export photos and facts with provenance and corrections, or delete them with the account. Photos and facts are never sold or used for model training. There is no sharing, external recognition service, body inference, buying flow, or seeded wardrobe.
 
@@ -34,7 +34,7 @@ Use **I already have this** only after confirming a suitable item is yours. Conf
 
 ## Run locally
 
-Requirements: Node.js 22.18 or later. Local Apple Vision classification additionally needs macOS and the Swift toolchain; classification failures are shown honestly and never replaced by fabricated labels.
+Requirements: Node.js 22.18 or later. Local Apple Vision classification additionally needs macOS and the Swift toolchain. Enable it with `GYF_CLASSIFIER=apple-vision` for API clients. The browser uses on-device recognition by default, and failures never produce fabricated labels.
 
 Set `BETTER_AUTH_SECRET` to a random key of at least 32 characters from your local secret store. Generate it once, retain it with the database, and reuse it on every restart. Changing it invalidates sessions and makes existing authenticator secrets unreadable. The server refuses startup without this key before opening the database. You can generate a key with `node -e 'process.stdout.write(require("node:crypto").randomBytes(48).toString("base64url"))'`; store its output privately, outside the repository.
 
@@ -83,6 +83,7 @@ npm run verify
 npm run verify:auth
 npm run verify:local-account
 npm run verify:wardrobe
+npm run verify:classification
 npm run acceptance
 ```
 

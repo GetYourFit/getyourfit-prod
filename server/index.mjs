@@ -23,7 +23,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:'], styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"], connectSrc: ["'self'"], objectSrc: ["'none'"],
+      scriptSrc: ["'self'", "'wasm-unsafe-eval'"], connectSrc: ["'self'", 'https://huggingface.co', 'https://*.hf.co'], objectSrc: ["'none'"],
+      workerSrc: ["'self'"],
       baseUri: ["'none'"], frameAncestors: ["'none'"], formAction: ["'self'"],
     },
   },
