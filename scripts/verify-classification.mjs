@@ -143,7 +143,7 @@ try {
   click('Add garment');
   chrome('click', element('checkbox', 'I own this garment and have permission to use its photo. I consent to reviewing and storing it in my private account on the GetYourFit server, without sharing or model training.'));
   await upload('top.jpg'); await shown('Skip recognition and confirm manually');
-  click('Skip recognition and confirm manually');
+  evaluate('() => { [...document.querySelectorAll(".photo-step > button")].find(button => button.textContent === "Skip recognition and confirm manually")?.click(); return true; }');
   assert.equal(evaluate('() => document.querySelector(".garment-form fieldset").disabled'), false);
   assert.equal(evaluate('() => document.documentElement.scrollWidth <= innerWidth'), true);
   capture('recognition-slow-network-manual');

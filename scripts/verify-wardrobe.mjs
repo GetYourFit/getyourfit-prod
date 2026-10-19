@@ -127,7 +127,7 @@ async function addGarment(category, name, color, fit, testBadPhoto = false) {
   }
   chrome(['upload', element('button', 'Garment photo'), path.join(root, 'tests/fixtures', `${category}.jpg`)]);
   await shown('Choose a different photo');
-  if (evaluate('() => [...document.querySelectorAll("button")].some(button => button.textContent === "Skip recognition and confirm manually")')) click('Skip recognition and confirm manually');
+  evaluate('() => { [...document.querySelectorAll(".garment-dialog button")].find(button => button.textContent === "Skip recognition and confirm manually")?.click(); return true; }');
   fill('Name', name); select('Category', label(category)); fill('Color', color); fill('Size on label', 'M'); select('Does it fit you now?', fit === 'unknown' ? 'I’m not sure' : fit === 'fits' ? 'Yes, it fits' : 'No, it does not fit');
   check('Mild'); check('Casual'); check('I confirm this garment is mine and these are my facts.');
   click('Save garment'); await shown('Add garment'); await shown(name);
