@@ -6,6 +6,7 @@ import { composeBoard } from '../shared/outfit-board';
 import { countStep } from './funnel';
 import { holdPendingPlan } from './pending-plan';
 import { OutfitBoard, OutfitBoardPanel } from './OutfitBoard';
+import { PhotoCredits } from './PhotoCredits';
 import { Brand, Field, Notice } from './ui';
 import './LandingPage.css';
 
@@ -118,14 +119,14 @@ export default function PlanPage() {
             <div className="plan-reasons">
               <h3>Why this works</h3>
               <ul>{board.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-              <p className="caption">{look.why} These are general suggestions built from your answers, not a verified fit or a taste prediction. Photographs are historical garments from The Met collection, shown as stand-ins for the kind of piece to look for.</p>
+              <p className="caption">{look.why} These are general suggestions built from your answers, not a verified fit or a taste prediction. Garment photographs are stand-ins for the kind of piece to look for.</p>
             </div>
             <div className="plan-save card" role="region" aria-labelledby="plan-save-title">
               <h3 id="plan-save-title">Keep this outfit</h3>
               <p>Create a free account to save your plan, then add clothes you already own. Your photos are reviewed on our own server and never sent to an external AI service.</p>
               <button className="button button-primary button-split" type="button" onClick={saveAfterValue}>Save this outfit<ArrowRight size={18} aria-hidden="true" /></button>
             </div>
-            <details className="disclosure plan-credits"><summary>Photo credits</summary><p>Real garment photographs from The Metropolitan Museum of Art, shared under <a href="https://www.metmuseum.org/hubs/open-access">CC0 Open Access</a>: {credits.map((garment, index) => <span key={garment.id}>{index > 0 && ', '}<a href={`https://www.metmuseum.org/art/collection/search/${garment.met}`}>{garment.caption.toLowerCase()}</a></span>)}.</p></details>
+            <details className="disclosure plan-credits"><summary>Photo credits</summary><PhotoCredits items={credits} /></details>
           </> : <div className="plan-placeholder">
             <h2 id="plan-result-title" className="card-title">Your outfit appears here</h2>
             <OutfitBoard look={sample} heading="Example outfit" />

@@ -24,7 +24,7 @@ export async function renderBoardImage(look: BoardLook, title: string, subtitle:
   await document.fonts.load('600 40px Manrope');
   const canvas = document.createElement('canvas');
   canvas.width = SIZE;
-  canvas.height = 1350;
+  canvas.height = 1570;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('This browser cannot draw the image.');
   context.fillStyle = '#f7f8f5';
@@ -87,7 +87,15 @@ export async function renderBoardImage(look: BoardLook, title: string, subtitle:
   context.font = '700 34px Manrope, sans-serif';
   context.fillText('GetYourFit', MARGIN, top + BOARD + 72);
   context.fillStyle = '#56645d';
-  context.font = '500 24px Manrope, sans-serif';
-  context.fillText('Garment photographs: The Metropolitan Museum of Art, CC0', MARGIN, top + BOARD + 114);
+  context.font = '500 20px Manrope, sans-serif';
+  context.fillText('Stand-in garment photographs. Cropped and resized; source licences retained.', MARGIN, top + BOARD + 114);
+  look.pieces.forEach((piece, index) => {
+    if (piece.owned) return;
+    const { garment } = piece;
+    const y = top + BOARD + 154 + index * 68;
+    context.fillText(`${garment.caption} by ${garment.author} | ${garment.license}`, MARGIN, y, BOARD);
+    context.fillText(garment.source, MARGIN, y + 24);
+    context.fillText(garment.licenseUrl, MARGIN, y + 48);
+  });
   return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('The image could not be created.')), 'image/png'));
 }

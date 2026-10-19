@@ -1,6 +1,6 @@
 import { buildCapsule, starterRoleName, type StarterInput, type StarterRole, type StarterRoleState } from './starter-plan.ts';
 
-// Every image is a real garment photograph from The Met Open Access collection (CC0). Provenance lives in public/example/provenance.json.
+// Source licences and transformations are recorded in public/example/provenance.json.
 export type Garment = {
   id: string;
   role: StarterRole;
@@ -10,18 +10,22 @@ export type Garment = {
   width: number;
   height: number;
   backdrop: string;
-  met: number;
+  source: string;
+  author: string;
+  license: string;
+  licenseUrl: string;
 };
 
 export const garments: Garment[] = [
-  { id: 'shirt', role: 'top', caption: 'Checked cotton shirt', alt: 'Checked cotton shirt from The Met collection', file: 'shirt', width: 900, height: 824, backdrop: '#b3ab93', met: 91159 },
-  { id: 'sweater', role: 'top', caption: 'Ribbed wool sweater', alt: 'Cream ribbed wool sweater from The Met collection', file: 'sweater', width: 900, height: 712, backdrop: '#717273', met: 155791 },
-  { id: 'trousers', role: 'bottom', caption: 'Cream cotton trousers', alt: 'Cream cotton trousers from The Met collection', file: 'trousers', width: 646, height: 1200, backdrop: '#969488', met: 91001 },
-  { id: 'trousers-tan', role: 'bottom', caption: 'Tan cotton trousers', alt: 'Tan cotton trousers from The Met collection', file: 'trousers-tan', width: 613, height: 1200, backdrop: '#918d84', met: 90799 },
-  { id: 'oxfords', role: 'footwear', caption: 'Leather lace-ups', alt: 'Brown leather lace-up shoes from The Met collection', file: 'oxfords', width: 728, height: 516, backdrop: '#cdc8ae', met: 90428 },
-  { id: 'boots', role: 'footwear', caption: 'Black button boots', alt: 'Black wool button boots from The Met collection', file: 'boots', width: 900, height: 608, backdrop: '#d7d4d6', met: 158242 },
-  { id: 'dress-blue', role: 'one-piece', caption: 'Blue silk dress', alt: 'Blue silk and cotton dress from The Met collection', file: 'dress-blue', width: 778, height: 1200, backdrop: '#d3cdca', met: 157729 },
-  { id: 'dress-silk', role: 'one-piece', caption: 'Patterned silk dress', alt: 'Patterned silk dress from The Met collection', file: 'dress-silk', width: 598, height: 1200, backdrop: '#978b7a', met: 82122 },
+  { id: 'pumps', role: 'footwear', caption: 'Black low-heel pumps', alt: 'A pair of black low-heel pumps', file: 'pumps', width: 900, height: 600, backdrop: '#ffffff', source: 'https://commons.wikimedia.org/?curid=157167994', author: 'W.carter', license: 'CC-BY-SA-4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/' },
+  { id: 'shirt', role: 'top', caption: 'Checked short-sleeve shirt', alt: 'Checked short-sleeve shirt', file: 'shirt', width: 900, height: 824, backdrop: '#ffffff', source: 'https://commons.wikimedia.org/?curid=11128591', author: 'Labegola', license: 'CC-BY-SA-3.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0' },
+  { id: 'sweater', role: 'top', caption: 'Textured crew-neck sweater', alt: 'Textured crew-neck sweater', file: 'sweater', width: 900, height: 824, backdrop: '#ffffff', source: 'https://commons.wikimedia.org/?curid=46436817', author: 'Robert Sheie', license: 'CC-BY-2.0', licenseUrl: 'https://creativecommons.org/licenses/by/2.0' },
+  { id: 'trousers', role: 'bottom', caption: 'Stone chinos', alt: 'Stone chinos', file: 'trousers', width: 646, height: 1200, backdrop: '#ffffff', source: 'https://commons.wikimedia.org/?curid=5999345', author: 'Kuha455405', license: 'CC-BY-SA-3.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/' },
+  { id: 'trousers-tan', role: 'bottom', caption: 'Dark denim jeans', alt: 'Dark denim jeans', file: 'trousers-tan', width: 646, height: 1200, backdrop: '#ffffff', source: 'https://commons.wikimedia.org/?curid=92609887', author: 'CMFong2', license: 'CC-BY-SA-4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0' },
+  { id: 'oxfords', role: 'footwear', caption: 'Brown leather derbies', alt: 'Brown leather derbies', file: 'oxfords', width: 900, height: 600, backdrop: '#ffffff', source: 'https://commons.wikimedia.org/?curid=91031796', author: '森奥伸之介', license: 'CC-BY-SA-4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0' },
+  { id: 'boots', role: 'footwear', caption: 'Blue knit trainers', alt: 'Blue knit trainers', file: 'boots', width: 900, height: 600, backdrop: '#ffffff', source: 'https://commons.wikimedia.org/?curid=94535286', author: 'dfgfdd', license: 'CC-BY-SA-4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0' },
+  { id: 'dress-blue', role: 'one-piece', caption: 'Blue satin dress', alt: 'Blue satin dress', file: 'dress-blue', width: 778, height: 1200, backdrop: '#ffffff', source: 'https://commons.wikimedia.org/?curid=15781533', author: 'Tibald', license: 'CC-BY-SA-3.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0' },
+  { id: 'dress-silk', role: 'one-piece', caption: 'Black long-sleeve dress', alt: 'Black long-sleeve dress', file: 'dress-silk', width: 778, height: 1200, backdrop: '#ffffff', source: 'https://www.pexels.com/photo/black-dress-on-cloth-hanger-19895964/', author: 'Marcelo Verfe', license: 'Pexels', licenseUrl: 'https://www.pexels.com/license/' },
 ];
 
 export type BoardPiece =
@@ -38,7 +42,10 @@ function preference(role: StarterRole, input: StarterInput): string[] {
   const formal = input.dressCode === 'formal' || input.dressCode === 'smart-casual';
   if (role === 'top') return cold ? ['sweater', 'shirt'] : ['shirt', 'sweater'];
   if (role === 'bottom') return ['trousers', 'trousers-tan'];
-  if (role === 'footwear') return !formal && cold ? ['boots', 'oxfords'] : ['oxfords', 'boots'];
+  if (role === 'footwear') {
+    if (input.outfitType === 'one-piece') return ['pumps', 'boots'];
+    return !formal && cold ? ['boots', 'oxfords'] : ['oxfords', 'boots'];
+  }
   return formal ? ['dress-silk', 'dress-blue'] : ['dress-blue', 'dress-silk'];
 }
 
