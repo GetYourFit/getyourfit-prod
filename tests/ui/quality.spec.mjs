@@ -286,7 +286,10 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   await checkScreen(page, 'plan-result');
   const downloading = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download as image' }).click();
-  expect((await downloading).suggestedFilename()).toBe('getyourfit-outfit.png');
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe('getyourfit-outfit.png');
+  const image = await sharp(await download.path()).metadata();
+  expect({ width: image.width, height: image.height, format: image.format }).toEqual({ width: 1080, height: 1570, format: 'png' });
   await page.getByRole('button', { name: 'Save this outfit' }).click();
   await expect(page).toHaveURL(/\/sign-up$/);
   await page.getByLabel('Your name').fill('Visitor');

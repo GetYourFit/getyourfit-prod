@@ -23,7 +23,8 @@
 /* The outfit board: one square composition of real garment photographs, shared with the downloadable image. */
 .outfit-board { position: relative; width: 100%; max-width: 560px; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--color-rule); border-radius: var(--radius-panel); background: var(--color-surface); box-shadow: 0 12px 32px rgb(29 39 36 / 8%); }
 .board-tile { position: absolute; overflow: hidden; border-radius: var(--radius-photo); }
-.board-tile img { width: 100%; height: 100%; }
+.board-preview { display: grid; gap: var(--space-3); min-width: 0; max-width: 560px; }
+.board-tile img { width: 100%; height: 100%; object-fit: contain; }
 .board-tile-owned { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); border: 2px dashed var(--color-control-border); padding: var(--space-2); background: var(--color-surface-muted); color: var(--color-ink); font-size: var(--text-caption); font-weight: var(--weight-strong); text-align: center; }
 .board-tile-owned svg { color: var(--color-accent); }
 

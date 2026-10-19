@@ -126,7 +126,7 @@ export function buildCapsule(input: StarterInput, roles: StarterRoleState[]): Ca
     return {
       name: `Look ${index + 1}: ${input.occasion}`,
       pieces: combo.map((piece) => piece.label),
-      why: `A starting suggestion for ${input.occasion}.${reused ? ` ${reused.label} also appears in other looks, so one purchase works harder.` : ''}`,
+      why: `A starting suggestion for ${input.occasion}.${reused ? ` The ${roleNames[reused.role].toLowerCase()} also appears in other looks, so one purchase works harder.` : ''}`,
     };
   });
   return { pieces, outfits, climate };

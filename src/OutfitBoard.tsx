@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { CircleCheck, Download } from 'lucide-react';
-import { fitFor, garmentSources, layoutFor, type BoardLook, type OutfitBoard as Board } from '../shared/outfit-board';
+import { garmentSources, layoutFor, type BoardLook, type OutfitBoard as Board } from '../shared/outfit-board';
 import { starterRoleName, type StarterInput } from '../shared/starter-plan';
 import { renderBoardImage } from './board-image';
 import { Notice } from './ui';
+import { PhotoCredits } from './PhotoCredits';
 
 const weatherNames: Record<StarterInput['weather'], string> = { warm: 'Warm', mild: 'Mild', cold: 'Cold', unknown: 'Weather not given' };
 const dressCodeNames: Record<StarterInput['dressCode'], string> = { casual: 'Casual', 'smart-casual': 'Smart casual', formal: 'Formal', unknown: 'Dress code not given' };
 
 export function OutfitBoard({ look, heading }: { look: BoardLook; heading: string }) {
   const rects = layoutFor(look.pieces);
-  return <figure className="outfit-board" aria-label={`${heading}: ${look.pieces.map((piece) => piece.label).join(', ')}`}>
+  const credits = look.pieces.flatMap((piece) => piece.owned ? [] : [piece.garment]);
+  return <div className="board-preview"><figure className="outfit-board" aria-label={`${heading}: ${look.pieces.map((piece) => piece.label).join(', ')}`}>
     {look.pieces.map((piece, index) => {
       const rect = rects[index];
       if (!rect) return null;
@@ -23,10 +25,12 @@ export function OutfitBoard({ look, heading }: { look: BoardLook; heading: strin
       }
       const { garment } = piece;
       return <div className="board-tile" style={{ ...position, background: garment.backdrop }} key={piece.role}>
-        <img {...garmentSources(garment)} sizes="(max-width: 600px) 60vw, 360px" alt={garment.alt} width={garment.width} height={garment.height} style={{ objectFit: fitFor(garment, rect) }} />
+        <img {...garmentSources(garment)} sizes="(max-width: 600px) 60vw, 360px" alt={garment.alt} width={garment.width} height={garment.height} />
       </div>;
     })}
-  </figure>;
+  </figure>
+    {credits.length > 0 && <details className="disclosure plan-credits"><summary>Photo credits</summary><PhotoCredits items={credits} /></details>}
+  </div>;
 }
 
 // The board, a switch between the capsule's looks, the pieces in the chosen look, and a download of the board as one image.
