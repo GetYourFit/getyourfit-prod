@@ -8,7 +8,7 @@ With `SUPABASE_URL` and `SUPABASE_SECRET_KEY` unset nothing changes: photos stay
 
 ## Check
 
-Run `npm run build`, `npm run lint`, `npm test`, `npm run test:ui`, `npm run acceptance:stubs --prefix tests/acceptance`, `npm run acceptance` and `npm run verify:wardrobe`. `tests/photo-storage.test.mjs` exercises the Storage path against a local stand-in for the API; the live Supabase check is pending the vault and is listed in the Supabase document.
+Run `npm run build`, `npm run lint`, `npm test`, `npm run test:ui`, `npm run acceptance:stubs --prefix tests/acceptance`, `npm run acceptance` and `npm run verify:wardrobe`. `tests/photo-storage.test.mjs` exercises the Storage path against a local stand-in for the API; the same flow was also run against the live Supabase project with a throwaway account, as recorded in the Supabase document.
 
 ## Enforcement matrix row
 

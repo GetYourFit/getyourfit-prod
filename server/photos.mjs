@@ -24,10 +24,13 @@ export const photoStorageEnabled = origin !== null;
 const headers = (extra = {}) => ({ apikey: key, ...(key.startsWith('eyJ') ? { Authorization: `Bearer ${key}` } : {}), ...extra });
 const objectUrl = (objectPath) => `${origin}/storage/v1/object/${bucket}/${objectPath.split('/').map(encodeURIComponent).join('/')}`;
 
+// Supabase Storage reports a missing bucket or object as HTTP 400 with `statusCode: "404"` in the JSON body.
 async function call(target, init) {
   const response = await fetch(target, { ...init, signal: AbortSignal.timeout(15_000) });
-  if (!response.ok && response.status !== 404) throw new Error(`Supabase Storage answered ${response.status}.`);
-  return response;
+  if (response.ok) return { status: response.status, response };
+  const missing = response.status === 404 || (response.status === 400 && (await response.clone().json().catch(() => ({}))).statusCode === '404');
+  if (!missing) throw new Error(`Supabase Storage answered ${response.status}.`);
+  return { status: 404, response };
 }
 
 export const objectPathFor = (userId, garmentId) => `${userId}/${garmentId}.jpg`;
@@ -37,8 +40,8 @@ export async function putPhoto(objectPath, bytes) {
 }
 
 export async function getPhoto(objectPath) {
-  const response = await call(objectUrl(objectPath), { headers: headers() });
-  return response.status === 404 ? null : Buffer.from(await response.arrayBuffer());
+  const { status, response } = await call(objectUrl(objectPath), { headers: headers() });
+  return status === 404 ? null : Buffer.from(await response.arrayBuffer());
 }
 
 export async function removePhotos(objectPaths) {
@@ -49,7 +52,7 @@ export async function removePhotos(objectPaths) {
 // Every object under one account's folder, for account deletion (also catches objects a failed upload left behind).
 export async function removeAccountPhotos(userId) {
   for (;;) {
-    const listed = await call(`${origin}/storage/v1/object/list/${bucket}`, { method: 'POST', headers: headers({ 'Content-Type': 'application/json' }), body: JSON.stringify({ prefix: `${userId}/`, limit: 100 }) });
+    const { response: listed } = await call(`${origin}/storage/v1/object/list/${bucket}`, { method: 'POST', headers: headers({ 'Content-Type': 'application/json' }), body: JSON.stringify({ prefix: `${userId}/`, limit: 100 }) });
     const names = (await listed.json()).map((entry) => `${userId}/${entry.name}`);
     if (!names.length) return;
     await removePhotos(names);
@@ -58,8 +61,8 @@ export async function removeAccountPhotos(userId) {
 
 // Idempotent: creates the private bucket (JPEG only, 1 MB) when it does not exist yet.
 export async function ensurePhotoBucket() {
-  const found = await call(`${origin}/storage/v1/bucket/${bucket}`, { headers: headers() });
-  if (found.status !== 404) {
+  const { status, response: found } = await call(`${origin}/storage/v1/bucket/${bucket}`, { headers: headers() });
+  if (status !== 404) {
     if ((await found.json()).public) throw new Error(`Storage bucket ${bucket} is public; garment photos must be private.`);
     return false;
   }

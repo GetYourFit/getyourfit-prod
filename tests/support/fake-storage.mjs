@@ -23,7 +23,7 @@ export async function startFakeStorage(t, { key = 'sb_secret_fake_test_key' } = 
       const path = decodeURIComponent(pathname);
       let match;
       if ((match = path.match(/^\/storage\/v1\/bucket\/([^/]+)$/)) && request.method === 'GET') {
-        return buckets.has(match[1]) ? send(200, buckets.get(match[1])) : send(404, { message: 'Bucket not found' });
+        return buckets.has(match[1]) ? send(200, buckets.get(match[1])) : send(400, { statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' });
       }
       if (path === '/storage/v1/bucket' && request.method === 'POST') {
         const bucket = JSON.parse(body);
@@ -46,7 +46,7 @@ export async function startFakeStorage(t, { key = 'sb_secret_fake_test_key' } = 
           return send(200, { Key: match[1] });
         }
         if (request.method === 'GET') {
-          if (!objects.has(match[1])) return send(404, { message: 'Object not found' });
+          if (!objects.has(match[1])) return send(400, { statusCode: '404', error: 'not_found', message: 'Object not found' });
           response.writeHead(200, { 'Content-Type': 'image/jpeg' });
           return response.end(objects.get(match[1]));
         }
