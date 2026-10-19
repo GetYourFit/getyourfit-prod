@@ -6,7 +6,7 @@ Download the account, garment photos, confirmed facts, classification provenance
 ## Sub-features
 
 - account-export downloads profile fields, garment facts and per-fact provenance, stored JPEG photos as base64, original classification provenance, consent timestamps, and context-specific outfit corrections without credentials or session secrets.
-- account-delete cascades across credentials, sessions, tokens, wardrobe photo blobs, facts and outfit corrections; SQLite secure deletion and checkpoint/VACUUM remove retired blobs.
+- account-delete cascades across credentials, sessions, wardrobe photos, facts and outfit corrections in one Postgres statement; Postgres autovacuum later reclaims the retired rows.
 
 ## How to get to it (user POV)
 

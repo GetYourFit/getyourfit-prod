@@ -106,7 +106,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === '/api/session' && req.method === 'GET') {
     if (mutation === 'session') return json(res, 401, { error: 'lost session' });
-    return json(res, 200, email ? { signedIn: true, email, twoFactorEnabled: false, emailDeliveryMode: 'disabled' } : { signedIn: false, emailDeliveryMode: 'disabled' });
+    return json(res, 200, email ? { signedIn: true, email, twoFactorEnabled: false } : { signedIn: false });
   }
   if (url.pathname === '/api/wardrobe' && req.method === 'GET') {
     if (!email) {

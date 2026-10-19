@@ -1,68 +1,13 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { once } from 'node:events';
-import { existsSync } from 'node:fs';
-import { mkdtemp, rm } from 'node:fs/promises';
-import http from 'node:http';
-import net from 'node:net';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import test from 'node:test';
+import pg from 'pg';
 import sharp from 'sharp';
+import { createTestDatabase } from './support/database.mjs';
+import { start } from './support/server.mjs';
 
 const publicOrigin = 'https://app.getyourfit.co';
-
-async function start(t, overrides = {}) {
-  const listener = net.createServer();
-  listener.listen(0, '127.0.0.1');
-  await once(listener, 'listening');
-  const port = listener.address().port;
-  await new Promise((resolve) => listener.close(resolve));
-  const directory = await mkdtemp(path.join(tmpdir(), 'gyf-boundary-'));
-  const server = spawn(process.execPath, ['server/index.mjs'], {
-    cwd: new URL('../', import.meta.url), stdio: ['ignore', 'ignore', 'pipe'],
-    env: {
-      ...process.env, NODE_ENV: 'production', GYF_MAIL_TRANSPORT: 'disabled',
-      GYF_DATA_DIR: directory, GYF_PORT: String(port),
-      BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
-      BETTER_AUTH_URL: '', GYF_ALLOWED_ORIGINS: '', GYF_TRUSTED_PROXIES: '', ...overrides,
-    },
-  });
-  let error = '';
-  server.stderr.on('data', (chunk) => { error += chunk; });
-  t.after(async () => {
-    if (server.exitCode === null && server.signalCode === null) {
-      const exited = once(server, 'exit');
-      server.kill('SIGTERM');
-      await exited;
-    }
-    await rm(directory, { recursive: true, force: true });
-  });
-  function request({ method = 'GET', route = '/api/session', headers = {}, body } = {}) {
-    return new Promise((resolve, reject) => {
-      const connection = http.request({ host: '127.0.0.1', port, path: route, method, headers }, (response) => {
-        let text = '';
-        response.setEncoding('utf8');
-        response.on('data', (chunk) => { text += chunk; });
-        response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: JSON.parse(text) }));
-      });
-      connection.on('error', reject);
-      connection.setTimeout(5000, () => connection.destroy(new Error('Request timed out.')));
-      connection.end(body === undefined ? undefined : JSON.stringify(body));
-    });
-  }
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    assert.equal(server.exitCode, null, error);
-    try {
-      if ((await request()).status === 200) return { request, origin: `http://127.0.0.1:${port}` };
-    } catch (failure) {
-      if (failure.code !== 'ECONNREFUSED') throw failure;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  assert.fail('Production server did not start.');
-}
 
 test('partial garment patches preserve other facts and provenance', async (t) => {
   const { request, origin } = await start(t);
@@ -107,6 +52,13 @@ test('partial garment patches preserve other facts and provenance', async (t) =>
   assert.deepEqual((await request({ route: '/api/wardrobe', headers })).body, [full.body]);
 });
 
+test('health check answers from the database without a session', async (t) => {
+  const { request, origin } = await start(t);
+  const health = await request({ route: '/api/health', headers: { Origin: origin } });
+  assert.equal(health.status, 200);
+  assert.deepEqual(health.body, { ok: true });
+});
+
 test('loopback remains allowed and foreign Host, Origin, and originless writes are rejected', async (t) => {
   const { request, origin } = await start(t);
   assert.equal((await request()).status, 200);
@@ -131,7 +83,7 @@ test('configured public Host and Origins are allowed without expanding the Host 
   assert.equal((await request({ method: 'POST', route: '/api/auth/sign-up/email', headers: { Host: 'app.getyourfit.co' }, body: {} })).status, 403);
 });
 
-test('public signup issues a secure private cookie and retains the account session without mail', async (t) => {
+test('public signup issues a secure private cookie and retains the account session without email confirmation', async (t) => {
   const { request } = await start(t, { BETTER_AUTH_URL: publicOrigin });
   const headers = { Host: 'app.getyourfit.co', Origin: publicOrigin, 'Content-Type': 'application/json' };
   const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {
@@ -145,26 +97,37 @@ test('public signup issues a secure private cookie and retains the account sessi
   const attributes = new Set(sessionCookie.split(';').slice(1).map((attribute) => attribute.trim()));
   for (const attribute of ['Secure', 'HttpOnly', 'SameSite=Lax', 'Path=/']) assert.ok(attributes.has(attribute));
   const session = await request({ headers: { Host: 'app.getyourfit.co', Cookie: sessionCookie.split(';')[0] } });
-  assert.equal(session.body.signedIn, true);
-  assert.equal(session.body.emailDeliveryMode, 'disabled');
+  assert.deepEqual(session.body, { signedIn: true, email: session.body.email, twoFactorEnabled: false });
 });
 
-test('production without SMTP values says email is not connected instead of creating unverifiable accounts', async (t) => {
-  const { request } = await start(t, { BETTER_AUTH_URL: publicOrigin, GYF_MAIL_TRANSPORT: '' });
-  const headers = { Host: 'app.getyourfit.co', Origin: publicOrigin, 'Content-Type': 'application/json' };
-  const session = await request({ headers: { Host: 'app.getyourfit.co' } });
-  assert.deepEqual(session.body, { signedIn: false, emailDeliveryMode: 'unconfigured' });
+test('email reset and verification say email is unavailable, and a signed-in password change recovers the account', async (t) => {
+  const { request, origin } = await start(t);
+  const headers = { Origin: origin, 'Content-Type': 'application/json' };
   const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
-  for (const [route, body] of [
-    ['/api/auth/sign-up/email', { name: 'Wearer', email, password: randomBytes(32).toString('base64url'), adultConfirmed: true }],
-    ['/api/auth/request-password-reset', { email }],
-    ['/api/auth/reset-password', { token: 'x', newPassword: randomBytes(32).toString('base64url') }],
-  ]) {
-    const refused = await request({ method: 'POST', route, headers, body });
+  const password = randomBytes(32).toString('base64url');
+  const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: { name: 'Wearer', email, password, adultConfirmed: true } });
+  assert.equal(signedUp.status, 200);
+  assert.equal(typeof signedUp.body.token, 'string', 'Signup must sign the wearer in without confirming email.');
+  const duplicate = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: { name: 'Taker', email, password: randomBytes(32).toString('base64url'), adultConfirmed: true } });
+  assert.notEqual(duplicate.status, 200, 'A second signup for a registered address must not create a session.');
+  assert.equal(duplicate.headers['set-cookie'], undefined);
+  for (const route of ['/api/auth/request-password-reset', '/api/auth/forget-password', '/api/auth/reset-password', '/api/auth/send-verification-email']) {
+    const refused = await request({ method: 'POST', route, headers, body: { email, token: 'x', newPassword: password } });
     assert.equal(refused.status, 503, route);
-    assert.equal(refused.body.code, 'EMAIL_NOT_CONNECTED', route);
-    assert.match(refused.body.message, /not connected/);
+    assert.equal(refused.body.code, 'EMAIL_NOT_AVAILABLE', route);
+    assert.match(refused.body.message, /Change your password from Account/);
   }
+  assert.equal((await request({ route: '/api/auth/verify-email?token=x', headers: { Origin: origin } })).status, 404);
+  const cookie = signedUp.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
+  const newPassword = randomBytes(32).toString('base64url');
+  const wrong = await request({ method: 'POST', route: '/api/auth/change-password', headers: { ...headers, Cookie: cookie },
+    body: { currentPassword: randomBytes(32).toString('base64url'), newPassword, revokeOtherSessions: true } });
+  assert.notEqual(wrong.status, 200, 'A wrong current password changed the password.');
+  const changed = await request({ method: 'POST', route: '/api/auth/change-password', headers: { ...headers, Cookie: cookie },
+    body: { currentPassword: password, newPassword, revokeOtherSessions: true } });
+  assert.equal(changed.status, 200);
+  assert.notEqual((await request({ method: 'POST', route: '/api/auth/sign-in/email', headers, body: { email, password } })).status, 200, 'The old password still works.');
+  assert.equal((await request({ method: 'POST', route: '/api/auth/sign-in/email', headers, body: { email, password: newPassword } })).status, 200);
 });
 
 async function rateLimit(request, origin, forwarded) {
@@ -174,10 +137,10 @@ async function rateLimit(request, origin, forwarded) {
       'X-Forwarded-For': forwarded(attempt), 'X-GYF-Client-IP': `203.0.113.${attempt}`,
       'CF-Connecting-IP': `203.0.113.${attempt}`,
     };
-    const reset = await request({ method: 'POST', route: '/api/auth/request-password-reset', headers, body: {} });
-    assert.equal(reset.status, attempt <= 3 ? 404 : 429, 'Application rate limit trusted a forged client address.');
-    const signup = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {} });
-    assert.equal(signup.status, attempt <= 5 ? 400 : 429, 'Better Auth rate limit trusted a forged client address.');
+    for (const route of ['/api/auth/sign-up/email', '/api/auth/sign-in/email']) {
+      const response = await request({ method: 'POST', route, headers, body: {} });
+      assert.equal(response.status, attempt <= 5 ? 400 : 429, `Better Auth rate limit trusted a forged client address on ${route}.`);
+    }
   }
 }
 
@@ -194,10 +157,6 @@ test('configured proxies do not grant trust to a different immediate sender', as
 test('trusted ingress chains use the closest untrusted address, preserving separate client limits', async (t) => {
   const { request, origin } = await start(t, { GYF_TRUSTED_PROXIES: '127.0.0.1/32,192.0.2.4/32' });
   await rateLimit(request, origin, (attempt) => `203.0.113.${attempt}, 198.51.100.22, 192.0.2.4`);
-  const secondClient = await request({ method: 'POST', route: '/api/auth/request-password-reset', headers: {
-    Origin: origin, 'X-Forwarded-For': '198.51.100.23, 192.0.2.4',
-  } });
-  assert.equal(secondClient.status, 404, 'Different clients behind the ingress shared one limit.');
   const secondSignup = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers: {
     Origin: origin, 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.23, 192.0.2.4',
   }, body: {} });
@@ -206,8 +165,8 @@ test('trusted ingress chains use the closest untrusted address, preserving separ
 });
 
 test('invalid public origins and proxy settings refuse startup before creating account data', async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), 'gyf-invalid-boundary-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const database = await createTestDatabase();
+  t.after(() => database.drop());
   for (const [setting, value] of [
     ['BETTER_AUTH_URL', 'http://app.getyourfit.co'],
     ['BETTER_AUTH_URL', 'https://app.getyourfit.co/path'],
@@ -220,17 +179,20 @@ test('invalid public origins and proxy settings refuse startup before creating a
     ['GYF_TRUSTED_PROXIES', '0.0.0.0/0'],
     ['GYF_TRUSTED_PROXIES', '127.0.0.1/33'],
   ]) {
-    const dataDir = path.join(directory, 'data');
     const refused = spawnSync(process.execPath, ['server/index.mjs'], {
       cwd: new URL('../', import.meta.url), encoding: 'utf8', timeout: 10_000,
       env: {
-        ...process.env, NODE_ENV: 'production', GYF_MAIL_TRANSPORT: 'disabled',
-        BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'), GYF_DATA_DIR: dataDir,
+        ...process.env, NODE_ENV: 'production', DATABASE_URL: database.url,
+        BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
         BETTER_AUTH_URL: '', GYF_ALLOWED_ORIGINS: '', GYF_TRUSTED_PROXIES: '', [setting]: value,
       },
     });
     assert.notEqual(refused.status, 0, `${setting} accepted invalid configuration.`);
     assert.match(refused.stderr, new RegExp(setting));
-    assert.equal(existsSync(dataDir), false, 'Invalid configuration created persistent account data.');
+    const client = new pg.Client({ connectionString: database.url });
+    await client.connect();
+    const tables = (await client.query("SELECT count(*) AS count FROM information_schema.tables WHERE table_schema = 'public'")).rows[0].count;
+    await client.end();
+    assert.equal(tables, '0', 'Invalid configuration created account data.');
   }
 });

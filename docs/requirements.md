@@ -44,7 +44,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 
 | ID | Status | Slice 1 treatment |
 | --- | --- | --- |
-| R24 | next | SQLite garment records carry provenance and cascade deletion; a versioned event model waits for real outcomes and access patterns. |
+| R24 | next | Postgres garment records carry provenance and cascade deletion; a versioned event model waits for real outcomes and access patterns. |
 | R25 | next | Slice 1 has no model ranker. Explanations derive from the exact outfit decision state. |
 | R26 | slice1-local | Private account data, explicit photo permission, secure sessions, export and deletion; no ethnicity inference, desirability ranking, body data, or data sale. Accounts require an 18+ confirmation. |
 | R27 | slice1-local | Bound local image size and types, decode before use, resize client-side, isolate temporary classifier files, enforce local origin and account ownership, and audit without raw personal data. |

@@ -3,12 +3,12 @@ import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import { AuthGate } from './AuthGate';
 import { AccountPage } from './AccountPage';
 import { Wardrobe } from './Wardrobe';
-import { request, type EmailDeliveryMode } from './api';
+import { request } from './api';
 import { LoadingScreen } from './LoadingScreen';
-import { Brand, Notice } from './ui';
+import { Brand } from './ui';
 
-export type SignedInSession = { signedIn: true; email: string; twoFactorEnabled: boolean; emailDeliveryMode: Exclude<EmailDeliveryMode, 'unconfigured'> };
-type SessionState = { signedIn: false; emailDeliveryMode: EmailDeliveryMode } | (Omit<SignedInSession, 'emailDeliveryMode'> & { emailDeliveryMode: EmailDeliveryMode });
+export type SignedInSession = { signedIn: true; email: string; twoFactorEnabled: boolean };
+type SessionState = { signedIn: false } | SignedInSession;
 type Route = '/wardrobe' | '/account';
 
 const titles: Record<Route, string> = { '/wardrobe': 'Wardrobe', '/account': 'Account' };
@@ -34,7 +34,7 @@ export default function AccountApp() {
     }).catch((cause: unknown) => {
       if (!mounted) return;
       setError(cause instanceof Error ? cause.message : 'We could not connect to GetYourFit. Check your connection and try again.');
-      setSession({ signedIn: false, emailDeliveryMode: 'unknown' });
+      setSession({ signedIn: false });
     });
     const onPop = () => setRoute(routeOf(window.location.pathname));
     window.addEventListener('popstate', onPop);
@@ -63,9 +63,7 @@ export default function AccountApp() {
   }
 
   if (!session) return <LoadingScreen />;
-  if (!session.signedIn) return <AuthGate onSignedIn={refresh} deliveryMode={session.emailDeliveryMode} initialError={error} />;
-
-  const accountSession: SignedInSession = { ...session, emailDeliveryMode: session.emailDeliveryMode === 'unconfigured' ? 'unknown' : session.emailDeliveryMode };
+  if (!session.signedIn) return <AuthGate onSignedIn={refresh} initialError={error} />;
 
   return <div className="app">
     <a className="skip-link" href="#main">Skip to content</a>
@@ -80,6 +78,6 @@ export default function AccountApp() {
         </nav>
       </div>
     </header>
-    <main id="main" className="app-main">{route === '/account' ? <>{session.emailDeliveryMode === 'unconfigured' && <Notice tone="info" role="status">Email delivery is not connected yet, so password reset is unavailable until it is.</Notice>}<AccountPage session={accountSession} /></> : <Wardrobe />}</main>
+    <main id="main" className="app-main">{route === '/account' ? <AccountPage session={session} /> : <Wardrobe />}</main>
   </div>;
 }

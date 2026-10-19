@@ -3,33 +3,15 @@ import { betterAuth } from 'better-auth';
 import { twoFactor } from 'better-auth/plugins';
 import { hash, verify } from '@node-rs/argon2';
 import { allowedOrigins, authOrigin, authSecret } from './config.mjs';
-import { audit, database } from './database.mjs';
-import { emailEnabled, emailEnforced, sendMail } from './mail.mjs';
+import { pool, query } from './database.mjs';
 
 const argon2id = { memoryCost: 65536, timeCost: 3, parallelism: 2, outputLen: 32, algorithm: 2 };
 export const hashPassword = (password) => hash(password, argon2id);
-function recordEmailVerificationToken(userId, token) {
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  database.transaction(() => {
-    database.prepare('DELETE FROM email_verification_tokens WHERE user_id = ?').run(userId);
-    database.prepare('INSERT INTO email_verification_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)')
-      .run(tokenHash, userId, Date.now() + 60 * 60_000);
-  })();
-}
-
-export function consumeEmailVerificationToken(token) {
-  if (typeof token !== 'string' || !token) return false;
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  const result = database.prepare('UPDATE email_verification_tokens SET used_at = ? WHERE token_hash = ? AND expires_at > ? AND used_at IS NULL')
-    .run(Date.now(), tokenHash, Date.now());
-  return result.changes === 1;
-}
-
 export const auth = betterAuth({
   appName: 'GetYourFit',
   baseURL: authOrigin,
   secret: authSecret,
-  database,
+  database: pool,
   trustedOrigins: [...allowedOrigins],
   logger: { disabled: true },
   rateLimit: {
@@ -44,7 +26,6 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: emailEnforced,
     minPasswordLength: 12,
     maxPasswordLength: 1024,
     password: {
@@ -53,20 +34,6 @@ export const auth = betterAuth({
     },
     onExistingUserSignUp: async () => {},
   },
-  emailVerification: {
-    sendOnSignUp: emailEnabled,
-    sendOnSignIn: emailEnforced,
-    autoSignInAfterVerification: true,
-    expiresIn: 60 * 60,
-    sendVerificationEmail: async ({ user, url, token }) => {
-      recordEmailVerificationToken(user.id, token);
-      void sendMail({
-        to: user.email,
-        subject: 'Verify your GetYourFit email',
-        text: `Confirm your email within 60 minutes:\n\n${url}`,
-      }).catch(() => audit('mail-delivery-failed'));
-    },
-  },
   user: {
     additionalFields: {
       adultConfirmed: { type: 'boolean', required: true, input: true, defaultValue: false },
@@ -74,6 +41,8 @@ export const auth = betterAuth({
   },
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 12, cookieCache: { enabled: false } },
   advanced: {
+    // assertAuthSchema() checks the schema once after migrations; Better Auth's own check would run at import, before they do.
+    database: { validateSchema: false },
     ipAddress: { ipAddressHeaders: ['x-gyf-client-ip'] },
     useSecureCookies: true,
     cookiePrefix: 'gyf',
@@ -92,37 +61,40 @@ export const auth = betterAuth({
   },
 });
 
-export async function migrateAuth() {
-  const { schemaProblems, runMigrations } = await (await import('better-auth/db/migration')).getMigrations(auth.options);
-  if (schemaProblems.length) throw new Error('Better Auth database schema requires review.');
-  await runMigrations();
+// The schema comes from migrations/, not from Better Auth. Refuse to start if the installed Better Auth expects anything else.
+export async function assertAuthSchema() {
+  const { toBeCreated, toBeAdded, toBeAddedIndexes, unsafeChanges, schemaProblems } = await (await import('better-auth/db/migration')).getMigrations(auth.options);
+  if (toBeCreated.length || toBeAdded.length || toBeAddedIndexes.length || unsafeChanges.length || schemaProblems.length) {
+    throw new Error('The database does not match the Better Auth schema. Add a migration in migrations/.');
+  }
 }
 
 export function emailKey(email) {
   return crypto.createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex');
 }
 
-export function recordSignInResult(email, succeeded) {
+export async function recordSignInResult(email, succeeded) {
   const key = emailKey(email);
-  const now = Date.now();
   if (succeeded) {
-    database.prepare('DELETE FROM auth_lockouts WHERE email_hash = ?').run(key);
+    await query('DELETE FROM auth_lockouts WHERE email_hash = $1', [key]);
     return;
   }
-  const row = database.prepare('SELECT failures, window_started FROM auth_lockouts WHERE email_hash = ?').get(key);
-  const failures = row && now - row.window_started < 15 * 60_000 ? row.failures + 1 : 1;
-  const windowStarted = row && now - row.window_started < 15 * 60_000 ? row.window_started : now;
-  const lockedUntil = failures >= 8 ? now + 15 * 60_000 : 0;
-  database.prepare(`INSERT INTO auth_lockouts (email_hash, failures, window_started, locked_until)
-    VALUES (?, ?, ?, ?) ON CONFLICT(email_hash) DO UPDATE SET failures = excluded.failures, window_started = excluded.window_started, locked_until = excluded.locked_until`)
-    .run(key, failures, windowStarted, lockedUntil);
+  const now = Date.now();
+  const window = 15 * 60_000;
+  // One atomic upsert: concurrent failures for the same address cannot lose a count.
+  await query(`INSERT INTO auth_lockouts (email_hash, failures, window_started, locked_until) VALUES ($1, 1, $2, 0)
+    ON CONFLICT (email_hash) DO UPDATE SET
+      failures = CASE WHEN $2 - auth_lockouts.window_started < $3 THEN auth_lockouts.failures + 1 ELSE 1 END,
+      window_started = CASE WHEN $2 - auth_lockouts.window_started < $3 THEN auth_lockouts.window_started ELSE $2 END,
+      locked_until = CASE WHEN (CASE WHEN $2 - auth_lockouts.window_started < $3 THEN auth_lockouts.failures + 1 ELSE 1 END) >= 8 THEN $2 + $3 ELSE 0 END`,
+  [key, now, window]);
 }
 
-export function isLockedOut(email) {
-  const row = database.prepare('SELECT locked_until FROM auth_lockouts WHERE email_hash = ?').get(emailKey(email));
-  return Boolean(row && row.locked_until > Date.now());
+export async function isLockedOut(email) {
+  const { rows } = await query('SELECT locked_until FROM auth_lockouts WHERE email_hash = $1', [emailKey(email)]);
+  return Boolean(rows[0] && rows[0].locked_until > Date.now());
 }
 
-export function clearLockout(email) {
-  database.prepare('DELETE FROM auth_lockouts WHERE email_hash = ?').run(emailKey(email));
+export async function clearLockout(email) {
+  await query('DELETE FROM auth_lockouts WHERE email_hash = $1', [emailKey(email)]);
 }

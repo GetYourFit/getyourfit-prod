@@ -3,9 +3,9 @@ import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createTestDatabase } from '../tests/support/database.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const portProbe = net.createServer();
@@ -14,9 +14,9 @@ const port = portProbe.address().port;
 await new Promise((resolve) => portProbe.close(resolve));
 const origin = `http://127.0.0.1:${port}`;
 const session = `gyf-local-account-${process.pid}`;
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-local-account-'));
+const database = await createTestDatabase();
 const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
-const password = randomBytes(32).toString('base64url');
+let password = randomBytes(32).toString('base64url');
 const secret = randomBytes(48).toString('base64url');
 const proofDir = process.env.GYF_PROOF_DIR;
 let server;
@@ -72,7 +72,7 @@ async function startServer() {
   serverError = '';
   server = spawn(process.execPath, ['server/index.mjs'], {
     cwd: root, stdio: ['ignore', 'ignore', 'pipe'],
-    env: { ...process.env, NODE_ENV: 'production', GYF_MAIL_TRANSPORT: 'disabled', GYF_DATA_DIR: dataDir, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: String(port) },
+    env: { ...process.env, NODE_ENV: 'production', DATABASE_URL: database.url, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: String(port) },
   });
   server.stderr.on('data', (chunk) => { serverError += chunk; });
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -88,14 +88,12 @@ async function startServer() {
 
 try {
   run('npm', ['run', 'build']);
-  const refusedData = path.join(dataDir, 'missing-key');
   const refused = spawnSync(process.execPath, ['server/index.mjs'], {
     cwd: root, encoding: 'utf8', timeout: 10_000,
-    env: { ...process.env, BETTER_AUTH_SECRET: '', GYF_DATA_DIR: refusedData },
+    env: { ...process.env, BETTER_AUTH_SECRET: '', DATABASE_URL: database.url },
   });
   assert.notEqual(refused.status, 0);
   assert.match(refused.stderr, /stable random key/);
-  assert.equal(fs.existsSync(refusedData), false, 'A refused startup created persistent account data.');
 
   await startServer();
   chrome(['open', `${origin}/sign-in`]);
@@ -105,7 +103,10 @@ try {
     chrome(['resize', '1440', '1000']);
     chrome(['screenshot', path.join(proofDir, 'v01-signin-desktop.png')]);
   }
-  assert.ok(!chrome(['snapshot']).includes('Forgot password?'));
+  click('Forgot password?');
+  await shown('We can’t email password reset links yet.');
+  click('Back to sign in');
+  await shown('Welcome back.');
   click('Create an account');
   fill('Your name', 'Local wearer');
   fill('Email', email);
@@ -127,14 +128,20 @@ try {
   }
   const firstSession = evaluate('async () => await (await fetch("/api/session")).json()');
   assert.equal(firstSession.signedIn, true);
-  assert.equal(firstSession.emailDeliveryMode, 'disabled');
-  assert.equal(evaluate('async () => (await fetch("/__mail")).status'), 404);
-  assert.equal(evaluate('async () => (await fetch("/api/auth/send-verification-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).status'), 404);
-  assert.equal(evaluate('async () => (await fetch("/api/auth/request-password-reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).status'), 404);
+  for (const route of ['send-verification-email', 'request-password-reset', 'reset-password']) {
+    assert.equal(evaluate(`async () => (await fetch("/api/auth/${route}", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).status`), 503);
+  }
   const exported = evaluate('async () => await (await fetch("/api/data/export")).json()');
   assert.equal(exported.account.email, email);
   assert.equal(exported.account.emailVerified, false);
   assert.equal('password' in exported.account, false);
+
+  const nextPassword = randomBytes(32).toString('base64url');
+  fill('Current password', password);
+  fill('New password', nextPassword);
+  click('Change password');
+  await shown('Your password is changed.');
+  password = nextPassword;
 
   await stopServer();
   await startServer();
@@ -162,9 +169,9 @@ try {
   fill('Password', password);
   click('Sign in');
   await shown('We could not sign you in.');
-  process.stdout.write('verify:local-account passed: production browser signup without mail, adult consent, restricted mailbox and reset, unverified export, stable-key restart, wrong password, sign-out/sign-in, and permanent deletion.\n');
+  process.stdout.write('verify:local-account passed: production browser signup without email confirmation, adult consent, honest email-reset notice, signed-in password change, unverified export, stable-key restart, wrong password, sign-out/sign-in, and permanent deletion.\n');
 } finally {
   await stopServer();
   try { chrome(['stop']); } catch (error) { process.stderr.write(`Browser cleanup failed: ${String(error)}\n`); }
-  fs.rmSync(dataDir, { recursive: true, force: true });
+  await database.drop();
 }

@@ -1,8 +1,9 @@
 import { chromium } from 'playwright';
 import axe from 'axe-core';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, mkdtemp } from 'node:fs/promises';
 import { createServer as tcpServer } from 'node:net';
+import pg from 'pg';
 import { tmpdir } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
@@ -18,7 +19,6 @@ const projectRoot = path.resolve(suiteRoot, '../..');
 const stubMode = process.argv.includes('--stub');
 const privacyMutationMode = process.argv.includes('--privacy-mutations');
 const appPort = await freePort();
-let mailPort;
 const baseURL = `http://127.0.0.1:${appPort}`;
 const onlyIndex = process.argv.indexOf('--only');
 const only = onlyIndex < 0 ? undefined : process.argv[onlyIndex + 1];
@@ -53,9 +53,7 @@ const cases = [
 ];
 const started = Date.now();
 const results = [];
-const smtpSockets = new Set();
-let server, browser, dataDir, mailCatcher;
-let mailCount = 0;
+let server, browser, database;
 let logs = '';
 let logOverflow = false;
 let activePage;
@@ -72,6 +70,25 @@ function redact(value) {
   let text = String(value);
   for (const secret of secrets) text = text.replaceAll(secret, '[redacted]');
   return text;
+}
+// A disposable database on the Postgres named by GYF_TEST_DATABASE_URL (see scripts/with-postgres.mjs at the repository root).
+async function createDatabase() {
+  const adminURL = process.env.GYF_TEST_DATABASE_URL;
+  assert(adminURL, 'Set GYF_TEST_DATABASE_URL, or run through `node scripts/with-postgres.mjs`.');
+  const name = `acceptance_${randomBytes(6).toString('hex')}`;
+  const admin = new pg.Client({ connectionString: adminURL });
+  await admin.connect();
+  try { await admin.query(`CREATE DATABASE ${name}`); } finally { await admin.end(); }
+  const url = new URL(adminURL);
+  url.pathname = `/${name}`;
+  return {
+    url: url.toString(),
+    async drop() {
+      const client = new pg.Client({ connectionString: adminURL });
+      await client.connect();
+      try { await client.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`); } finally { await client.end(); }
+    },
+  };
 }
 function safeEnv() {
   return Object.fromEntries(['PATH', 'SystemRoot', 'TMPDIR', 'TEMP', 'TMP', 'LANG'].filter(key => process.env[key]).map(key => [key, process.env[key]]));
@@ -94,31 +111,10 @@ try {
     runtime = 'production-start-missing';
     results.push({ name: 'V01 production API service', requirement_ids: ['R4', 'A-1'], status: 'failed', error: 'package.json has no npm start production service contract.' });
   } else {
-    mailPort = await freePort([appPort]);
-    mailCatcher = tcpServer(socket => {
-      smtpSockets.add(socket); socket.on('close', () => smtpSockets.delete(socket));
-      socket.on('error', () => {});
-      socket.write('220 localhost acceptance mail sink\r\n');
-      let pending = '', inData = false;
-      socket.on('data', chunk => {
-        pending += chunk.toString();
-        let end;
-        while ((end = pending.indexOf('\r\n')) >= 0) {
-          const line = pending.slice(0, end); pending = pending.slice(end + 2);
-          if (inData) { if (line === '.') { inData = false; mailCount++; socket.write('250 accepted locally\r\n'); } continue; }
-          if (/^DATA$/i.test(line)) { inData = true; socket.write('354 End with dot\r\n'); }
-          else if (/^QUIT$/i.test(line)) socket.end('221 bye\r\n');
-          else if (/^(EHLO|HELO)/i.test(line)) socket.write('250 localhost\r\n');
-          else socket.write('250 ok\r\n');
-        }
-        if (pending.length > 1024 * 1024) socket.destroy();
-      });
-    });
-    await new Promise((resolve, reject) => { mailCatcher.once('error', reject); mailCatcher.listen(mailPort, '127.0.0.1', resolve); });
-    dataDir = await mkdtemp(path.join(tmpdir(), 'gyf-acceptance-data-'));
+    if (!stubMode) database = await createDatabase();
     const authSecret = randomBytes(32).toString('hex');
     secrets.add(authSecret);
-    const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, GYF_MAIL_TRANSPORT: 'disabled', HOST: '127.0.0.1', PORT: String(appPort), GYF_PORT: String(appPort), GYF_DATA_DIR: dataDir, DATABASE_URL: `file:${path.join(dataDir, 'acceptance.sqlite')}`, APP_URL: baseURL, GYF_MAIL_MODE: 'disabled', SMTP_HOST: '127.0.0.1', SMTP_PORT: String(mailPort), SMTP_URL: `smtp://127.0.0.1:${mailPort}` };
+    const env = { ...safeEnv(), NODE_ENV: 'production', BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: baseURL, HOST: '127.0.0.1', PORT: String(appPort), GYF_PORT: String(appPort), ...(database ? { DATABASE_URL: database.url } : {}), APP_URL: baseURL };
     if (stubMode) {
       server = spawn(process.execPath, [path.join(here, 'stub-server.mjs')], { env: { ...env, MUTATION: process.env.MUTATION || '' }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
       runtime = 'contract-stub';
@@ -141,7 +137,6 @@ try {
       try {
         await check(context, activePage);
         await delay(50);
-        assert.equal(mailCount, 0, 'v0.1 emitted mail to the local catcher; account use must not depend on mail');
         assert(!logOverflow, 'Service log capture overflowed; private-data absence cannot be established');
         for (const secret of secrets) assert(!logs.includes(secret), 'Service logs exposed generated credentials or personal email');
       } catch (error) {
@@ -159,9 +154,7 @@ try {
 } finally {
   await browser?.close();
   await stopOwnedServer();
-  for (const socket of smtpSockets) socket.destroy();
-  if (mailCatcher?.listening) await new Promise(resolve => mailCatcher.close(resolve));
-  if (dataDir) await rm(dataDir, { recursive: true, force: true });
+  await database?.drop();
 }
 
 const source = stubMode ? 'contract-stub' : runtime === 'production-start-missing' ? 'missing-production-service' : 'production-build';

@@ -9,9 +9,9 @@ Read [the feature map](features/README.md), then read the guide for each user pa
 
 ## Start
 
-Run `npm install` once. Set a stable random `BETTER_AUTH_SECRET` of at least 32 characters and retain it with its database. Start `npm run dev` with a disposable `GYF_DATA_DIR`. Open `http://127.0.0.1:5173`; the local service listens at `http://127.0.0.1:4174`. Run `npm run verify` and continue when both services report `ready`.
+Run `npm install` once. Set a stable random `BETTER_AUTH_SECRET` of at least 32 characters and retain it with its database. Start a local database with `npm run dev:db`, export the `DATABASE_URL` it prints, then start `npm run dev`. Open `http://127.0.0.1:5173`; the local service listens at `http://127.0.0.1:4174`. Run `npm run verify` and continue when both services report `ready`.
 
-For v0.1 account coverage, `npm run verify:local-account` builds and starts a production service, isolated database, and named Chrome session. It proves signup without mail, consent, restart continuity, sign-in failure, export, and deletion. For opt-in email coverage, follow the [account guide](features/account-access.md). The account verifiers stop only their own processes and remove their temporary databases.
+For v0.1 account coverage, `npm run verify:local-account` builds and starts a production service, isolated database, and named Chrome session. It proves signup without email confirmation, consent, the email-reset notice, signed-in password change, restart continuity, sign-in failure, export, and deletion. Follow the [account guide](features/account-access.md) for the manual path. The account verifiers stop only their own processes and remove their temporary databases.
 
 For the wardrobe-to-outfit path, run `npm run verify:wardrobe`. It uses the real licensed photographs in `tests/fixtures`, never remote photo assets or a seeded wardrobe. It drives photo consent, known-bad decode, manual confirmation, facts, one-question clarification, complete outfit and abstention, persisted rejection, export, cross-account isolation, restart, and deletion. Set `GYF_PROOF_DIR` outside the repository to retain screenshots and snapshots. For real model inference and recognition recovery, follow [photo recognition](../../../docs/photo-recognition.md#verify-recognition).
 
@@ -22,9 +22,9 @@ Use `chrome-devtools-axi` and follow the selected guide:
 1. Open `http://127.0.0.1:5173/` and take an accessible snapshot.
 2. Use current generation-tagged element references to follow the visible user controls.
 3. Capture both the action and resulting state. Inspect network requests when privacy or locality matters.
-4. Confirm persisted effects through a second user view or the isolated SQLite database.
+4. Confirm persisted effects through a second user view or the isolated Postgres database.
 
-Default v0.1 mode sends no email, signs new accounts in immediately, and retains an unverified email status. Recovery is unavailable. Opt-in SMTP sends through the configured service; only test mode keeps mail in memory. Its Node runner alone receives the ephemeral mailbox token and opens links in named browser sessions. Browser requests to `/__mail` return no messages.
+No email is sent: new accounts sign in immediately with an unverified address, and a forgotten password cannot be recovered. A signed-in user can change the password from Account.
 
 ## Evidence
 
