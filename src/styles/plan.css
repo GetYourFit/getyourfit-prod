@@ -1,0 +1,46 @@
+.plan-intro { display: grid; gap: var(--space-3); padding: var(--space-4) 0 var(--space-5); }
+.plan-intro h1 { font-size: var(--text-display); font-weight: var(--weight-strong); letter-spacing: var(--tracking-display); line-height: var(--leading-tight); }
+.plan-intro p { max-width: var(--reading-max); color: var(--color-ink-muted); font-size: var(--text-lead); line-height: 1.55; }
+.plan-layout { display: grid; gap: var(--space-6); align-items: start; }
+.plan-form { display: grid; gap: var(--space-5); }
+.plan-form .chips { gap: var(--space-2); }
+.plan-form .chip { cursor: pointer; }
+.chip[aria-pressed='true'] { border-color: var(--color-accent); background: var(--color-accent-subtle); color: var(--color-accent-hover); font-weight: var(--weight-strong); }
+.plan-privacy { display: flex; align-items: flex-start; gap: var(--space-2); }
+.plan-privacy svg { flex: 0 0 auto; margin-top: 2px; color: var(--color-accent); }
+.plan-result { display: grid; gap: var(--space-5); min-width: 0; }
+.plan-result-heading { display: grid; gap: var(--space-1); }
+.plan-result-heading h2, .plan-placeholder h2 { font-size: var(--text-title); line-height: 1.2; letter-spacing: var(--tracking-title); overflow-wrap: anywhere; }
+.plan-result-heading p { color: var(--color-ink-muted); }
+.plan-reasons { display: grid; gap: var(--space-3); max-width: var(--reading-max); }
+.plan-reasons h3, .plan-save h3 { font-size: var(--text-title-sm); line-height: var(--leading-snug); }
+.plan-reasons ul { display: grid; gap: var(--space-2); margin: 0; padding-left: var(--space-5); }
+.plan-save { display: grid; gap: var(--space-3); max-width: var(--reading-max); background: var(--color-accent-subtle); border-color: var(--color-accent-border); }
+.plan-placeholder { display: grid; gap: var(--space-4); }
+.plan-placeholder .caption { max-width: 48ch; }
+.plan-credits { max-width: var(--reading-max); }
+
+/* The outfit board: one square composition of real garment photographs, shared with the downloadable image. */
+.outfit-board { position: relative; width: 100%; max-width: 560px; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--color-rule); border-radius: var(--radius-panel); background: var(--color-surface); box-shadow: 0 12px 32px rgb(29 39 36 / 8%); }
+.board-tile { position: absolute; overflow: hidden; border-radius: var(--radius-photo); }
+.board-tile img { width: 100%; height: 100%; }
+.board-tile-owned { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); border: 2px dashed var(--color-control-border); padding: var(--space-2); background: var(--color-surface-muted); color: var(--color-ink); font-size: var(--text-caption); font-weight: var(--weight-strong); text-align: center; }
+.board-tile-owned svg { color: var(--color-accent); }
+
+@media (max-width: 999px) {
+  .plan-layout.has-result .plan-result { order: -1; }
+}
+
+@media (min-width: 1000px) {
+  .plan-layout { grid-template-columns: minmax(340px, 400px) minmax(0, 1fr); gap: var(--space-7); }
+  .board-panel { grid-template-columns: minmax(0, 560px) minmax(220px, 1fr); }
+}
+
+.board-panel { display: grid; gap: var(--space-5); align-items: start; }
+.board-panel-side { display: grid; gap: var(--space-4); }
+.board-looks { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.board-looks .chip { cursor: pointer; }
+.board-pieces { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.board-pieces li { display: grid; gap: 2px; border-top: 1px solid var(--color-rule); padding-top: var(--space-2); }
+.board-piece-role { color: var(--color-ink-muted); font-size: var(--text-caption); }
+.board-panel-side .button { justify-self: start; }

@@ -80,10 +80,15 @@ async function api(page, method, url, body) {
   }, [method, url, body]);
 }
 
+// The server allows five sign-ups a minute across the whole run, so a refused sign-up waits out the window rather than weakening the limit.
 async function signUp(page, email) {
   await page.goto('/sign-in');
-  const response = await api(page, 'POST', '/api/auth/sign-up/email', { name: 'Quality check', email, password, adultConfirmed: true, callbackURL: new URL(page.url()).origin });
-  expect(response.status).toBe(200);
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await api(page, 'POST', '/api/auth/sign-up/email', { name: 'Quality check', email, password, adultConfirmed: true, callbackURL: new URL(page.url()).origin });
+    if (response.status === 429 && attempt < 2) { test.setTimeout(test.info().timeout + 65_000); await page.waitForTimeout(61_000); continue; }
+    expect(response.status).toBe(200);
+    return;
+  }
 }
 
 async function addWardrobe(page, { uncertainFit = false } = {}) {
@@ -241,6 +246,64 @@ test('concurrent wardrobe refreshes and edits preserve confirmed facts', async (
       } finally { held.resolve(); }
     });
   }
+});
+
+test('plan page', async ({ page }) => {
+  await page.goto('/plan');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('See your outfit in a minute.');
+  await checkScreen(page, 'plan-empty');
+});
+
+test('visitor gets an outfit board without an account, then saves it after sign-up', async ({ page }) => {
+  const hosts = new Set();
+  const steps = [];
+  page.on('request', (request) => {
+    hosts.add(new URL(request.url()).host);
+    if (request.url().endsWith('/api/funnel')) steps.push(request.postDataJSON().event);
+  });
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Plan an outfit now' }).click();
+  await expect(page).toHaveURL(/\/plan$/);
+  await page.getByLabel('What is the occasion?').fill('Dinner with friends');
+  await page.getByRole('radio', { name: 'Cold' }).check();
+  await page.getByRole('button', { name: 'Show my outfit' }).click();
+  const heading = page.getByRole('heading', { name: 'Your outfit for Dinner with friends' });
+  await expect(heading).toBeFocused();
+  const board = page.getByRole('figure');
+  await expect(board.getByRole('img')).toHaveCount(3);
+  expect(await board.locator('img').evaluateAll((images) => images.every((image) => image.complete && image.naturalWidth > 0))).toBe(true);
+  await expect(page.getByRole('heading', { name: 'Why this works' })).toBeVisible();
+  await expect(page.getByText('For cold weather')).toBeVisible();
+  const alts = () => board.locator('img').evaluateAll((images) => images.map((image) => image.alt));
+  const first = await alts();
+  await page.getByRole('button', { name: 'Look 2' }).click();
+  await expect(page.getByRole('button', { name: 'Look 2' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await alts()).not.toEqual(first);
+  await page.getByRole('button', { name: 'Look 1' }).click();
+  expect(await alts()).toEqual(first);
+  await checkScreen(page, 'plan-result');
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download as image' }).click();
+  expect((await downloading).suggestedFilename()).toBe('getyourfit-outfit.png');
+  await page.getByRole('button', { name: 'Save this outfit' }).click();
+  await expect(page).toHaveURL(/\/sign-up$/);
+  await page.getByLabel('Your name').fill('Visitor');
+  await page.getByLabel('Email', { exact: true }).fill(`visitor-${randomUUID()}@example.test`);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('checkbox', { name: /18 or older/ }).check();
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  if (await page.getByRole('alert').first().isVisible({ timeout: 1500 }).catch(() => false)) {
+    test.setTimeout(test.info().timeout + 65_000);
+    await page.waitForTimeout(61_000);
+    await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  }
+  const builder = page.locator('#build-plan');
+  await expect(builder.getByRole('heading', { name: 'Needs for Dinner with friends' })).toBeVisible();
+  await builder.getByRole('button', { name: 'Save plan' }).click();
+  await expect(builder.getByRole('status').filter({ hasText: 'Plan saved' })).toBeVisible();
+  await expect.poll(() => steps.includes('plan_saved_after_visit')).toBe(true);
+  expect(steps).toEqual(['plan_opened', 'plan_submitted', 'outfit_shown', 'save_prompt_shown', 'save_prompt_accepted', 'plan_saved_after_visit']);
+  expect([...hosts]).toEqual([new URL(page.url()).host]);
 });
 
 test('starter plan with shopping links', async ({ page }) => {

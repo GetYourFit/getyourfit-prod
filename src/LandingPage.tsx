@@ -13,6 +13,10 @@ export function LandingPage() {
       <div className="public-intro">
         <h1>Your clothes.<br />One clear outfit.</h1>
         <p>Add your clothes. Tell us your plans.<br className="desktop-break" /> Get a complete outfit, with the reasons.</p>
+        <div className="public-intro-action">
+          <a className="public-primary" href="/plan">Plan an outfit now<ArrowRight size={18} aria-hidden="true" /></a>
+          <p className="public-start-note">No account needed. See a full outfit in a minute.</p>
+        </div>
       </div>
       <section className="example-outfit" aria-labelledby="example-title">
         <div className="example-heading"><h2 id="example-title">Example outfit</h2><p>Dinner with friends · Mild weather · Casual</p></div>

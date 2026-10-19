@@ -21,6 +21,7 @@
     "verify:wardrobe": "node scripts/verify-wardrobe.mjs",
     "verify:mail-delivery": "node scripts/verify-mail-delivery.mjs",
     "feature-map": "node scripts/gyf.mjs map",
+    "funnel": "node scripts/funnel-report.mjs",
     "acceptance": "npm --prefix tests/acceptance run acceptance"
   },
   "dependencies": {

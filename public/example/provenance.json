@@ -111,6 +111,186 @@
           "sha256": "7db7dac444f54014dfca83a38b2926a21c7d33a006d3c8431df7acd905f7c684"
         }
       ]
+    },
+    {
+      "name": "sweater",
+      "id": 155791,
+      "title": "Sweater",
+      "objectNumber": "2009.300.1111",
+      "credit": "Brooklyn Museum Costume Collection at The Metropolitan Museum of Art, Gift of the Brooklyn Museum, 2009; Gift of Mrs. John Hubbard, 1938",
+      "file": "sweater.webp",
+      "record": "https://www.metmuseum.org/art/collection/search/155791",
+      "original_url": "https://images.metmuseum.org/CRDImages/ci/original/38.93_CP4.jpg",
+      "license": "CC0-1.0",
+      "license_record": "https://www.metmuseum.org/hubs/open-access",
+      "collection": "The Metropolitan Museum of Art",
+      "retrieved": "2026-10-19",
+      "original_sha256": "a8249c995e7bc938280c2e624c5c4d84bcd8d3c89e9617101c74732a32956ee9",
+      "output_sha256": "f1dc450380659f06a108e95819c8f08df18f91a2520a95153f66ca1d3c96bb45",
+      "width": 900,
+      "height": 712,
+      "bytes": 83886,
+      "transformation": "Resized within 900 x 1200, WebP quality 84; no crop or generative edit.",
+      "variants": [
+        {
+          "file": "sweater-360.webp",
+          "width": 360,
+          "height": 284,
+          "bytes": 10796,
+          "sha256": "9c1cd4f6834abee346ebab374fbe38271f46203ca90aafab092fbb8170a09169"
+        },
+        {
+          "file": "sweater-600.webp",
+          "width": 600,
+          "height": 475,
+          "bytes": 33622,
+          "sha256": "207b183f5adffdb8236f2a4c88860ed4e684325976850061ed9125542b4b6b1f"
+        }
+      ]
+    },
+    {
+      "name": "boots",
+      "id": 158242,
+      "title": "Boots",
+      "objectNumber": "2009.300.3319a, b",
+      "credit": "Brooklyn Museum Costume Collection at The Metropolitan Museum of Art, Gift of the Brooklyn Museum, 2009; H. Randolph Lever Fund, 1967",
+      "file": "boots.webp",
+      "record": "https://www.metmuseum.org/art/collection/search/158242",
+      "original_url": "https://images.metmuseum.org/CRDImages/ci/original/67.223a-b_CP4.jpg",
+      "license": "CC0-1.0",
+      "license_record": "https://www.metmuseum.org/hubs/open-access",
+      "collection": "The Metropolitan Museum of Art",
+      "retrieved": "2026-10-19",
+      "original_sha256": "833bb0a895fc632b3776bfe52ca948ff54df692f74b01adffea57d9c0d09f67e",
+      "output_sha256": "cb3ad77258865fbcd779d0dcd521b2b74d8646f00fdafc86f79c16105847dd51",
+      "width": 900,
+      "height": 608,
+      "bytes": 18006,
+      "transformation": "Resized within 900 x 1200, WebP quality 84; no crop or generative edit.",
+      "variants": [
+        {
+          "file": "boots-360.webp",
+          "width": 360,
+          "height": 243,
+          "bytes": 4938,
+          "sha256": "10d5561aa7614e93a7ed83ff8014d2f12144d0d2ed297aee6806619d811adb30"
+        },
+        {
+          "file": "boots-600.webp",
+          "width": 600,
+          "height": 406,
+          "bytes": 10060,
+          "sha256": "0326136278c9594619daa6ceee04e79f2681acfbf6066645929f3e5090ca6623"
+        }
+      ]
+    },
+    {
+      "name": "dress-blue",
+      "id": 157729,
+      "title": "Dress",
+      "objectNumber": "2009.300.2858a–c",
+      "credit": "Brooklyn Museum Costume Collection at The Metropolitan Museum of Art, Gift of the Brooklyn Museum, 2009; Gift of Dorothy L. Tapscott and Gladys L. Campbell, 1962",
+      "file": "dress-blue.webp",
+      "record": "https://www.metmuseum.org/art/collection/search/157729",
+      "original_url": "https://images.metmuseum.org/CRDImages/ci/original/62.97.5a-c_front_CP4.jpg",
+      "license": "CC0-1.0",
+      "license_record": "https://www.metmuseum.org/hubs/open-access",
+      "collection": "The Metropolitan Museum of Art",
+      "retrieved": "2026-10-19",
+      "original_sha256": "00e20dfb01004058823184d920df4d1854f3b6324d6dec4d5c597ad46dc7f492",
+      "output_sha256": "c03b7dc73571035c74d27c67850b3750ac32b10b5aa3f52ad8900daa3066f8a6",
+      "width": 778,
+      "height": 1200,
+      "bytes": 58752,
+      "transformation": "Resized within 900 x 1200, WebP quality 84; no crop or generative edit.",
+      "variants": [
+        {
+          "file": "dress-blue-360.webp",
+          "width": 360,
+          "height": 556,
+          "bytes": 17722,
+          "sha256": "e5f74140ec7702042211d364056a54c07aecdaad1d7709d6da138e7700ee9731"
+        },
+        {
+          "file": "dress-blue-600.webp",
+          "width": 600,
+          "height": 926,
+          "bytes": 38790,
+          "sha256": "269d784aecde97572153166f5dd5ee6b0f809a230e3ff7946e76187c495177dd"
+        }
+      ]
+    },
+    {
+      "name": "dress-silk",
+      "id": 82122,
+      "title": "Dress",
+      "objectNumber": "1971.242.1a–e",
+      "credit": "Purchase, Irene Lewisohn Bequest, 1971",
+      "file": "dress-silk.webp",
+      "record": "https://www.metmuseum.org/art/collection/search/82122",
+      "original_url": "https://images.metmuseum.org/CRDImages/ci/original/1971.242.1abde_F.JPG",
+      "license": "CC0-1.0",
+      "license_record": "https://www.metmuseum.org/hubs/open-access",
+      "collection": "The Metropolitan Museum of Art",
+      "retrieved": "2026-10-19",
+      "original_sha256": "f0cfd613d00c26e9301039dc505006d3c03ae33909086be5aff417aeace8d7b6",
+      "output_sha256": "279a353469c69ff012cb5bdf90bced731b9ee0d29e55a858ad34f4546e55f14d",
+      "width": 598,
+      "height": 1200,
+      "bytes": 138560,
+      "transformation": "Resized within 900 x 1200, WebP quality 84; no crop or generative edit.",
+      "variants": [
+        {
+          "file": "dress-silk-360.webp",
+          "width": 360,
+          "height": 722,
+          "bytes": 41624,
+          "sha256": "a7ca45db96034e0682483148eecfdc6b0bb4d3334bc199f11aa5403762edcb65"
+        },
+        {
+          "file": "dress-silk-600.webp",
+          "width": 600,
+          "height": 1203,
+          "bytes": 139968,
+          "sha256": "0863e919e64362072f0d0f80c6d63c75c794e14135846dfcc037eea41d549f50"
+        }
+      ]
+    },
+    {
+      "name": "trousers-tan",
+      "id": 90799,
+      "title": "Trousers",
+      "objectNumber": "1988.261.2",
+      "credit": "Purchase, Gifts in memory of Paul Ettesvold, 1988",
+      "file": "trousers-tan.webp",
+      "record": "https://www.metmuseum.org/art/collection/search/90799",
+      "original_url": "https://images.metmuseum.org/CRDImages/ci/original/1988.261.2_F.jpg",
+      "license": "CC0-1.0",
+      "license_record": "https://www.metmuseum.org/hubs/open-access",
+      "collection": "The Metropolitan Museum of Art",
+      "retrieved": "2026-10-19",
+      "original_sha256": "da7da57d98b669a5feb7991a02799b8b9451eecabf0b8e829f1ac67fc5d57cee",
+      "output_sha256": "eb40bea29d949101cbff2f3a561dba9ef4667227445fde220393d394ee831d9d",
+      "width": 613,
+      "height": 1200,
+      "bytes": 42872,
+      "transformation": "Resized within 900 x 1200, WebP quality 84; no crop or generative edit.",
+      "variants": [
+        {
+          "file": "trousers-tan-360.webp",
+          "width": 360,
+          "height": 705,
+          "bytes": 14938,
+          "sha256": "d33b16b9b005d0a258de27aca8a8813b48cebb5294f7a0c291111a3d8f257877"
+        },
+        {
+          "file": "trousers-tan-600.webp",
+          "width": 600,
+          "height": 1175,
+          "bytes": 40590,
+          "sha256": "e078cacec8d1455d17f0b3687888b0de8f362c88b9d38ed1604b8da88263fb05"
+        }
+      ]
     }
   ]
 }
