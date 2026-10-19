@@ -2,13 +2,40 @@ import { z } from 'zod';
 import { starterInputSchema, type StarterInput } from '../shared/starter-plan';
 
 const KEY = 'gyf.pending-plan';
-const pendingSchema = z.object({ id: z.uuid(), input: starterInputSchema });
+const pendingSchema = z.object({ id: z.uuid(), input: starterInputSchema, account: z.string().optional() });
 type PendingPlan = z.infer<typeof pendingSchema>;
 let memory: PendingPlan | null = null;
 
+function persist(plan: PendingPlan) {
+  memory = plan;
+  try { window.sessionStorage.setItem(KEY, JSON.stringify(plan)); } catch { /* In-page account entry retains the memory copy. */ }
+}
+
 export function holdPendingPlan(input: StarterInput) {
-  memory = { id: crypto.randomUUID(), input };
-  try { window.sessionStorage.setItem(KEY, JSON.stringify(memory)); } catch { /* In-page account entry retains the memory copy. */ }
+  persist({ id: crypto.randomUUID(), input });
+}
+
+export function updatePendingLook(id: string, selectedLook: number) {
+  const held = readPendingPlan();
+  if (held?.id === id) persist({ ...held, input: { ...held.input, selectedLook } });
+}
+
+export function claimPendingPlan(account: string): PendingPlan | null {
+  const held = readPendingPlan();
+  if (!held) return null;
+  if (held.account === undefined) {
+    const claimed = { ...held, account };
+    persist(claimed);
+    return claimed;
+  }
+  if (held.account === account) return held;
+  discardPendingPlan();
+  return null;
+}
+
+export function discardPendingPlan() {
+  memory = null;
+  try { window.sessionStorage.removeItem(KEY); } catch { /* Storage was unavailable when the draft was held. */ }
 }
 
 export function readPendingPlan(): PendingPlan | null {
@@ -29,7 +56,5 @@ export function readPendingPlan(): PendingPlan | null {
 }
 
 export function clearPendingPlan(id: string) {
-  if (readPendingPlan()?.id !== id) return;
-  memory = null;
-  try { window.sessionStorage.removeItem(KEY); } catch { /* Storage was unavailable when the draft was held. */ }
+  if (readPendingPlan()?.id === id) discardPendingPlan();
 }

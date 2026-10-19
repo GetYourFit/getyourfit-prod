@@ -71,6 +71,24 @@ for (const backend of backends) {
     assert.deepEqual((await owner.call({ route: '/api/wardrobe' })).body, []);
   });
 
+  test(`confirming a piece keeps the chosen look's untouched pieces [${backend}]`, async (t) => {
+    const server = await start(t, {}, { backend });
+    const wearer = await signUp(server);
+    const input = { occasion: 'Dinner', outfitType: 'separates', budget: 0, currency: 'INR', weather: 'mild', dressCode: 'casual', mustHave: '', ownedRoles: [], selectedLook: 3 };
+    const saved = await wearer.call({ method: 'POST', route: '/api/wardrobe/starter-plans', body: input });
+    assert.equal(saved.status, 201);
+    const confirmed = await wearer.call({ method: 'PATCH', route: `/api/wardrobe/starter-plans/${saved.body.id}`, body: { action: 'confirm-owned', role: 'top' } });
+    assert.equal(confirmed.status, 200);
+    assert.equal(confirmed.body.input.selectedLook, 1);
+    const onePiece = { ...input, outfitType: 'one-piece' };
+    const invalid = await wearer.call({ method: 'PATCH', route: `/api/wardrobe/starter-plans/${saved.body.id}`, body: { action: 'replace-plan', input: onePiece } });
+    assert.equal(invalid.status, 400);
+    const replaced = await wearer.call({ method: 'PATCH', route: `/api/wardrobe/starter-plans/${saved.body.id}`, body: { action: 'replace-plan', input: { ...onePiece, selectedLook: 1 } } });
+    assert.equal(replaced.status, 201);
+    assert.equal(replaced.body.input.selectedLook, 0);
+    assert.equal(replaced.body.roles.length, 2);
+  });
+
   test(`outfit corrections, starter plans and export round-trip through the database [${backend}]`, async (t) => {
     const server = await start(t, {}, { backend });
     const wearer = await signUp(server);

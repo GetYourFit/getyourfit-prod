@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { ArrowUpRight } from 'lucide-react';
-import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
+import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, withCarriedLook, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
 import { composeBoard } from '../shared/outfit-board';
 import { countStep } from './funnel';
 import { OutfitBoardPanel } from './OutfitBoard';
-import { clearPendingPlan, readPendingPlan } from './pending-plan';
+import { claimPendingPlan, clearPendingPlan, updatePendingLook } from './pending-plan';
 import { ShoppingLinks } from './ShoppingLinks';
 import { wardrobeRequest } from './wardrobe-api';
 import { Notice } from './ui';
@@ -33,8 +33,8 @@ function searchHref(role: StarterRole): string {
   return `https://www.google.com/search?q=${encodeURIComponent(terms[role])}`;
 }
 
-export function StarterPlan({ onPresenceChange }: { onPresenceChange?: (present: boolean) => void }) {
-  const [initialVisit] = useState(readPendingPlan);
+export function StarterPlan({ account, onPresenceChange }: { account: string; onPresenceChange?: (present: boolean) => void }) {
+  const [initialVisit] = useState(() => claimPendingPlan(account));
   const fromVisit = useRef(initialVisit);
   const [plans, setPlans] = useState<StarterPlan[]>([]);
   const [current, setCurrent] = useState<StarterPlan | null>(null);
@@ -188,7 +188,7 @@ export function StarterPlan({ onPresenceChange }: { onPresenceChange?: (present:
     }
     const updated = confirmStarterRole(roles, role, input.budget, new Date().toISOString());
     const ownedRoles = [...input.ownedRoles, role];
-    const nextInput = starterInputSchema.parse({ ...input, ownedRoles });
+    const nextInput = starterInputSchema.parse(withCarriedLook({ ...input, ownedRoles }, { input, roles }, updated));
     setDraft({ input: nextInput, roles: updated });
     focusPlanAfterUpdate();
     setStatus(`You confirmed suitable ${starterRoleName(role).toLowerCase()} is yours. Save the plan to keep that confirmation.`);
@@ -233,9 +233,16 @@ export function StarterPlan({ onPresenceChange }: { onPresenceChange?: (present:
     }
   }
 
+  function chooseLook(index: number) {
+    setDraft((previous) => previous ? { ...previous, input: { ...previous.input, selectedLook: index } } : previous);
+    if (fromVisit.current) updatePendingLook(fromVisit.current.id, index);
+  }
+
   function startReplacement() {
     if (!current) return;
-    setValues({ ...current.input, budget: String(current.input.budget), ownedRoles: current.roles.filter((role) => role.state === 'confirmed-owned').map((role) => role.role) });
+    const planValues = { ...current.input };
+    delete planValues.selectedLook;
+    setValues({ ...planValues, budget: String(current.input.budget), ownedRoles: current.roles.filter((role) => role.state === 'confirmed-owned').map((role) => role.role) });
     setDraft(null);
     setReplacePlan(true);
     setFormOpen(true);
@@ -310,7 +317,7 @@ export function StarterPlan({ onPresenceChange }: { onPresenceChange?: (present:
       <div className="starter-result-heading"><div><h3 tabIndex={-1}>{heading}</h3>{!visitorPlan && <p>{input.outfitType === 'separates' ? 'Top, bottom and footwear' : 'One-piece garment and footwear'} for one occasion.</p>}</div><span className={`starter-state starter-state-${planStatus}`}>{planStatus === 'active' ? visitorPlan ? 'Saved' : 'Active plan' : planStatus === 'draft' ? 'Not saved yet' : planStatus}</span></div>
       {visitorPlan ? <>
         <p className="starter-explanation">Example garment photos, not clothes you own. Fit and availability are unverified.</p>
-        <OutfitBoardPanel key={`${current?.id ?? 'draft'}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} />
+        <OutfitBoardPanel key={`${current?.id ?? 'draft'}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} selection={saved ? undefined : { index: input.selectedLook ?? 0, onChange: chooseLook }} />
         {saved ? <details className="disclosure starter-details"><summary>Review needs and plan details</summary>{details}</details>
           : !loadFailed && <button className="button button-primary" disabled={busy !== '' || loading} onClick={() => void saveDraft()}>{busy === 'save' ? 'Saving plan…' : 'Try saving plan again'}</button>}
       </> : details}

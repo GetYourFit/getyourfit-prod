@@ -9,7 +9,7 @@ import express from 'express';
 import sharp from 'sharp';
 import { asIso, asJson, query, reclaimDeletedData, transaction } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
-import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
+import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema, withCarriedLook } from '../shared/starter-plan.ts';
 import { shoppingSourceListSchema } from '../shared/shopping.ts';
 import shoppingSourceRecords from './shopping-sources.json' with { type: 'json' };
 import { browserInterpretationSchema } from '../shared/classification.ts';
@@ -185,15 +185,18 @@ export function wardrobeRouter(requireUser) {
       }
       if (action.data.action === 'replace-plan') {
         await updateStarterPlan(request.user.id, { ...current, status: 'replaced' }, run);
-        return { status: 201, body: await insertStarterPlan(request.user.id, action.data.input, buildStarterRoles(action.data.input, new Date().toISOString()), 'active', run) };
+        const replacementRoles = buildStarterRoles(action.data.input, new Date().toISOString());
+        const replacementInput = withCarriedLook(action.data.input, current, replacementRoles);
+        return { status: 201, body: await insertStarterPlan(request.user.id, replacementInput, replacementRoles, 'active', run) };
       }
       if (action.data.action === 'confirm-owned') {
         const role = current.roles.find((item) => item.role === action.data.role);
         if (!role || role.state === 'confirmed-owned') return { status: 409, body: { error: 'That need has already been confirmed or is not in this plan.' } };
         const roles = confirmStarterRole(current.roles, action.data.role, current.input.budget, new Date().toISOString());
+        const ownedInput = { ...current.input, ownedRoles: roles.filter((item) => item.state === 'confirmed-owned').map((item) => item.role) };
         return { status: 200, body: await updateStarterPlan(request.user.id, {
           ...current,
-          input: { ...current.input, ownedRoles: roles.filter((item) => item.state === 'confirmed-owned').map((item) => item.role) },
+          input: withCarriedLook(ownedInput, current, roles),
           roles,
         }, run) };
       }

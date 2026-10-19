@@ -60,3 +60,19 @@ test('a one-piece plan uses the one-piece layout and zero budget suggests reuse'
 test('funnel steps record no identifying fields', () => {
   assert.deepEqual([...funnelEvents], ['plan_opened', 'plan_submitted', 'outfit_shown', 'save_prompt_shown', 'save_prompt_accepted', 'plan_saved_after_visit']);
 });
+
+test('a chosen look keeps its untouched pieces when the capsule changes and must exist in the plan', async () => {
+  const { confirmStarterRole, starterInputSchema, withCarriedLook } = await import('../shared/starter-plan.ts');
+  const chosen = { ...input, selectedLook: 3 };
+  const roles = buildStarterRoles(chosen, now);
+  const confirmed = confirmStarterRole(roles, 'top', chosen.budget, now);
+  const owned = withCarriedLook({ ...chosen, ownedRoles: ['top'] }, { input: chosen, roles }, confirmed);
+  assert.equal(owned.selectedLook, 1);
+  const labels = composeBoard(owned, confirmed).looks[1].pieces.map((piece) => piece.label);
+  assert.deepEqual(labels, ['Top you already have', 'Bottom B', 'Footwear A']);
+  const onePiece = { ...chosen, outfitType: 'one-piece' };
+  assert.equal(withCarriedLook(onePiece, { input: chosen, roles }, buildStarterRoles(onePiece, now)).selectedLook, 0);
+  assert.equal(withCarriedLook({ ...input }, { input, roles }, roles).selectedLook, undefined);
+  assert.equal(starterInputSchema.safeParse({ ...chosen, ownedRoles: ['top'] }).success, false);
+  assert.equal(starterInputSchema.safeParse({ ...chosen, ownedRoles: ['top'], selectedLook: 1 }).success, true);
+});

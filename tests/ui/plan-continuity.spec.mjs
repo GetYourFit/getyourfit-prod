@@ -180,6 +180,51 @@ for (const width of [390, 1440]) {
       });
     }
 
+    test('a look chosen after a failed save is the look the retry saves', async ({ page }) => {
+      await page.context().addCookies(cookies);
+      await choose(page);
+      await page.route(endpoint, (route) => route.request().method() === 'POST' ? route.abort('connectionfailed') : route.continue());
+      await save(page);
+      const builder = page.locator('#build-plan');
+      await expect(builder.getByRole('alert')).toContainText('could not be saved');
+      await builder.getByRole('button', { name: 'Look 2', exact: true }).click();
+      await expect(builder.getByRole('button', { name: 'Look 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      const images = await garments(page);
+      const occasion = await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.occasion);
+      expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.selectedLook)).toBe(1);
+      await page.unroute(endpoint);
+      await builder.getByRole('button', { name: 'Try saving plan again' }).click();
+      await assertSaved(page, { occasion, look: 'Look 2', images });
+    });
+
+    for (const signOut of [true, false]) {
+      test(`an unsaved plan never reaches another account (${signOut ? 'after sign out' : 'after the session changes'})`, async ({ page }) => {
+        const chosen = await choose(page);
+        await page.route(endpoint, (route) => route.request().method() === 'POST' ? route.abort('connectionfailed') : route.continue());
+        await save(page);
+        await register(page);
+        await expect(page.locator('#build-plan').getByRole('alert')).toContainText('could not be saved');
+        await page.unroute(endpoint);
+        if (signOut) {
+          await page.getByRole('link', { name: 'Account', exact: true }).click();
+          await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+          await page.goto('/sign-in');
+          await page.getByLabel('Email', { exact: true }).fill(email);
+          await page.getByLabel('Password', { exact: true }).fill(password);
+          await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+        } else {
+          await page.context().clearCookies();
+          await page.context().addCookies(cookies);
+          await page.goto('/wardrobe');
+        }
+        await expect(page.getByRole('heading', { name: 'Your wardrobe', exact: true })).toBeVisible();
+        await expect(page.locator('#build-plan').getByRole('button', { name: 'Try loading saved plans again' })).toHaveCount(0);
+        expect(await page.evaluate(() => sessionStorage.getItem('gyf.pending-plan'))).toBeNull();
+        const plans = await page.evaluate(async () => (await fetch('/api/wardrobe/starter-plans')).json());
+        expect(plans.filter((plan) => plan.input.occasion === chosen.occasion)).toEqual([]);
+      });
+    }
+
     test('one-piece chosen look and zero spending ceiling survive saving', async ({ page }) => {
       await page.context().addCookies(cookies);
       const chosen = await choose(page, { onePiece: true, zeroBudget: true });

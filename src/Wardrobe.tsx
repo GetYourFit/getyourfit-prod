@@ -12,7 +12,7 @@ import { Notice } from './ui';
 
 type Editor = { kind: 'closed' } | { kind: 'add' } | { kind: 'edit'; garmentId: string };
 
-export function Wardrobe() {
+export function Wardrobe({ account }: { account: string }) {
   const [garments, setGarments] = useState<Garment[] | null>(null);
   const [editor, setEditor] = useState<Editor>({ kind: 'closed' });
   const [busy, setBusy] = useState(false);
@@ -81,7 +81,7 @@ export function Wardrobe() {
     {error && <Notice tone="error" role="alert">{error}{garments === null && <span><button type="button" className="text-link" onClick={() => void retryLoad()} disabled={busy}>Try loading your wardrobe again</button></span>}</Notice>}
     <p className="visually-hidden" role="status">{status}</p>
 
-    {planFirst && <StarterPlan key="starter-plan" onPresenceChange={setPlanFirst} />}
+    {planFirst && <StarterPlan key="starter-plan" account={account} onPresenceChange={setPlanFirst} />}
 
     <section className="page-section" aria-labelledby="clothes-title">
       <div className="section-head">
@@ -115,7 +115,7 @@ export function Wardrobe() {
     </section>
 
     <Outfit garments={garments} disabled={editor.kind !== 'closed'} revision={revision} onGarmentsChanged={refresh} />
-    {!planFirst && <StarterPlan key="starter-plan" onPresenceChange={setPlanFirst} />}
+    {!planFirst && <StarterPlan key="starter-plan" account={account} onPresenceChange={setPlanFirst} />}
 
     {(editor.kind === 'add' || editedGarment) && <GarmentForm key={editedGarment?.id ?? 'add'} garment={editedGarment ?? null} onCancel={close} onSaved={async (saved) => {
       await refresh();

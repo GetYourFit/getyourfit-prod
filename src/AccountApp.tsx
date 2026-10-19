@@ -78,6 +78,6 @@ export default function AccountApp() {
         </nav>
       </div>
     </header>
-    <main id="main" className="app-main">{route === '/account' ? <AccountPage session={session} /> : <Wardrobe />}</main>
+    <main id="main" className="app-main">{route === '/account' ? <AccountPage session={session} /> : <Wardrobe account={session.email} />}</main>
   </div>;
 }
