@@ -133,8 +133,9 @@ for (const backend of backends) {
   test(`public signup issues a secure private cookie and retains the account session without email confirmation [${backend}]`, async (t) => {
     const { request } = await start(t, { BETTER_AUTH_URL: publicOrigin }, { backend });
     const headers = { Host: 'app.getyourfit.co', Origin: publicOrigin, 'Content-Type': 'application/json' };
+    const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
     const signedUp = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {
-      name: 'Wearer', email: `wearer-${randomBytes(8).toString('hex')}@example.test`,
+      name: 'Wearer', email,
       password: randomBytes(32).toString('base64url'), adultConfirmed: true,
     } });
     assert.equal(signedUp.status, 200);
@@ -143,8 +144,16 @@ for (const backend of backends) {
     assert.ok(sessionCookie);
     const attributes = new Set(sessionCookie.split(';').slice(1).map((attribute) => attribute.trim()));
     for (const attribute of ['Secure', 'HttpOnly', 'SameSite=Lax', 'Path=/']) assert.ok(attributes.has(attribute));
-    const session = await request({ headers: { Host: 'app.getyourfit.co', Cookie: sessionCookie.split(';')[0] } });
-    assert.deepEqual(session.body, { signedIn: true, email: session.body.email, twoFactorEnabled: false });
+    assert.equal(typeof signedUp.body.user.id, 'string');
+    assert.ok(signedUp.body.user.id.length > 0);
+    const expectedSession = { signedIn: true, id: signedUp.body.user.id, email, twoFactorEnabled: false };
+    const sessionHeaders = { Host: 'app.getyourfit.co', Cookie: sessionCookie.split(';')[0] };
+    const session = await request({ headers: sessionHeaders });
+    assert.equal(session.status, 200);
+    assert.deepEqual(session.body, expectedSession);
+    const continued = await request({ headers: sessionHeaders });
+    assert.equal(continued.status, 200);
+    assert.deepEqual(continued.body, expectedSession);
   });
 }
 
