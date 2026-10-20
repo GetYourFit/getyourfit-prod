@@ -95,6 +95,7 @@ for (const width of [390, 1440]) {
     test('Look 4 is saved after signup, then survives refresh and return', async ({ page }) => {
       const chosen = await choose(page);
       const image = await downloadBoard(page);
+      await page.screenshot({ path: test.info().outputPath('visitor-chosen-look.png'), fullPage: true });
       let saves = 0;
       page.on('request', (request) => { if (request.method() === 'POST' && request.url().endsWith('/starter-plans')) saves += 1; });
       await save(page);
@@ -102,6 +103,7 @@ for (const width of [390, 1440]) {
       const address = `${randomUUID()}@example.test`;
       await register(page, address);
       await assertSaved(page, chosen);
+      await page.screenshot({ path: test.info().outputPath('saved-chosen-look.png'), fullPage: true });
       expect(saves).toBe(1);
       expect(await downloadBoard(page)).toEqual(image);
       await page.evaluate(axeSource);
@@ -111,6 +113,7 @@ for (const width of [390, 1440]) {
       await assertSaved(page, chosen);
       await page.getByRole('link', { name: 'Account', exact: true }).click();
       await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+      await expect(page).toHaveURL('/');
       await page.goto('/sign-in');
       await page.getByLabel('Email', { exact: true }).fill(address);
       await page.getByLabel('Password', { exact: true }).fill(password);
@@ -208,6 +211,7 @@ for (const width of [390, 1440]) {
         if (signOut) {
           await page.getByRole('link', { name: 'Account', exact: true }).click();
           await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+          await expect(page).toHaveURL('/');
           await page.goto('/sign-in');
           await page.getByLabel('Email', { exact: true }).fill(email);
           await page.getByLabel('Password', { exact: true }).fill(password);
@@ -225,26 +229,29 @@ for (const width of [390, 1440]) {
       });
     }
 
-    test('a look chosen after a lost save response is the look that stays saved', async ({ page }) => {
-      await page.context().addCookies(cookies);
-      await choose(page);
-      await page.route(endpoint, async (route) => {
-        if (route.request().method() !== 'POST') return route.continue();
-        await route.fetch();
-        await route.abort('connectionfailed');
+    for (const refresh of [false, true]) {
+      test(`a look chosen after a lost save response is the look that stays saved (${refresh ? 'refresh' : 'retry'})`, async ({ page }) => {
+        await page.context().addCookies(cookies);
+        await choose(page);
+        await page.route(endpoint, async (route) => {
+          if (route.request().method() !== 'POST') return route.continue();
+          await route.fetch();
+          await route.abort('connectionfailed');
+        });
+        await save(page);
+        const builder = page.locator('#build-plan');
+        await expect(builder.getByRole('alert')).toContainText('could not be saved');
+        await builder.getByRole('button', { name: 'Look 2', exact: true }).click();
+        const images = await garments(page);
+        const occasion = await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.occasion);
+        await page.unroute(endpoint);
+        if (refresh) await page.reload();
+        else await builder.getByRole('button', { name: 'Try saving plan again' }).click();
+        await assertSaved(page, { occasion, look: 'Look 2', images });
+        await page.reload();
+        await assertSaved(page, { occasion, look: 'Look 2', images });
       });
-      await save(page);
-      const builder = page.locator('#build-plan');
-      await expect(builder.getByRole('alert')).toContainText('could not be saved');
-      await builder.getByRole('button', { name: 'Look 2', exact: true }).click();
-      const images = await garments(page);
-      const occasion = await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.occasion);
-      await page.unroute(endpoint);
-      await builder.getByRole('button', { name: 'Try saving plan again' }).click();
-      await assertSaved(page, { occasion, look: 'Look 2', images });
-      await page.reload();
-      await assertSaved(page, { occasion, look: 'Look 2', images });
-    });
+    }
 
     test('a look chosen on a saved plan stays chosen after reload and confirming a piece', async ({ page }) => {
       await page.context().addCookies(cookies);
@@ -259,6 +266,15 @@ for (const width of [390, 1440]) {
       await page.reload();
       await expect(builder.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
       expect(await garments(page)).toEqual(images);
+      await builder.locator('.starter-details > summary').click();
+      await builder.locator('.starter-needs > li').first().getByRole('button', { name: 'I already have this', exact: true }).click();
+      await expect(builder.locator('.board-tile-owned')).toHaveText('Your own top');
+      await expect(builder.getByRole('button', { name: 'Look 1', exact: true })).toBeEnabled();
+      expect(await garments(page)).toEqual(images.slice(1));
+      await page.reload();
+      await expect(builder.locator('.board-tile-owned')).toHaveText('Your own top');
+      await expect(builder.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      expect(await garments(page)).toEqual(images.slice(1));
     });
 
     test('a look chosen after a failed plan list load is the look the retry saves', async ({ page }) => {
@@ -276,35 +292,100 @@ for (const width of [390, 1440]) {
       await assertSaved(page, { occasion, look: 'Look 2', images });
     });
 
-    test('a new plan after an abandoned unsaved visitor plan is saved as itself', async ({ page }) => {
+    test('slow plan loading and saving cannot change the in-flight chosen look', async ({ page }) => {
       await page.context().addCookies(cookies);
-      const first = await choose(page);
-      await save(page);
-      await assertSaved(page, first);
-      await choose(page);
+      const chosen = await choose(page);
+      let release;
+      const paused = new Promise((resolve) => { release = resolve; });
+      let loading;
+      const requested = new Promise((resolve) => { loading = resolve; });
+      let releaseSave;
+      const pausedSave = new Promise((resolve) => { releaseSave = resolve; });
+      let saving;
+      const saveRequested = new Promise((resolve) => { saving = resolve; });
       await page.route(endpoint, async (route) => {
-        if (route.request().method() !== 'POST') return route.continue();
-        await route.fetch();
-        await route.abort('connectionfailed');
+        if (route.request().method() === 'GET') { loading(); await paused; }
+        if (route.request().method() === 'POST') { saving(); await pausedSave; }
+        await route.continue();
       });
       await save(page);
+      await requested;
       const builder = page.locator('#build-plan');
-      await expect(builder.getByRole('alert')).toContainText('could not be saved');
-      await page.unroute(endpoint);
-      await builder.locator('.starter-history > summary').click();
-      await builder.locator('.starter-history').getByRole('button').first().click();
-      const details = builder.locator('.starter-details > summary');
-      if (await details.count()) await details.click();
-      await builder.getByRole('button', { name: /^(New plan|Start a new plan)$/ }).first().click();
-      const occasion = `Brunch ${randomUUID().slice(0, 8)}`;
-      await builder.getByLabel('What is the occasion?').fill(occasion);
-      await builder.getByLabel('Spending ceiling').fill('1000');
-      await builder.getByRole('button', { name: 'Make my starter plan' }).click();
-      await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
-      await expect(builder.getByRole('heading', { name: `Your starter plan for ${occasion}` })).toBeVisible();
-      const plans = await page.evaluate(async () => (await fetch('/api/wardrobe/starter-plans')).json());
-      expect(plans.filter((plan) => plan.input.occasion === occasion)).toHaveLength(1);
+      await expect(builder.getByRole('button', { name: 'Look 2', exact: true })).toBeDisabled();
+      await expect(builder.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      release();
+      await saveRequested;
+      await expect(builder.getByRole('button', { name: 'Look 2', exact: true })).toBeDisabled();
+      await expect(builder.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      releaseSave();
+      await assertSaved(page, chosen);
     });
+
+    test('a pending record without a chosen look is discarded rather than saved as Look 1', async ({ page }) => {
+      await page.context().addCookies(cookies);
+      const chosen = await choose(page);
+      await page.route(endpoint, (route) => route.request().method() === 'GET' ? route.abort('connectionfailed') : route.continue());
+      await save(page);
+      await expect(page.locator('#build-plan').getByRole('alert')).toContainText('could not connect');
+      await page.evaluate(() => {
+        const held = JSON.parse(sessionStorage.getItem('gyf.pending-plan'));
+        delete held.input.selectedLook;
+        sessionStorage.setItem('gyf.pending-plan', JSON.stringify(held));
+      });
+      await page.unroute(endpoint);
+      await page.reload();
+      await expect(page.locator('#build-plan')).toBeVisible();
+      await expect.poll(() => page.evaluate(() => sessionStorage.getItem('gyf.pending-plan'))).toBeNull();
+      const plans = await page.evaluate(async () => (await fetch('/api/wardrobe/starter-plans')).json());
+      expect(plans.filter((plan) => plan.input.occasion === chosen.occasion)).toEqual([]);
+    });
+
+    for (const replacement of [false, true]) {
+      test(`a ${replacement ? 'replacement' : 'new'} plan after an abandoned unsaved visitor plan is saved as itself`, async ({ page }) => {
+        await page.context().addCookies(cookies);
+        const first = await choose(page);
+        await save(page);
+        await assertSaved(page, first);
+        await choose(page);
+        await page.route(endpoint, async (route) => {
+          if (route.request().method() !== 'POST') return route.continue();
+          await route.fetch();
+          await route.abort('connectionfailed');
+        });
+        await save(page);
+        const builder = page.locator('#build-plan');
+        await expect(builder.getByRole('alert')).toContainText('could not be saved');
+        const abandonedId = await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).id);
+        await page.unroute(endpoint);
+        await builder.locator('.starter-history > summary').click();
+        await builder.locator('.starter-history').getByRole('button').first().click();
+        const details = builder.locator('.starter-details > summary');
+        if (await details.count()) await details.click();
+        await builder.getByRole('button', { name: replacement ? 'Replace plan' : /^(New plan|Start a new plan)$/, exact: true }).first().click();
+        const occasion = `Brunch ${randomUUID().slice(0, 8)}`;
+        await builder.getByLabel('What is the occasion?').fill(occasion);
+        await builder.getByLabel('Spending ceiling').fill('1000');
+        if (replacement) {
+          await builder.getByLabel('What kind of outfit do you need?').selectOption('one-piece');
+          await builder.getByRole('button', { name: 'Replace with this plan' }).click();
+        } else {
+          await builder.getByRole('button', { name: 'Make my starter plan' }).click();
+          await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
+        }
+        await expect(builder.getByRole('heading', { name: `Your starter plan for ${occasion}` })).toBeVisible();
+        const plans = await page.evaluate(async () => (await fetch('/api/wardrobe/starter-plans')).json());
+        const saved = plans.filter((plan) => plan.input.occasion === occasion);
+        expect(saved).toHaveLength(1);
+        expect(saved[0].id).not.toBe(abandonedId);
+        expect(await page.evaluate(() => sessionStorage.getItem('gyf.pending-plan'))).toBeNull();
+        if (replacement) {
+          expect(saved[0].roles.map((role) => role.role)).toEqual(['one-piece', 'footwear']);
+          await expect(builder.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+        }
+        await page.reload();
+        await expect(builder.getByRole('heading', { name: `Your starter plan for ${occasion}` })).toBeVisible();
+      });
+    }
 
     test('a stale tab cannot save its plan into the account now using the shared session', async ({ page }) => {
       const chosen = await choose(page);
