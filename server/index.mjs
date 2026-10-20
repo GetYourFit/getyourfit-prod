@@ -77,7 +77,7 @@ app.get('/api/health', async (_request, response) => {
 app.get('/api/session', async (request, response) => {
   const user = await userFor(request);
   if (!user) return response.json({ signedIn: false });
-  response.json({ signedIn: true, email: user.email, twoFactorEnabled: user.twoFactorEnabled === true });
+  response.json({ signedIn: true, id: user.id, email: user.email, twoFactorEnabled: user.twoFactorEnabled === true });
 });
 
 app.post('/api/auth/sign-out-everywhere', requireUser, async (request, response) => {

@@ -3,6 +3,7 @@ import { Download, LockKeyhole, LogOut, Trash2 } from 'lucide-react';
 import { AccountPassword } from './AccountPassword';
 import { AccountSecurity } from './AccountSecurity';
 import { request } from './api';
+import { discardPendingPlan } from './pending-plan';
 import type { SignedInSession } from './AccountApp';
 import { Notice } from './ui';
 
@@ -45,12 +46,14 @@ export function AccountPage({ session }: { session: SignedInSession }) {
 
   const signOut = (path: string, action: string) => perform(action, async () => {
     await request(path, { method: 'POST', body: '{}' });
+    discardPendingPlan();
     window.location.assign('/');
   });
 
   function deleteAccount() {
     return perform('delete', async () => {
       await request('/api/data', { method: 'DELETE', body: JSON.stringify({ confirm: 'delete my account' }) });
+      discardPendingPlan();
       window.location.assign('/');
     });
   }

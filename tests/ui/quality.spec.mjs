@@ -91,6 +91,23 @@ async function signUp(page, email) {
   }
 }
 
+async function submitSignUp(page) {
+  const submit = async () => {
+    const response = page.waitForResponse('**/api/auth/sign-up/email');
+    await page.getByRole('button', { name: 'Create account', exact: true }).click();
+    return response;
+  };
+  let response = await submit();
+  if (response.status() === 429) {
+    const retryAfter = Number(await response.headerValue('x-retry-after'));
+    expect(retryAfter).toBeGreaterThan(0);
+    test.setTimeout(test.info().timeout + retryAfter * 1000 + 5000);
+    await page.waitForTimeout(retryAfter * 1000);
+    response = await submit();
+  }
+  expect(response.status(), await response.text()).toBe(200);
+}
+
 async function addWardrobe(page, { uncertainFit = false } = {}) {
   for (const [file, facts] of wardrobe) {
     const image = (await sharp(fixture(file)).resize(1200, 1200, { fit: 'inside' }).jpeg({ quality: 85 }).toBuffer()).toString('base64');
@@ -290,25 +307,46 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   expect(download.suggestedFilename()).toBe('getyourfit-outfit.png');
   const image = await sharp(await download.path()).metadata();
   expect({ width: image.width, height: image.height, format: image.format }).toEqual({ width: 1080, height: 1570, format: 'png' });
-  await page.getByRole('button', { name: 'Save this outfit' }).click();
+  await page.getByRole('button', { name: 'Save this plan' }).click();
   await expect(page).toHaveURL(/\/sign-up$/);
   await page.getByLabel('Your name').fill('Visitor');
   await page.getByLabel('Email', { exact: true }).fill(`visitor-${randomUUID()}@example.test`);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('checkbox', { name: /18 or older/ }).check();
-  await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  if (await page.getByRole('alert').first().isVisible({ timeout: 1500 }).catch(() => false)) {
-    test.setTimeout(test.info().timeout + 65_000);
-    await page.waitForTimeout(61_000);
-    await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  }
+  await submitSignUp(page);
   const builder = page.locator('#build-plan');
-  await expect(builder.getByRole('heading', { name: 'Needs for Dinner with friends' })).toBeVisible();
-  await builder.getByRole('button', { name: 'Save plan' }).click();
+  await expect(builder.getByRole('heading', { name: 'Your starter plan for Dinner with friends' })).toBeVisible();
   await expect(builder.getByRole('status').filter({ hasText: 'Plan saved' })).toBeVisible();
   await expect.poll(() => steps.includes('plan_saved_after_visit')).toBe(true);
   expect(steps).toEqual(['plan_opened', 'plan_submitted', 'outfit_shown', 'save_prompt_shown', 'save_prompt_accepted', 'plan_saved_after_visit']);
   expect([...hosts]).toEqual([new URL(page.url()).host]);
+});
+
+test('visitor signup retries a confirmed rate limit and saves the chosen outfit', async ({ page }) => {
+  await page.goto('/plan');
+  await page.getByLabel('What is the occasion?').fill('Dinner with friends');
+  await page.getByRole('button', { name: 'Show my outfit' }).click();
+  await page.getByRole('button', { name: 'Look 4', exact: true }).click();
+  await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
+  await expect(page).toHaveURL(/\/sign-up$/);
+  await page.getByLabel('Your name').fill('Rate limited visitor');
+  await page.getByLabel('Email', { exact: true }).fill(`visitor-${randomUUID()}@example.test`);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('checkbox', { name: /18 or older/ }).check();
+  for (let request = 0; request < 5; request += 1) {
+    const response = await api(page, 'POST', '/api/auth/sign-up/email', {});
+    expect([400, 429]).toContain(response.status);
+  }
+  const statuses = [];
+  page.on('response', (response) => {
+    if (response.url().endsWith('/api/auth/sign-up/email')) statuses.push(response.status());
+  });
+  await submitSignUp(page);
+  expect(statuses).toEqual([429, 200]);
+  const builder = page.locator('#build-plan');
+  await expect(builder.getByRole('heading', { name: 'Your starter plan for Dinner with friends' })).toBeVisible();
+  await expect(builder.getByRole('status').filter({ hasText: 'Plan saved' })).toBeVisible();
+  await expect(builder.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('starter plan with shopping links', async ({ page }) => {

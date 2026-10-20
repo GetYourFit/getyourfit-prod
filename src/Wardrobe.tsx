@@ -12,7 +12,7 @@ import { Notice } from './ui';
 
 type Editor = { kind: 'closed' } | { kind: 'add' } | { kind: 'edit'; garmentId: string };
 
-export function Wardrobe() {
+export function Wardrobe({ account }: { account: string }) {
   const [garments, setGarments] = useState<Garment[] | null>(null);
   const [editor, setEditor] = useState<Editor>({ kind: 'closed' });
   const [busy, setBusy] = useState(false);
@@ -20,6 +20,7 @@ export function Wardrobe() {
   const [status, setStatus] = useState('');
   const [remove, setRemove] = useState('');
   const [revision, setRevision] = useState(0);
+  const [planFirst, setPlanFirst] = useState(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const refreshRequest = useRef(0);
@@ -69,20 +70,23 @@ export function Wardrobe() {
     <header className="page-header">
       <div className="page-heading">
         <h1 id="wardrobe-title" className="page-title" ref={titleRef} tabIndex={-1}>Your wardrobe</h1>
-        <p className="lead">Add the clothes you own, then get one complete outfit for your plans, with the reasons.</p>
+        {!planFirst && <p className="lead">Add the clothes you own, then get one complete outfit for your plans, with the reasons.</p>}
       </div>
-      <div className="button-row page-actions">
+      {!planFirst && <div className="button-row page-actions">
         <a className="button button-secondary" href="#build-plan">Build my wardrobe</a>
         <button id="add-garment" className="button button-primary" disabled={busy || garments === null || full || editor.kind !== 'closed'} onClick={(event) => open({ kind: 'add' }, event.currentTarget)}><Plus size={18} aria-hidden="true" />Add garment</button>
-      </div>
+      </div>}
     </header>
 
     {error && <Notice tone="error" role="alert">{error}{garments === null && <span><button type="button" className="text-link" onClick={() => void retryLoad()} disabled={busy}>Try loading your wardrobe again</button></span>}</Notice>}
     <p className="visually-hidden" role="status">{status}</p>
 
+    {planFirst && <StarterPlan key="starter-plan" account={account} onPresenceChange={setPlanFirst} />}
+
     <section className="page-section" aria-labelledby="clothes-title">
       <div className="section-head">
         <h2 id="clothes-title" className="section-title">Clothes</h2>
+        {planFirst && <button id="add-garment" className="button button-primary" disabled={busy || garments === null || full || editor.kind !== 'closed'} onClick={(event) => open({ kind: 'add' }, event.currentTarget)}><Plus size={18} aria-hidden="true" />Add garment</button>}
         {garments !== null && <p className="caption">{garments.length === 0 ? 'None added yet' : `${garments.length} ${garments.length === 1 ? 'garment' : 'garments'} · Private to your account`}{full ? ' · Wardrobe full' : ''}</p>}
       </div>
       {garments === null ? !error && <div className="garment-grid" aria-busy="true"><p role="status" className="caption">Opening your wardrobe…</p></div>
@@ -111,7 +115,7 @@ export function Wardrobe() {
     </section>
 
     <Outfit garments={garments} disabled={editor.kind !== 'closed'} revision={revision} onGarmentsChanged={refresh} />
-    <StarterPlan />
+    {!planFirst && <StarterPlan key="starter-plan" account={account} onPresenceChange={setPlanFirst} />}
 
     {(editor.kind === 'add' || editedGarment) && <GarmentForm key={editedGarment?.id ?? 'add'} garment={editedGarment ?? null} onCancel={close} onSaved={async (saved) => {
       await refresh();

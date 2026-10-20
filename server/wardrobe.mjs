@@ -9,7 +9,7 @@ import express from 'express';
 import sharp from 'sharp';
 import { asIso, asJson, query, reclaimDeletedData, transaction } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
-import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema } from '../shared/starter-plan.ts';
+import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema, starterInputSchema, withCarriedLook, PLAN_ACCOUNT_MISMATCH } from '../shared/starter-plan.ts';
 import { shoppingSourceListSchema } from '../shared/shopping.ts';
 import shoppingSourceRecords from './shopping-sources.json' with { type: 'json' };
 import { browserInterpretationSchema } from '../shared/classification.ts';
@@ -40,12 +40,14 @@ export async function exportWardrobe(userId) {
     starterPlans: await listStarterPlans(userId) };
 }
 
-async function insertStarterPlan(userId, input, roles, status = 'active', run = query) {
+async function insertStarterPlan(userId, input, roles, status = 'active', run = query, id = crypto.randomUUID()) {
   const now = new Date().toISOString();
-  const plan = starterPlanSchema.parse({ id: crypto.randomUUID(), status, input, roles, createdAt: now, updatedAt: now });
-  await run('INSERT INTO starter_plans (id, user_id, status, input, roles, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+  const plan = starterPlanSchema.parse({ id, status, input, roles, createdAt: now, updatedAt: now });
+  await run('INSERT INTO starter_plans (id, user_id, status, input, roles, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING',
     [plan.id, userId, plan.status, JSON.stringify(plan.input), JSON.stringify(plan.roles), plan.createdAt, plan.updatedAt]);
-  return plan;
+  const { rows } = await run('SELECT * FROM starter_plans WHERE id = $1 AND user_id = $2', [id, userId]);
+  if (!rows.length) throw new Error('This plan could not be saved. Try a new plan.');
+  return starterPlan(rows[0]);
 }
 
 async function updateStarterPlan(userId, plan, run = query) {
@@ -165,9 +167,10 @@ export function wardrobeRouter(requireUser) {
   router.post('/starter-plans', async (request, response) => {
     const parsed = starterSaveSchema.safeParse(request.body);
     if (!parsed.success) return response.status(400).json({ error: 'Check the occasion, budget, and outfit needs, then try again.' });
-    const { needs, ...input } = parsed.data;
+    const { needs, requestId, expectedUserId, ...input } = parsed.data;
+    if (expectedUserId !== undefined && expectedUserId !== request.user.id) return response.status(409).json({ error: PLAN_ACCOUNT_MISMATCH });
     const roles = buildStarterRoles(input, new Date().toISOString()).map((role) => ({ ...role, need: needs?.find((need) => need.role === role.role)?.need ?? role.need }));
-    response.status(201).json(await insertStarterPlan(request.user.id, input, roles));
+    response.status(201).json(await insertStarterPlan(request.user.id, input, roles, 'active', query, requestId));
   });
   router.patch('/starter-plans/:id', async (request, response) => {
     const action = starterPlanActionSchema.safeParse(request.body);
@@ -181,17 +184,25 @@ export function wardrobeRouter(requireUser) {
       if (action.data.action === 'reject') {
         return { status: 200, body: await updateStarterPlan(request.user.id, { ...current, status: 'rejected' }, run) };
       }
+      if (action.data.action === 'choose-look') {
+        const chosen = starterInputSchema.safeParse({ ...current.input, selectedLook: action.data.index });
+        if (!chosen.success) return { status: 400, body: { error: 'Choose one of the looks in this plan.' } };
+        return { status: 200, body: await updateStarterPlan(request.user.id, { ...current, input: chosen.data }, run) };
+      }
       if (action.data.action === 'replace-plan') {
         await updateStarterPlan(request.user.id, { ...current, status: 'replaced' }, run);
-        return { status: 201, body: await insertStarterPlan(request.user.id, action.data.input, buildStarterRoles(action.data.input, new Date().toISOString()), 'active', run) };
+        const replacementRoles = buildStarterRoles(action.data.input, new Date().toISOString());
+        const replacementInput = withCarriedLook(action.data.input, current, replacementRoles);
+        return { status: 201, body: await insertStarterPlan(request.user.id, replacementInput, replacementRoles, 'active', run) };
       }
       if (action.data.action === 'confirm-owned') {
         const role = current.roles.find((item) => item.role === action.data.role);
         if (!role || role.state === 'confirmed-owned') return { status: 409, body: { error: 'That need has already been confirmed or is not in this plan.' } };
         const roles = confirmStarterRole(current.roles, action.data.role, current.input.budget, new Date().toISOString());
+        const ownedInput = { ...current.input, ownedRoles: roles.filter((item) => item.state === 'confirmed-owned').map((item) => item.role) };
         return { status: 200, body: await updateStarterPlan(request.user.id, {
           ...current,
-          input: { ...current.input, ownedRoles: roles.filter((item) => item.state === 'confirmed-owned').map((item) => item.role) },
+          input: withCarriedLook(ownedInput, current, roles),
           roles,
         }, run) };
       }
