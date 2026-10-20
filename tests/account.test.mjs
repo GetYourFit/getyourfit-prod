@@ -89,6 +89,25 @@ for (const backend of backends) {
     assert.equal(replaced.body.roles.length, 2);
   });
 
+  test(`a chosen look is changed in place and a save for another account is refused [${backend}]`, async (t) => {
+    const server = await start(t, {}, { backend });
+    const owner = await signUp(server, 'owner');
+    const other = await signUp(server, 'other');
+    const session = (await owner.call({ route: '/api/session' })).body;
+    const input = { occasion: 'Dinner', outfitType: 'separates', budget: 0, currency: 'INR', weather: 'mild', dressCode: 'casual', mustHave: '', ownedRoles: [], selectedLook: 3 };
+    const requestId = randomUUID();
+    const refused = await other.call({ method: 'POST', route: '/api/wardrobe/starter-plans', body: { ...input, requestId, expectedUserId: session.id } });
+    assert.equal(refused.status, 409);
+    assert.deepEqual((await other.call({ route: '/api/wardrobe/starter-plans' })).body, []);
+    const saved = await owner.call({ method: 'POST', route: '/api/wardrobe/starter-plans', body: { ...input, requestId, expectedUserId: session.id } });
+    assert.equal(saved.status, 201);
+    const chosen = await owner.call({ method: 'PATCH', route: `/api/wardrobe/starter-plans/${requestId}`, body: { action: 'choose-look', index: 0 } });
+    assert.equal(chosen.body.input.selectedLook, 0);
+    const owned = await owner.call({ method: 'PATCH', route: `/api/wardrobe/starter-plans/${requestId}`, body: { action: 'confirm-owned', role: 'top' } });
+    assert.equal(owned.body.input.selectedLook, 0);
+    assert.equal((await owner.call({ method: 'PATCH', route: `/api/wardrobe/starter-plans/${requestId}`, body: { action: 'choose-look', index: 3 } })).status, 400);
+  });
+
   test(`outfit corrections, starter plans and export round-trip through the database [${backend}]`, async (t) => {
     const server = await start(t, {}, { backend });
     const wearer = await signUp(server);

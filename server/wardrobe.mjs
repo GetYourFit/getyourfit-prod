@@ -9,7 +9,7 @@ import express from 'express';
 import sharp from 'sharp';
 import { asIso, asJson, query, reclaimDeletedData, transaction } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
-import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema, withCarriedLook } from '../shared/starter-plan.ts';
+import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema, starterInputSchema, withCarriedLook, PLAN_ACCOUNT_MISMATCH } from '../shared/starter-plan.ts';
 import { shoppingSourceListSchema } from '../shared/shopping.ts';
 import shoppingSourceRecords from './shopping-sources.json' with { type: 'json' };
 import { browserInterpretationSchema } from '../shared/classification.ts';
@@ -167,7 +167,8 @@ export function wardrobeRouter(requireUser) {
   router.post('/starter-plans', async (request, response) => {
     const parsed = starterSaveSchema.safeParse(request.body);
     if (!parsed.success) return response.status(400).json({ error: 'Check the occasion, budget, and outfit needs, then try again.' });
-    const { needs, requestId, ...input } = parsed.data;
+    const { needs, requestId, expectedUserId, ...input } = parsed.data;
+    if (expectedUserId !== undefined && expectedUserId !== request.user.id) return response.status(409).json({ error: PLAN_ACCOUNT_MISMATCH });
     const roles = buildStarterRoles(input, new Date().toISOString()).map((role) => ({ ...role, need: needs?.find((need) => need.role === role.role)?.need ?? role.need }));
     response.status(201).json(await insertStarterPlan(request.user.id, input, roles, 'active', query, requestId));
   });
@@ -182,6 +183,11 @@ export function wardrobeRouter(requireUser) {
       if (current.status !== 'active') return { status: 409, body: { error: 'Only an active plan can be changed.' } };
       if (action.data.action === 'reject') {
         return { status: 200, body: await updateStarterPlan(request.user.id, { ...current, status: 'rejected' }, run) };
+      }
+      if (action.data.action === 'choose-look') {
+        const chosen = starterInputSchema.safeParse({ ...current.input, selectedLook: action.data.index });
+        if (!chosen.success) return { status: 400, body: { error: 'Choose one of the looks in this plan.' } };
+        return { status: 200, body: await updateStarterPlan(request.user.id, { ...current, input: chosen.data }, run) };
       }
       if (action.data.action === 'replace-plan') {
         await updateStarterPlan(request.user.id, { ...current, status: 'replaced' }, run);

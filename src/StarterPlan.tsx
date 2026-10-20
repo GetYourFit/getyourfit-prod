@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { ArrowUpRight } from 'lucide-react';
-import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, withCarriedLook, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
+import { STARTER_NEED_MAX_LENGTH, starterNeedSchema, starterInputSchema, starterPlanSchema, starterWeatherSchema, buildCapsule, withCarriedLook, PLAN_ACCOUNT_MISMATCH, starterRoleName, buildStarterRoles, confirmStarterRole, type StarterInput, type StarterPlan, type StarterRole, type StarterRoleState } from '../shared/starter-plan';
 import { composeBoard } from '../shared/outfit-board';
 import { countStep } from './funnel';
 import { OutfitBoardPanel } from './OutfitBoard';
-import { claimPendingPlan, clearPendingPlan, updatePendingLook } from './pending-plan';
+import { claimPendingPlan, clearPendingPlan, discardPendingPlan, updatePendingLook } from './pending-plan';
 import { ShoppingLinks } from './ShoppingLinks';
 import { wardrobeRequest } from './wardrobe-api';
 import { Notice } from './ui';
@@ -70,8 +70,9 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
       setBusy('save');
       return (async () => {
         try {
-          const saved = items.find((item) => item.id === visit.id)
-            ?? await wardrobeRequest('/starter-plans', starterPlanSchema, { ...visit.input, requestId: visit.id });
+          const stored = items.find((item) => item.id === visit.id)
+            ?? await wardrobeRequest('/starter-plans', starterPlanSchema, { ...visit.input, requestId: visit.id, expectedUserId: visit.account });
+          const saved = await matchLook(stored, visit.input.selectedLook);
           if (!mounted) return;
           setPlans((previous) => [saved, ...previous.filter((item) => item.id !== saved.id)]);
           setCurrent(saved);
@@ -80,8 +81,10 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
           fromVisit.current = null;
           countStep('plan_saved_after_visit');
           setStatus('Plan saved in your private GetYourFit account, including your chosen look.');
-        } catch {
-          if (mounted) setError('Your plan could not be saved. Your chosen look is still here. Try saving again.');
+        } catch (cause) {
+          if (!mounted) return;
+          if (cause instanceof Error && cause.message === PLAN_ACCOUNT_MISMATCH) { forgetVisit(); setCurrent(items.find((item) => item.status === 'active') ?? items[0] ?? null); setFormOpen(items.length === 0); setError(PLAN_ACCOUNT_MISMATCH); }
+          else setError('Your plan could not be saved. Your chosen look is still here. Try saving again.');
         } finally { if (mounted) setBusy(''); }
       })();
     }).catch((cause: unknown) => {
@@ -98,6 +101,17 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
     globalThis.requestAnimationFrame(() => document.querySelector<HTMLElement>('#build-plan .starter-result h3')?.focus());
   }, [loading, current]);
 
+
+  async function matchLook(plan: StarterPlan, wanted: number | undefined): Promise<StarterPlan> {
+    if (wanted === undefined || plan.status !== 'active' || plan.input.selectedLook === wanted) return plan;
+    return wardrobeRequest(`/starter-plans/${plan.id}`, starterPlanSchema, { action: 'choose-look', index: wanted }, 'PATCH');
+  }
+
+  function forgetVisit() {
+    discardPendingPlan();
+    fromVisit.current = null;
+    setDraft(null);
+  }
 
   function focusPlanAfterUpdate() {
     globalThis.requestAnimationFrame(() => globalThis.document.querySelector<HTMLElement>('#build-plan .starter-result h3, #build-plan .starter-form h3')?.focus());
@@ -159,7 +173,15 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
   async function saveDraft() {
     if (!draft) return;
     await act('save', async () => {
-      const saved = await wardrobeRequest('/starter-plans', starterPlanSchema, { ...draft.input, needs: draft.roles.map(({ role, need }) => ({ role, need })), ...(fromVisit.current ? { requestId: fromVisit.current.id } : {}) });
+      const visit = fromVisit.current;
+      let saved: StarterPlan;
+      try {
+        const stored = await wardrobeRequest('/starter-plans', starterPlanSchema, { ...draft.input, needs: draft.roles.map(({ role, need }) => ({ role, need })), ...(visit ? { requestId: visit.id, expectedUserId: visit.account } : {}) });
+        saved = await matchLook(stored, draft.input.selectedLook);
+      } catch (cause) {
+        if (cause instanceof Error && cause.message === PLAN_ACCOUNT_MISMATCH) { forgetVisit(); setFormOpen(true); }
+        throw cause;
+      }
       setPlans((items) => [saved, ...items.filter((item) => item.id !== saved.id)]);
       setCurrent(saved);
       setDraft(null);
@@ -236,6 +258,14 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
   function chooseLook(index: number) {
     setDraft((previous) => previous ? { ...previous, input: { ...previous.input, selectedLook: index } } : previous);
     if (fromVisit.current) updatePendingLook(fromVisit.current.id, index);
+  }
+
+  async function chooseSavedLook(plan: StarterPlan, index: number) {
+    await act('look', async () => {
+      const saved = await wardrobeRequest(`/starter-plans/${plan.id}`, starterPlanSchema, { action: 'choose-look', index }, 'PATCH');
+      setCurrent(saved);
+      setPlans((items) => items.map((item) => item.id === saved.id ? saved : item));
+    });
   }
 
   function startReplacement() {
@@ -317,7 +347,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
       <div className="starter-result-heading"><div><h3 tabIndex={-1}>{heading}</h3>{!visitorPlan && <p>{input.outfitType === 'separates' ? 'Top, bottom and footwear' : 'One-piece garment and footwear'} for one occasion.</p>}</div><span className={`starter-state starter-state-${planStatus}`}>{planStatus === 'active' ? visitorPlan ? 'Saved' : 'Active plan' : planStatus === 'draft' ? 'Not saved yet' : planStatus}</span></div>
       {visitorPlan ? <>
         <p className="starter-explanation">Example garment photos, not clothes you own. Fit and availability are unverified.</p>
-        <OutfitBoardPanel key={`${current?.id ?? 'draft'}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} selection={saved ? undefined : { index: input.selectedLook ?? 0, onChange: chooseLook }} />
+        <OutfitBoardPanel key={`${current?.id ?? 'draft'}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} selection={{ index: input.selectedLook ?? 0, disabled: busy !== '' || loading || planStatus !== 'active' && planStatus !== 'draft', onChange: (index) => current && saved ? void chooseSavedLook(current, index) : chooseLook(index) }} />
         {saved ? <details className="disclosure starter-details"><summary>Review needs and plan details</summary>{details}</details>
           : !loadFailed && <button className="button button-primary" disabled={busy !== '' || loading} onClick={() => void saveDraft()}>{busy === 'save' ? 'Saving plan…' : 'Try saving plan again'}</button>}
       </> : details}

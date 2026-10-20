@@ -34,7 +34,7 @@ export function OutfitBoard({ look, heading }: { look: BoardLook; heading: strin
 }
 
 // The board, a switch between the capsule's looks, the pieces in the chosen look, and a download of the board as one image.
-export function OutfitBoardPanel({ input, board, selection }: { input: StarterInput; board: Board; selection?: { index: number; onChange: (index: number) => void } }) {
+export function OutfitBoardPanel({ input, board, selection }: { input: StarterInput; board: Board; selection?: { index: number; disabled?: boolean; onChange: (index: number) => void } }) {
   const [lookIndex, setLookIndex] = useState(input.selectedLook ?? 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -63,7 +63,7 @@ export function OutfitBoardPanel({ input, board, selection }: { input: StarterIn
     <OutfitBoard look={look} heading={`${look.name} for ${input.occasion}`} />
     <div className="board-panel-side">
       <div className="board-looks" role="group" aria-label="Choose a look">
-        {board.looks.map((item, index) => <button key={item.name} type="button" className="chip" aria-pressed={item === look} onClick={() => { if (selection) selection.onChange(index); else setLookIndex(index); }}>{item.name}</button>)}
+        {board.looks.map((item, index) => <button key={item.name} type="button" className="chip" aria-pressed={item === look} disabled={selection?.disabled} onClick={() => { if (selection) selection.onChange(index); else setLookIndex(index); }}>{item.name}</button>)}
       </div>
       <ul className="board-pieces" aria-label={`Pieces in ${look.name}`}>
         {look.pieces.map((piece) => <li key={piece.role}><span className="board-piece-role">{starterRoleName(piece.role)}</span><span>{piece.owned ? 'You already have this' : piece.garment.caption}</span></li>)}

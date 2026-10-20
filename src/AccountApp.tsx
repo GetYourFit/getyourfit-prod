@@ -7,7 +7,7 @@ import { request } from './api';
 import { LoadingScreen } from './LoadingScreen';
 import { Brand } from './ui';
 
-export type SignedInSession = { signedIn: true; email: string; twoFactorEnabled: boolean };
+export type SignedInSession = { signedIn: true; id: string; email: string; twoFactorEnabled: boolean };
 type SessionState = { signedIn: false } | SignedInSession;
 type Route = '/wardrobe' | '/account';
 
@@ -78,6 +78,6 @@ export default function AccountApp() {
         </nav>
       </div>
     </header>
-    <main id="main" className="app-main">{route === '/account' ? <AccountPage session={session} /> : <Wardrobe account={session.email} />}</main>
+    <main id="main" className="app-main">{route === '/account' ? <AccountPage session={session} /> : <Wardrobe account={session.id} />}</main>
   </div>;
 }

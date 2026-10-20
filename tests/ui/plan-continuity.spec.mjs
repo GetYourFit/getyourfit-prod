@@ -225,6 +225,59 @@ for (const width of [390, 1440]) {
       });
     }
 
+    test('a look chosen after a lost save response is the look that stays saved', async ({ page }) => {
+      await page.context().addCookies(cookies);
+      await choose(page);
+      await page.route(endpoint, async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        await route.fetch();
+        await route.abort('connectionfailed');
+      });
+      await save(page);
+      const builder = page.locator('#build-plan');
+      await expect(builder.getByRole('alert')).toContainText('could not be saved');
+      await builder.getByRole('button', { name: 'Look 2', exact: true }).click();
+      const images = await garments(page);
+      const occasion = await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.occasion);
+      await page.unroute(endpoint);
+      await builder.getByRole('button', { name: 'Try saving plan again' }).click();
+      await assertSaved(page, { occasion, look: 'Look 2', images });
+      await page.reload();
+      await assertSaved(page, { occasion, look: 'Look 2', images });
+    });
+
+    test('a look chosen on a saved plan stays chosen after reload and confirming a piece', async ({ page }) => {
+      await page.context().addCookies(cookies);
+      const chosen = await choose(page);
+      await save(page);
+      await assertSaved(page, chosen);
+      const builder = page.locator('#build-plan');
+      await builder.getByRole('button', { name: 'Look 1', exact: true }).click();
+      await expect(builder.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(builder.getByRole('button', { name: 'Look 1', exact: true })).toBeEnabled();
+      const images = await garments(page);
+      await page.reload();
+      await expect(builder.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      expect(await garments(page)).toEqual(images);
+    });
+
+    test('a stale tab cannot save its plan into the account now using the shared session', async ({ page }) => {
+      const chosen = await choose(page);
+      await page.route(endpoint, (route) => route.request().method() === 'POST' ? route.abort('connectionfailed') : route.continue());
+      await save(page);
+      await register(page);
+      const builder = page.locator('#build-plan');
+      await expect(builder.getByRole('alert')).toContainText('could not be saved');
+      await page.unroute(endpoint);
+      await page.context().clearCookies();
+      await page.context().addCookies(cookies);
+      await builder.getByRole('button', { name: 'Try saving plan again' }).click();
+      await expect(builder.getByRole('alert')).toContainText('different account');
+      const plans = await page.evaluate(async () => (await fetch('/api/wardrobe/starter-plans')).json());
+      expect(plans.filter((plan) => plan.input.occasion === chosen.occasion)).toEqual([]);
+      expect(await page.evaluate(() => sessionStorage.getItem('gyf.pending-plan'))).toBeNull();
+    });
+
     test('one-piece chosen look and zero spending ceiling survive saving', async ({ page }) => {
       await page.context().addCookies(cookies);
       const chosen = await choose(page, { onePiece: true, zeroBudget: true });

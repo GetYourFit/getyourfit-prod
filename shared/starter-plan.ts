@@ -4,12 +4,14 @@ export const starterRoleSchema = z.enum(['top', 'bottom', 'footwear', 'one-piece
 export const STARTER_NEED_MAX_LENGTH = 512;
 export const starterNeedSchema = z.string().trim().min(1).max(STARTER_NEED_MAX_LENGTH);
 export const starterWeatherSchema = z.enum(['warm', 'mild', 'cold', 'unknown']);
-const optionCounts: Record<string, number> = { top: 2, bottom: 2, footwear: 1, 'one-piece': 2 };
+const pieceCounts: Record<StarterRole, number> = { top: 2, bottom: 2, footwear: 1, 'one-piece': 2 };
 
-function lookCount(input: { outfitType: 'separates' | 'one-piece'; ownedRoles: string[] }): number {
-  const roles = input.outfitType === 'separates' ? ['top', 'bottom', 'footwear'] : ['one-piece', 'footwear'];
-  return Math.min(4, roles.reduce((total, role) => total * (input.ownedRoles.includes(role) ? 1 : optionCounts[role] ?? 1), 1));
+function lookCount(input: { outfitType: 'separates' | 'one-piece'; ownedRoles: StarterRole[] }): number {
+  const roles: StarterRole[] = input.outfitType === 'separates' ? ['top', 'bottom', 'footwear'] : ['one-piece', 'footwear'];
+  return Math.min(4, roles.reduce((total, role) => total * (input.ownedRoles.includes(role) ? 1 : pieceCounts[role]), 1));
 }
+
+export const PLAN_ACCOUNT_MISMATCH = 'This plan was started in a different account, so it was not saved.';
 
 export const starterInputSchema = z.strictObject({
   occasion: z.string().trim().min(1).max(120),
@@ -36,6 +38,7 @@ export const starterInputSchema = z.strictObject({
 
 export const starterSaveSchema = starterInputSchema.safeExtend({
   requestId: z.uuid().optional(),
+  expectedUserId: z.string().min(1).optional(),
   needs: z.array(z.strictObject({ role: starterRoleSchema, need: starterNeedSchema })).min(2).max(3).optional(),
 }).superRefine((input, context) => {
   const { needs } = input;
@@ -74,6 +77,7 @@ export const starterPlanActionSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('confirm-owned'), role: starterRoleSchema }),
   z.strictObject({ action: z.literal('replace-need'), role: starterRoleSchema, need: starterNeedSchema }),
   z.strictObject({ action: z.literal('replace-plan'), input: starterInputSchema }),
+  z.strictObject({ action: z.literal('choose-look'), index: z.number().int().min(0).max(3) }),
   z.strictObject({ action: z.literal('reject') }),
 ]);
 
@@ -106,8 +110,6 @@ function needFor(role: StarterRole, input: StarterInput): string {
   const dressCode = input.dressCode === 'unknown' ? '' : ` for your stated ${input.dressCode} dress code`;
   return `A ${roleNames[role].toLowerCase()} for ${input.occasion}${weather}${dressCode}${context}.`;
 }
-
-const pieceCounts: Record<StarterRole, number> = { top: 2, bottom: 2, footwear: 1, 'one-piece': 2 };
 
 export type CapsulePiece = { role: StarterRole; label: string; owned: boolean };
 export type CapsuleOutfit = { name: string; pieces: string[]; why: string };

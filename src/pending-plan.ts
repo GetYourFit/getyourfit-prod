@@ -44,11 +44,8 @@ export function readPendingPlan(): PendingPlan | null {
     const stored = window.sessionStorage.getItem(KEY);
     if (!stored) return null;
     const parsed = pendingSchema.safeParse(JSON.parse(stored));
-    if (parsed.success) memory = parsed.data;
-    else {
-      const legacy = starterInputSchema.safeParse(JSON.parse(stored));
-      if (legacy.success) holdPendingPlan({ ...legacy.data, selectedLook: legacy.data.selectedLook ?? 0 });
-    }
+    if (parsed.success && parsed.data.input.selectedLook !== undefined) memory = parsed.data;
+    else discardPendingPlan();
     return memory;
   } catch {
     return null;
