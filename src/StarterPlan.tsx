@@ -160,6 +160,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
         setStatus('The previous plan is marked replaced. Your new plan is ready to review.');
       } else {
         const roles = buildStarterRoles(input, new Date().toISOString());
+        forgetVisit();
         setCurrent(null);
         setDraft({ input, roles });
         closeNeedEditor();
@@ -246,7 +247,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
         setStatus('Plan rejected and recorded in your account. Your wardrobe was not changed.');
       });
     } else {
-      setDraft(null);
+      forgetVisit();
       setFormOpen(true);
       setReplacePlan(false);
       closeNeedEditor();
@@ -257,7 +258,10 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
 
   function chooseLook(index: number) {
     setDraft((previous) => previous ? { ...previous, input: { ...previous.input, selectedLook: index } } : previous);
-    if (fromVisit.current) updatePendingLook(fromVisit.current.id, index);
+    const visit = fromVisit.current;
+    if (!visit) return;
+    fromVisit.current = { ...visit, input: { ...visit.input, selectedLook: index } };
+    updatePendingLook(visit.id, index);
   }
 
   async function chooseSavedLook(plan: StarterPlan, index: number) {
@@ -270,6 +274,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
 
   function startReplacement() {
     if (!current) return;
+    forgetVisit();
     const planValues = { ...current.input };
     delete planValues.selectedLook;
     setValues({ ...planValues, budget: String(current.input.budget), ownedRoles: current.roles.filter((role) => role.state === 'confirmed-owned').map((role) => role.role) });
@@ -279,6 +284,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
   }
 
   function startNewPlan() {
+    forgetVisit();
     setCurrent(null);
     setDraft(null);
     closeNeedEditor();
@@ -386,7 +392,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
         <p className="starter-form-note">The result is a text needs plan. We do not have an authorized product catalogue, so we cannot verify products, offers, prices, size, delivery, or checkout totals.</p>
         <div className="starter-form-actions"><button className="button button-primary" disabled={busy !== ''}>{busy === 'create' ? 'Making your plan…' : replacePlan ? 'Replace with this plan' : 'Make my starter plan'}</button><button className="button button-ghost" type="button" disabled={busy !== ''} onClick={() => { setFormOpen(false); setReplacePlan(false); }}>{current || draft ? 'Cancel' : 'Use my owned clothes instead'}</button></div>
       </form>}
-      {planHistory.length > 0 && <details className="starter-history"><summary>Saved plan history ({planHistory.length})</summary><ul>{planHistory.map((plan) => <li key={plan.id}><button className="button button-ghost" disabled={busy !== ''} onClick={() => { setCurrent(plan); setDraft(null); setFormOpen(false); setReplacePlan(false); closeNeedEditor(); }}>{plan.input.occasion} · {plan.status}</button></li>)}</ul></details>}
+      {planHistory.length > 0 && <details className="starter-history"><summary>Saved plan history ({planHistory.length})</summary><ul>{planHistory.map((plan) => <li key={plan.id}><button className="button button-ghost" disabled={busy !== ''} onClick={() => { forgetVisit(); setCurrent(plan); setFormOpen(false); setReplacePlan(false); closeNeedEditor(); }}>{plan.input.occasion} · {plan.status}</button></li>)}</ul></details>}
     </>}
   </section>;
 }

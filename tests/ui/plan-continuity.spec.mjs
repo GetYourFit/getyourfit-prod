@@ -261,6 +261,51 @@ for (const width of [390, 1440]) {
       expect(await garments(page)).toEqual(images);
     });
 
+    test('a look chosen after a failed plan list load is the look the retry saves', async ({ page }) => {
+      await page.context().addCookies(cookies);
+      await choose(page);
+      await page.route(endpoint, (route) => route.request().method() === 'GET' ? route.abort('connectionfailed') : route.continue());
+      await save(page);
+      const builder = page.locator('#build-plan');
+      await expect(builder.getByRole('alert')).toContainText('could not connect');
+      await builder.getByRole('button', { name: 'Look 2', exact: true }).click();
+      const images = await garments(page);
+      const occasion = await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.occasion);
+      await page.unroute(endpoint);
+      await builder.getByRole('button', { name: 'Try loading saved plans again' }).click();
+      await assertSaved(page, { occasion, look: 'Look 2', images });
+    });
+
+    test('a new plan after an abandoned unsaved visitor plan is saved as itself', async ({ page }) => {
+      await page.context().addCookies(cookies);
+      const first = await choose(page);
+      await save(page);
+      await assertSaved(page, first);
+      await choose(page);
+      await page.route(endpoint, async (route) => {
+        if (route.request().method() !== 'POST') return route.continue();
+        await route.fetch();
+        await route.abort('connectionfailed');
+      });
+      await save(page);
+      const builder = page.locator('#build-plan');
+      await expect(builder.getByRole('alert')).toContainText('could not be saved');
+      await page.unroute(endpoint);
+      await builder.locator('.starter-history > summary').click();
+      await builder.locator('.starter-history').getByRole('button').first().click();
+      const details = builder.locator('.starter-details > summary');
+      if (await details.count()) await details.click();
+      await builder.getByRole('button', { name: /^(New plan|Start a new plan)$/ }).first().click();
+      const occasion = `Brunch ${randomUUID().slice(0, 8)}`;
+      await builder.getByLabel('What is the occasion?').fill(occasion);
+      await builder.getByLabel('Spending ceiling').fill('1000');
+      await builder.getByRole('button', { name: 'Make my starter plan' }).click();
+      await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
+      await expect(builder.getByRole('heading', { name: `Your starter plan for ${occasion}` })).toBeVisible();
+      const plans = await page.evaluate(async () => (await fetch('/api/wardrobe/starter-plans')).json());
+      expect(plans.filter((plan) => plan.input.occasion === occasion)).toHaveLength(1);
+    });
+
     test('a stale tab cannot save its plan into the account now using the shared session', async ({ page }) => {
       const chosen = await choose(page);
       await page.route(endpoint, (route) => route.request().method() === 'POST' ? route.abort('connectionfailed') : route.continue());
