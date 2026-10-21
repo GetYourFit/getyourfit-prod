@@ -54,3 +54,36 @@ The starter plan uses the existing database and account session. Its table is ad
 After this change is reviewed and merged, the existing deployment owner can build the exact approved `main` revision with `npm ci`, `npm run build`, and `npm run acceptance`, then use the established `npm start` service process and runtime inputs above. The acceptance command builds and runs a disposable production service; it does not deploy or prove a public host. Keep the same database, `BETTER_AUTH_SECRET`, and service configuration. Before an authorized rollout, take the deployment owner's normal consistent database backup and record the prior release revision.
 
 After an authorized deployment to `app.getyourfit.co`, the deployment owner must use a real browser and the public API to verify the new zero-garment entry, save/reload, replace/reject, ownership confirmation, account isolation, and empty owned collection, then bind the evidence to the deployed revision. Do not call the feature live before that proof. If the release must be rolled back, restore the prior application revision using the existing service process and retain the same database and secret. The additive plan table and saved rows remain in the database for a later forward release; the prior owned-clothes journey remains available. Account deletion continues to cascade through plans.
+
+## Identify and check a release
+
+`npm run build` writes `dist/release.json` after Vite completes. It records the full Git revision and whether the worktree had changes. Keep this file with the built assets. `GET /api/release` serves that identity without authentication or caching. The server reads it at startup, so an old process cannot report a newly built release. Missing or invalid metadata returns 503. The response contains no host, path, environment, account, or credential data.
+
+From a clean checkout, build the exact merged revision that passed `quality` and `acceptance`. Run the read-only check against the candidate before rollout:
+
+```sh
+node scripts/check-release.mjs http://127.0.0.1:PORT FULL_COMMIT_SHA
+```
+
+The check requires the exact revision, `modified: false`, database health, and an HTML public page. Each of its three requests has a ten-second timeout. Redirects fail. This check cannot prove signup, saved-look continuity, photo recognition, or outfit behavior. Verify those with a real browser and isolated accounts on the same candidate.
+
+Production changes remain the deployment owner's responsibility. On the existing Mac installation, the authorized operator uses the established guarded helper with an explicit, merged SHA:
+
+```sh
+~/.local/state/getyourfit/deploy.sh FULL_COMMIT_SHA
+node scripts/check-release.mjs https://app.getyourfit.co FULL_COMMIT_SHA
+```
+
+The existing helper's HTTP 200 probe does not establish release identity. Treat the second command as mandatory before recording a successful release. Do not deploy an unmerged revision. Retain the current database, auth secret, runtime configuration, and prior application revision. This release does not authorize a database cutover, a restart by a validation worker, or changes to `getyourfit.co`.
+
+## Rehearse application rollback and SQLite restoration
+
+Use disposable test accounts and a private scratch directory. Keep the production database and secret out of the rehearsal.
+
+1. Start the candidate with its own `GYF_DATA_DIR`, a generated test secret, and an unused loopback port. Leave `DATABASE_URL` unset. Complete signup, chosen-look save/reload, photo upload, and an owned-outfit check.
+2. Use SQLite's online backup API or `sqlite3 SOURCE '.backup BACKUP'` against that isolated database. Check `PRAGMA integrity_check` on the backup. Retain the test secret separately from the proof report.
+3. Stop only the disposable candidate process. Run the previously deployed application against a separate copy of the backup, with the same test secret and another unused port. Verify signin, garment photos, and saved-plan reads. Preserve additive tables and rows. Never restore a database merely to roll back application code.
+4. Copy the backup to another empty private data directory. Start the candidate there with the same test secret. Verify signin, saved look, photo content, and outfit behavior again. Check database integrity and compare the exported test records.
+5. Stop the disposable processes. Record both application revisions, backup integrity, browser results, and any compatibility limits outside the repository.
+
+This procedure covers the current SQLite runtime. Postgres backup and cutover procedures belong to [Supabase](supabase.md). The Mac tunnel remains dependent on one machine being awake and connected; local validation does not establish global production availability.
