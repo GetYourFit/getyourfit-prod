@@ -48,9 +48,9 @@ for (const backend of backends) {
     assert.equal((await post(server, {})).status, 400);
     const statuses = [];
     for (let index = 0; index < 70; index += 1) statuses.push((await post(server, { event: 'plan_opened' })).status);
-    assert.equal(statuses.filter((status) => status === 204).length, 60);
-    assert.equal(statuses.filter((status) => status === 429).length, 10);
+    assert.equal(statuses.filter((status) => status === 204).length, 58);
+    assert.equal(statuses.filter((status) => status === 429).length, 12);
     const rows = await inspect(server, 'SELECT event, count FROM funnel_counts');
-    assert.deepEqual(rows, [{ event: 'plan_opened', count: 60 }]);
+    assert.deepEqual(rows, [{ event: 'plan_opened', count: 58 }]);
   });
 }

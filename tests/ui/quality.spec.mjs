@@ -94,7 +94,7 @@ async function submitSignUp(page) {
   };
   let response = await submit();
   if (response.status() === 429) {
-    const retryAfter = Number(await response.headerValue('x-retry-after'));
+    const retryAfter = Number(await response.headerValue('retry-after'));
     expect(retryAfter).toBeGreaterThan(0);
     test.setTimeout(test.info().timeout + retryAfter * 1000 + 5000);
     await page.waitForTimeout(retryAfter * 1000);

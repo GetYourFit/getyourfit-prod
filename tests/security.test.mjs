@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 import sharp from 'sharp';
-import { start } from './helpers/http-server.mjs';
+import { start } from './support/server.mjs';
 
 async function account(request, origin, label) {
   const headers = { Origin: origin, 'Content-Type': 'application/json' };
@@ -19,9 +19,9 @@ const context = { occasion: 'Private occasion', weather: 'mild', dressCode: 'cas
 const input = { ...context, outfitType: 'separates', budget: 300, currency: 'USD', mustHave: '', ownedRoles: [] };
 
 test('production security headers restrict browser capabilities and framing', async (t) => {
-  const { request } = await start(t);
+  const { origin } = await start(t);
   for (const route of ['/', '/api/session', '/api/unknown']) {
-    const { headers } = await request({ route });
+    const headers = Object.fromEntries((await fetch(`${origin}${route}`)).headers);
     assert.match(headers['content-security-policy'], /frame-ancestors 'none'/);
     assert.match(headers['content-security-policy'], /object-src 'none'/);
     assert.match(headers['strict-transport-security'], /max-age=31536000; includeSubDomains/);
@@ -45,11 +45,11 @@ test('upload budget applies before parsing and cannot be bypassed by rotating sp
 });
 
 test('signup early rejections and failed logins consume abuse budgets', async (t) => {
-  const { request, origin } = await start(t, { GYF_MAIL_TRANSPORT: '' });
+  const { request, origin } = await start(t);
   const headers = { Origin: origin, 'Content-Type': 'application/json' };
   for (let i = 0; i < 6; i += 1) {
     const result = await request({ method: 'POST', route: '/api/auth/sign-up/email', headers, body: {} });
-    assert.equal(result.status, i < 5 ? 503 : 429);
+    assert.equal(result.status, i < 5 ? 400 : 429);
   }
   for (let i = 0; i < 6; i += 1) {
     const result = await request({ method: 'POST', route: '/api/auth/sign-in/email', headers,
@@ -105,7 +105,7 @@ test('every private garment, photo, correction, export and plan route rejects cr
   }
   assert.deepEqual((await request({ route: '/api/wardrobe', headers: owner })).body, [created.body]);
   assert.deepEqual((await request({ route: '/api/wardrobe/starter-plans', headers: owner })).body, [plan.body]);
-  assert.equal((await request({ route: `/api/wardrobe/${id}/photo`, headers: owner })).status, 200);
+  assert.equal((await fetch(`${origin}/api/wardrobe/${id}/photo`, { headers: owner })).status, 200);
 });
 
 test('uploads sniff bytes, reject oversize and bomb images, and strip stored metadata', async (t) => {
@@ -122,12 +122,14 @@ test('uploads sniff bytes, reject oversize and bomb images, and strip stored met
   }
   const created = await request({ method: 'POST', route: '/api/wardrobe', headers, body: { facts, consent: true, image: png.toString('base64') } });
   assert.equal(created.status, 201);
-  const stored = await request({ route: created.body.photoUrl, headers });
-  const metadata = await sharp(stored.body).metadata();
+  const stored = await fetch(`${origin}${created.body.photoUrl}`, { headers });
+  assert.equal(stored.status, 200);
+  const bytes = Buffer.from(await stored.arrayBuffer());
+  const metadata = await sharp(bytes).metadata();
   assert.equal(metadata.format, 'jpeg');
   for (const field of ['exif', 'xmp', 'iptc', 'icc']) assert.equal(metadata[field], undefined);
   const exported = await request({ route: '/api/data/export', headers });
-  assert.equal(exported.body.wardrobe[0].photo.base64, stored.body.toString('base64'));
+  assert.equal(exported.body.wardrobe[0].photo.base64, bytes.toString('base64'));
 });
 
 test('sign-out everywhere invalidates captured session cookies', async (t) => {

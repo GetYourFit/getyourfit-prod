@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
-import { start } from '../helpers/http-server.mjs';
+import { start } from '../support/server.mjs';
 import { expect, test } from './fixtures.mjs';
 
 test.use({ screenshot: 'only-on-failure' });
