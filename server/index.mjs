@@ -153,14 +153,6 @@ app.use('/api/auth', async (request, response, next) => {
     next(error);
   }
 }, toNodeHandler(auth));
-app.use((error, _request, response, next) => {
-  if (response.headersSent) return next(new Error('Request failed after response headers were sent.'));
-  const type = ['entity.parse.failed', 'entity.too.large'].includes(error?.type) ? error.type : 'internal';
-  const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
-  process.stderr.write(`request failed: ${JSON.stringify({ type, status })}\n`);
-  void audit('request-failed');
-  response.status(500).json({ error: 'Something went wrong on our side. Try again.' });
-});
 
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
   const staticRoot = path.join(root, 'dist');
@@ -171,6 +163,15 @@ if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
     response.sendFile('index.html', { root: staticRoot });
   });
 }
+
+app.use((error, _request, response, next) => {
+  if (response.headersSent) return next(new Error('Request failed after response headers were sent.'));
+  const type = ['entity.parse.failed', 'entity.too.large'].includes(error?.type) ? error.type : 'internal';
+  const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
+  process.stderr.write(`request failed: ${JSON.stringify({ type, status })}\n`);
+  void audit('request-failed');
+  response.status(500).json({ error: 'Something went wrong on our side. Try again.' });
+});
 
 await runMigrations();
 await prepareAuthSchema();

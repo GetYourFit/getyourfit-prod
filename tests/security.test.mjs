@@ -20,8 +20,13 @@ const input = { ...context, outfitType: 'separates', budget: 300, currency: 'USD
 
 test('production security headers restrict browser capabilities and framing', async (t) => {
   const { origin } = await start(t);
-  for (const route of ['/', '/api/session', '/api/unknown']) {
-    const headers = Object.fromEntries((await fetch(`${origin}${route}`)).headers);
+  const routes = [
+    { route: '/' }, { route: '/sign-in' }, { route: '/api/session' }, { route: '/api/unknown' },
+    ...['/index.html', '/sign-in'].map((route) => ({ route, headers: { Range: 'bytes=999999999999-' } })),
+  ];
+  for (const method of ['GET', 'HEAD']) for (const { route, headers: requestHeaders } of routes) {
+    const response = await fetch(`${origin}${route}`, { method, headers: requestHeaders });
+    const headers = Object.fromEntries(response.headers);
     assert.match(headers['content-security-policy'], /frame-ancestors 'none'/);
     assert.match(headers['content-security-policy'], /object-src 'none'/);
     assert.match(headers['strict-transport-security'], /max-age=31536000; includeSubDomains/);
@@ -29,6 +34,11 @@ test('production security headers restrict browser capabilities and framing', as
     assert.equal(headers['x-content-type-options'], 'nosniff');
     assert.equal(headers['referrer-policy'], 'no-referrer');
     assert.equal(headers['permissions-policy'], 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    if (requestHeaders?.Range) {
+      assert.equal(response.status, 500);
+      if (method === 'GET') assert.deepEqual(await response.json(), { error: 'Something went wrong on our side. Try again.' });
+    }
+    if (method === 'HEAD') assert.equal(await response.text(), '');
   }
 });
 
