@@ -35,7 +35,7 @@ test('release metadata rejects missing and malformed artifacts without disclosin
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const file = path.join(directory, 'release.json');
   assert.equal(readRelease(file), null);
-  for (const value of ['{', '{}', 'null', JSON.stringify({ revision: 'main', modified: false }), JSON.stringify({ revision: 'a'.repeat(40), modified: 'false' })]) {
+  for (const value of ['{', '{}', 'null', JSON.stringify({ revision: 'main', modified: false }), JSON.stringify({ revision: ['a'.repeat(40)], modified: false }), JSON.stringify({ revision: 'a'.repeat(40), modified: 'false' })]) {
     writeFileSync(file, value);
     assert.equal(readRelease(file), null);
   }
