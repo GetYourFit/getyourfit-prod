@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import { rateLimit } from './rate-limit.mjs';
+import { readRelease } from './release.mjs';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, isLockedOut, prepareAuthSchema, recordSignInResult } from './auth.mjs';
 import { audit, closeDatabase, query, reclaimDeletedData, runMigrations } from './database.mjs';
@@ -15,6 +16,7 @@ import { allowedHosts, allowedOrigins, apiPort, trustedProxies } from './config.
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = express();
+const release = readRelease();
 
 app.disable('x-powered-by');
 app.set('trust proxy', trustedProxies);
@@ -87,6 +89,11 @@ app.get('/api/health', async (_request, response) => {
   } catch {
     response.status(503).json({ ok: false });
   }
+});
+
+app.get('/api/release', (_request, response) => {
+  if (!release) return response.status(503).json({ error: 'Release identity is unavailable.' });
+  response.json(release);
 });
 
 app.get('/api/session', async (request, response) => {

@@ -59,6 +59,8 @@ Run `npm run verify:local-account` to prove the account path in a production bui
 
 ## Check
 
+Build the current revision before running `npm test`. The release tests read build metadata tied to `HEAD`.
+
 ```sh
 npm run lint
 npm run build

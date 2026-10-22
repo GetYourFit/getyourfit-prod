@@ -26,7 +26,8 @@
     "acceptance:postgres": "node scripts/with-postgres.mjs env GYF_ACCEPTANCE_BACKEND=postgres npm --prefix tests/acceptance run acceptance",
     "predev": "node scripts/copy-onnx.mjs",
     "prebuild": "node scripts/copy-onnx.mjs",
-    "verify:classification": "node scripts/verify-classification.mjs"
+    "verify:classification": "node scripts/verify-classification.mjs",
+    "postbuild": "node scripts/write-release.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
