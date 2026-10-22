@@ -1,12 +1,11 @@
 {
   "application": "GetYourFit",
-  "surface": "Local responsive browser app, loopback Node service, and private SQLite account and wardrobe data",
+  "surface": "Local responsive browser app, loopback Node service, and private SQLite (default) or Postgres account and wardrobe data",
   "baseline": [
-    "Set a retained BETTER_AUTH_SECRET of at least 32 random characters, run npm run dev with a disposable GYF_DATA_DIR, and open http://127.0.0.1:5173.",
+    "Set a retained BETTER_AUTH_SECRET of at least 32 random characters, run npm run dev (data goes to a git-ignored SQLite file; optionally start Postgres with npm run dev:db and export the DATABASE_URL it prints), and open http://127.0.0.1:5173.",
     "Run npm run verify to check the browser app and data service readiness.",
     "Use chrome-devtools-axi and a named browser session for user-visible checks.",
-    "npm run verify:auth starts an isolated service and database, creates an ephemeral mailbox token for its Node runner, and drives named browser sessions.",
-    "npm run verify:local-account proves signup without mail in the production build, restart continuity, sign-in failure, export, and deletion.",
+    "npm run verify:local-account proves signup without email confirmation in the production build against a disposable database (GYF_VERIFY_BACKEND=postgres for Postgres), the honest email-reset notice, a signed-in password change, restart continuity, sign-in failure, export, and deletion.",
     "npm run verify:wardrobe builds a production app and drives licensed real photos, fact review, outfit correction, export, ownership isolation, restart, and deletion. Use GYF_PROOF_DIR outside the repository to retain evidence."
   ],
   "features": [
@@ -15,24 +14,23 @@
       "title": "Create and protect an account",
       "route": "Sign-in page at /sign-in",
       "harness": "chrome-devtools-axi",
-      "summary": "Create an adult email/password account without mail in v0.1, sign in, and add optional TOTP protection. Verification and recovery delivery need an opt-in mail transport.",
+      "summary": "Create an adult email/password account, sign in, change the password while signed in, and add optional TOTP protection. Email confirmation and email password reset are off until a mail provider is connected.",
       "entrypoints": [
         "Open the local app and choose Create an account or enter credentials to sign in.",
-        "The default mode sends no mail. New accounts sign in immediately with an unverified address. The opt-in SMTP mail mode requires email verification; its isolated verifier uses a private mailbox that only the Node runner can read.",
-        "After sign-in, use the account page to configure an authenticator app."
+        "No email is sent. New accounts sign in immediately with an unverified address, and Forgot password? explains that email reset is not available yet.",
+        "After sign-in, use the account page to change the password or configure an authenticator app."
       ],
       "subfeatures": [
-        "account-create accepts explicit 18+ confirmation and creates a signed-in, email-unverified account in default mode.",
-        "account-verify consumes a current local verification link once.",
-        "account-recovery uses a hashed, expiring, single-use token and revokes sessions after reset.",
+        "account-create accepts explicit 18+ confirmation and creates a signed-in, email-unverified account.",
+        "account-password changes the password while signed in, requires the current password, and signs out other devices.",
         "account-totp supports authenticator setup, one-time backup codes, and a sign-in challenge.",
         "account-sessions ends the current session or revokes every active session."
       ],
-      "driving": "Preconditions:\n\n- Install dependencies with npm install. Set BETTER_AUTH_SECRET once to a random key of at least 32 characters and reuse it with the database.\n- Use default GYF_MAIL_TRANSPORT=disabled for v0.1. Run npm run verify:local-account for isolated production browser coverage.\n\n- **Create.** Choose Create an account, enter a name, email, and password of at least 12 characters, confirm the 18+ statement, and choose Create account. The account page appears without a mail link. Signup without consent must fail.\n- **Sign in.** Sign out and use the same credentials. An incorrect password fails. Restart the service with the same database and key; the existing session must still work.\n- **Recovery boundary.** Default mode has no Forgot password control. A reset request returns 404 and creates no token. Browser requests to /__mail return 404.\n- **TOTP.** Enter the password and choose Set up TOTP. Confirm an invalid code fails and a current code works. Restart with the retained key, then sign out and prove sign-in requests the second code.\n- **Opt-in email path.** npm run verify:mail-delivery proves SMTP signup verification and password reset through the real browser; npm run verify:auth exercises verification/replay, recovery expiry/reuse, origin/rate controls, TOTP, revocation, export, deletion, and offline messaging. It uses restricted test mail and controlled SMTP, without contacting a real provider.",
+      "driving": "Preconditions:\n\n- Install dependencies with npm install. Set BETTER_AUTH_SECRET once to a random key of at least 32 characters and reuse it with the database.\n- Run npm run verify:local-account for isolated production browser coverage against a disposable database.\n\n- **Create.** Choose Create an account, enter a name, email, and password of at least 12 characters, confirm the 18+ statement, and choose Create account. The wardrobe appears without a mail link. Signup without consent must fail.\n- **Sign in.** Sign out and use the same credentials. An incorrect password fails. Restart the service with the same database and key; the existing session must still work.\n- **Recovery boundary.** Choose Forgot password? on the sign-in page: it says reset links cannot be emailed yet. The reset and verification API routes return 503 EMAIL_NOT_AVAILABLE and create no token. While signed in, Account > Change password takes the current password and a new one.\n- **TOTP.** Enter the password and choose Set up authenticator. Confirm an invalid code fails and a current code works. Restart with the retained key, then sign out and prove sign-in requests the second code.",
       "gotchas": [
-        "Default mode sends no mail, keeps emailVerified=false, and cannot recover a forgotten password. Real mail needs an opt-in smtp transport.",
+        "Email is not connected, so emailVerified stays false and a forgotten password cannot be recovered. Turning email on later is documented in docs/supabase.md.",
         "Retain the authentication key with the database. A missing key refuses startup; changing it breaks encrypted authenticator state and sessions.",
-        "Opt-in SMTP requires STARTTLS unless implicit TLS is selected. Test mode requires a private runner token. Browser users cannot read its mailbox."
+        "Signup cannot hide whether an address is already registered, because no email proves ownership."
       ]
     },
     {
@@ -48,16 +46,16 @@
       ],
       "subfeatures": [
         "photo-consent disables image selection until local processing and storage are authorized.",
-        "photo-review resizes to 1200 pixels, strips metadata and rejects malformed image bytes before contacting the loopback classifier.",
-        "photo-classification uses macOS-local Apple Vision with an honest clothing label, revision and confidence; unavailable classification asks for manual confirmation.",
+        "photo-review resizes to 1200 pixels, strips metadata and rejects malformed image bytes before on-device recognition. Only saving uploads the photo.",
+        "photo-classification uses pinned FashionCLIP in a browser CPU/WASM worker without WebGPU, with an honest clothing label, revision and score; downloading or unavailable classification allows immediate manual confirmation.",
         "wardrobe-create stores confirmed category, color, size, fit, availability, weather and dress code privately with the photo.",
         "wardrobe-correction preserves source and records changed facts as wearer-correction.",
         "wardrobe-remove erases one garment photo and facts and cascades its outfit exclusions."
       ],
-      "driving": "Preconditions:\n\n- Sign in to an adult account. Use tests/fixtures photographs only in an isolated verification account; never seed a real wearer wardrobe.\n\n- **Permission.** Choose Add garment. Confirm Garment photo is disabled until photo consent is checked.\n- **Known bad.** Upload tests/fixtures/damaged.jpg. The browser announces the decode failure, Save remains disabled, and no /api/wardrobe/review request is sent.\n- **Valid photo.** Upload a licensed real fixture. The preview loads. On macOS, the photo label includes Apple Vision, its revision, and its actual score. Confirm the category yourself, plus name, color, labelled size, current fit (or unknown), availability, weather and dress code. Confirm ownership and save.\n- **Correction.** Edit a detail and save. Refresh: the photo and corrected detail remain. The export records source wearer-correction, modelVersion null, confidence 1 for that changed fact.\n- **Remove.** Choose Remove, then Yes, remove. The garment and photo disappear; it cannot appear in an outfit.\n- **Proof.** npm run verify:wardrobe drives these production controls and probes private image ownership using a second account.",
+      "driving": "Preconditions:\n\n- Sign in to an adult account. Use tests/fixtures photographs only in an isolated verification account; never seed a real wearer wardrobe.\n\n- **Permission.** Choose Add garment. Confirm Garment photo is disabled until photo consent is checked.\n- **Known bad.** Upload tests/fixtures/damaged.jpg. The browser announces the decode failure, Save remains disabled, and no /api/wardrobe/review request is sent.\n- **Valid photo.** Upload a licensed real fixture. The preview loads. When recognition succeeds, the photo label includes FashionCLIP, its pinned revision, and its actual score. Use npm run verify:classification to test real inference, no WebGPU, slow-network manual entry, deadlines and worker failure. Confirm the category yourself, plus name, color, labelled size, current fit (or unknown), availability, weather and dress code. Confirm ownership and save.\n- **Correction.** Edit a detail and save. Refresh: the photo and corrected detail remain. The export records source wearer-correction, modelVersion null, confidence 1 for that changed fact.\n- **Remove.** Choose Remove, then Yes, remove. The garment and photo disappear; it cannot appear in an outfit.\n- **Proof.** npm run verify:wardrobe drives these production controls and probes private image ownership using a second account.",
       "gotchas": [
         "A photo cannot establish ownership, fit, weather or dress code. No classifier score becomes an outfit fact automatically.",
-        "Apple Vision requires macOS and Swift. Failed or unsupported classification has no invented label or confidence. Only clothing labels leave the classifier.",
+        "Browser recognition downloads about 154 MB of model weights from Hugging Face without sending the photo there. Failed, skipped, timed-out or unsupported recognition has no invented label or score. Apple Vision is an optional API path with GYF_CLASSIFIER=apple-vision on macOS with Swift.",
         "A wardrobe holds up to 50 photos, with bounded decode size and stored JPEG images. Photos never use an external image or recognition service."
       ]
     },
@@ -99,9 +97,9 @@
       ],
       "subfeatures": [
         "account-export downloads profile fields, garment facts and per-fact provenance, stored JPEG photos as base64, original classification provenance, consent timestamps, and context-specific outfit corrections without credentials or session secrets.",
-        "account-delete cascades across credentials, sessions, tokens, wardrobe photo blobs, facts and outfit corrections; SQLite secure deletion and checkpoint/VACUUM remove retired blobs."
+        "account-delete cascades across credentials, sessions, wardrobe photos, facts and outfit corrections in one statement; SQLite then checkpoints and vacuums, and Postgres autovacuum later reclaims the retired rows."
       ],
-      "driving": "Preconditions:\n\n- Sign in and add real garments through the wardrobe guide.\n\n- **Export.** Open Account and choose Download export. Inspect the JSON: getyourfit-account-export-v1 includes the account, wardrobe photos in JPEG/base64, facts, consent and provenance, and outfitCorrections. Password hashes and session secrets must be absent.\n- **Delete.** Choose Delete my data, then Erase permanently. The public page returns; old photo requests fail and the account cannot sign in again.\n- **Proof.** npm run verify:wardrobe checks photo metadata removal, wardrobe export and correction records, cross-account access, restart continuity, and database cascade deletion. Existing account verifiers cover credentials, sessions, tokens and exact-recipient test mail cleanup.",
+      "driving": "Preconditions:\n\n- Sign in and add real garments through the wardrobe guide.\n\n- **Export.** Open Account and choose Download export. Inspect the JSON: getyourfit-account-export-v1 includes the account, wardrobe photos in JPEG/base64, facts, consent and provenance, and outfitCorrections. Password hashes and session secrets must be absent.\n- **Delete.** Choose Delete my data, then Erase permanently. The public page returns; old photo requests fail and the account cannot sign in again.\n- **Proof.** npm run verify:wardrobe checks photo metadata removal, wardrobe export and correction records, cross-account access, restart continuity, and database cascade deletion. The account verifier covers password changes, session continuity and deleted-account sign-in failure.",
       "gotchas": [
         "Exports contain private garment photos. Keep the downloaded copy under your control; deleting app data cannot delete copies you downloaded.",
         "Classification and wearer provenance remain distinct; wearer confidence 1 records explicit confirmation rather than a statistical model score."

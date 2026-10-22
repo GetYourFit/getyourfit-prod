@@ -4,6 +4,15 @@ export const starterRoleSchema = z.enum(['top', 'bottom', 'footwear', 'one-piece
 export const STARTER_NEED_MAX_LENGTH = 512;
 export const starterNeedSchema = z.string().trim().min(1).max(STARTER_NEED_MAX_LENGTH);
 export const starterWeatherSchema = z.enum(['warm', 'mild', 'cold', 'unknown']);
+const pieceCounts: Record<StarterRole, number> = { top: 2, bottom: 2, footwear: 1, 'one-piece': 2 };
+
+function lookCount(input: { outfitType: 'separates' | 'one-piece'; ownedRoles: StarterRole[] }): number {
+  const roles: StarterRole[] = input.outfitType === 'separates' ? ['top', 'bottom', 'footwear'] : ['one-piece', 'footwear'];
+  return Math.min(4, roles.reduce((total, role) => total * (input.ownedRoles.includes(role) ? 1 : pieceCounts[role]), 1));
+}
+
+export const PLAN_ACCOUNT_MISMATCH = 'This plan was started in a different account, so it was not saved.';
+
 export const starterInputSchema = z.strictObject({
   occasion: z.string().trim().min(1).max(120),
   outfitType: z.enum(['separates', 'one-piece']),
@@ -13,6 +22,7 @@ export const starterInputSchema = z.strictObject({
   dressCode: z.enum(['casual', 'smart-casual', 'formal', 'unknown']),
   mustHave: z.string().trim().max(160),
   ownedRoles: z.array(starterRoleSchema).max(4),
+  selectedLook: z.number().int().min(0).max(3).optional(),
 }).superRefine((input, context) => {
   if (new Set(input.ownedRoles).size !== input.ownedRoles.length) {
     context.addIssue({ code: 'custom', path: ['ownedRoles'], message: 'Each role can be declared owned only once.' });
@@ -21,9 +31,14 @@ export const starterInputSchema = z.strictObject({
   if (input.ownedRoles.some((role) => !allowed.includes(role))) {
     context.addIssue({ code: 'custom', path: ['ownedRoles'], message: 'Declared roles must match the selected outfit form.' });
   }
+  if (input.selectedLook !== undefined && input.selectedLook >= lookCount(input)) {
+    context.addIssue({ code: 'custom', path: ['selectedLook'], message: 'The chosen look must be one of the looks in this plan.' });
+  }
 });
 
 export const starterSaveSchema = starterInputSchema.safeExtend({
+  requestId: z.uuid().optional(),
+  expectedUserId: z.string().min(1).optional(),
   needs: z.array(z.strictObject({ role: starterRoleSchema, need: starterNeedSchema })).min(2).max(3).optional(),
 }).superRefine((input, context) => {
   const { needs } = input;
@@ -62,6 +77,7 @@ export const starterPlanActionSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('confirm-owned'), role: starterRoleSchema }),
   z.strictObject({ action: z.literal('replace-need'), role: starterRoleSchema, need: starterNeedSchema }),
   z.strictObject({ action: z.literal('replace-plan'), input: starterInputSchema }),
+  z.strictObject({ action: z.literal('choose-look'), index: z.number().int().min(0).max(3) }),
   z.strictObject({ action: z.literal('reject') }),
 ]);
 
@@ -95,8 +111,6 @@ function needFor(role: StarterRole, input: StarterInput): string {
   return `A ${roleNames[role].toLowerCase()} for ${input.occasion}${weather}${dressCode}${context}.`;
 }
 
-const pieceCounts: Record<StarterRole, number> = { top: 2, bottom: 2, footwear: 1, 'one-piece': 2 };
-
 export type CapsulePiece = { role: StarterRole; label: string; owned: boolean };
 export type CapsuleOutfit = { name: string; pieces: string[]; why: string };
 export type Capsule = {
@@ -126,7 +140,7 @@ export function buildCapsule(input: StarterInput, roles: StarterRoleState[]): Ca
     return {
       name: `Look ${index + 1}: ${input.occasion}`,
       pieces: combo.map((piece) => piece.label),
-      why: `A starting suggestion for ${input.occasion}.${reused ? ` ${reused.label} also appears in other looks, so one purchase works harder.` : ''}`,
+      why: `A starting suggestion for ${input.occasion}.${reused ? ` The ${roleNames[reused.role].toLowerCase()} also appears in other looks, so one purchase works harder.` : ''}`,
     };
   });
   return { pieces, outfits, climate };
@@ -165,4 +179,24 @@ export function confirmStarterRole(roles: StarterRoleState[], roleName: StarterR
     ? { role: role.role, state: 'confirmed-owned', allocation: 0, need: role.need, confirmedAt }
     : role);
   return rebalanceStarterRoles(updated, budget);
+}
+
+function carrySelectedLook(selectedLook: number | undefined, before: { input: StarterInput; roles: StarterRoleState[] }, after: { input: StarterInput; roles: StarterRoleState[] }): number | undefined {
+  if (selectedLook === undefined) return undefined;
+  const chosen = buildCapsule(before.input, before.roles).outfits[selectedLook]?.pieces ?? [];
+  const kept = new Map<StarterRole, string>();
+  before.roles.forEach((entry, position) => {
+    const label = chosen[position];
+    if (entry.state === 'planned' && label) kept.set(entry.role, label);
+  });
+  const outfits = buildCapsule(after.input, after.roles).outfits;
+  const match = outfits.findIndex((outfit) => after.roles.every((entry, position) => entry.state !== 'planned' || !kept.has(entry.role) || kept.get(entry.role) === outfit.pieces[position]));
+  return match === -1 ? 0 : match;
+}
+
+export function withCarriedLook(next: StarterInput, before: { input: StarterInput; roles: StarterRoleState[] }, nextRoles: StarterRoleState[]): StarterInput {
+  const rest = { ...next };
+  delete rest.selectedLook;
+  const carried = carrySelectedLook(before.input.selectedLook, before, { input: next, roles: nextRoles });
+  return carried === undefined ? rest : { ...rest, selectedLook: carried };
 }

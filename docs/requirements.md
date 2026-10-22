@@ -12,7 +12,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | R4 | slice1-local | Account, real photo, correction, wardrobe, one outfit, export, and deletion; fit, purchase, social, and long-term memory are deferred. |
 | R5 | slice1-local | Occasion, weather, and dress code feed one clear outfit action; unknown required facts produce one question. Natural-language parsing is deferred. Consumer shopping scope is owned by [Build my wardrobe](../README.md#build-my-wardrobe). |
 | R6 | next | This slice asks only the questions required to complete its decision. Broader adaptive onboarding needs outcome evidence. |
-| R7 | slice1-local | One consented real photo is resized in the browser, classified on the server, reviewed, corrected, and stored with provenance. Additional ownership states and ingestion channels are deferred. |
+| R7 | slice1-local | One consented real photo is reviewed, corrected, and stored with provenance through the [photo recognition flow](photo-recognition.md). Additional ownership states and ingestion channels are deferred. |
 | R8 | next | Persisted user corrections are the first memory signal; the broader typed style memory and decay model need repeated outcomes. |
 | R9 | slice1-local | Owned garment records require photos and confirmed facts. Separate starter-plan states are described in [Build my wardrobe](../README.md#build-my-wardrobe). Imports remain deferred. |
 | R10 | slice1-local | Store category, color, size, fit, availability, weather, and dress-code facts with source and inference provenance. Extended material, measurement, and commerce fields are deferred. |
@@ -44,7 +44,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 
 | ID | Status | Slice 1 treatment |
 | --- | --- | --- |
-| R24 | next | SQLite garment records carry provenance and cascade deletion; a versioned event model waits for real outcomes and access patterns. |
+| R24 | next | Postgres garment records carry provenance and cascade deletion; a versioned event model waits for real outcomes and access patterns. |
 | R25 | next | Slice 1 has no model ranker. Explanations derive from the exact outfit decision state. |
 | R26 | slice1-local | Private account data, explicit photo permission, secure sessions, export and deletion; no ethnicity inference, desirability ranking, body data, or data sale. Accounts require an 18+ confirmation. |
 | R27 | slice1-local | Bound local image size and types, decode before use, resize client-side, isolate temporary classifier files, enforce local origin and account ownership, and audit without raw personal data. |
@@ -64,7 +64,7 @@ This file tracks every requirement ID in the captain's GYF requirements (R1-R37 
 | Area | Status | Evidence boundary |
 | --- | --- | --- |
 | Understand value, secure account, minimal onboarding | slice1-local | v0.1 email/password creation and sign-in, 18+ confirmation and local session; email activation follows the [mail release handoff](deploy-inputs.md#mail-release-handoff). |
-| Real photo and correctable interpretation | slice1-local | Browser resize, explicit photo consent, server-side Apple Vision classification, persisted wearer correction, and private image load from the account. |
+| Real photo and correctable interpretation | slice1-local | Browser resize, explicit photo consent, on-device browser recognition ([photo recognition](photo-recognition.md)), persisted wearer correction, and private image load from the account. |
 | Wardrobe and outfit judgment | slice1-local | Complete outfit only from owned, available, fitting items matching known weather and dress code; one clarifying question or an abstention otherwise. |
 | Zero-garment starter-plan precursor | starter-plan-local | Scope and usage: [Build my wardrobe](../README.md#build-my-wardrobe). Observable API behavior and acceptance coverage: [starter-plan contract](../tests/acceptance/CONTRACT.md#zero-garment-starter-plan-precursor). |
 | Zero-garment India shopping links | shopping-links-local | Scope and usage: [Build my wardrobe](../README.md#build-my-wardrobe). Source verification and rights: [shopping sources](shopping-sources.md). Observable API behavior and acceptance coverage: [shopping-links contract](../tests/acceptance/CONTRACT.md#india-shopping-links). |

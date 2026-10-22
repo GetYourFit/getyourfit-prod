@@ -124,7 +124,7 @@ The first screen labels the set **Example outfit** and explains that its context
 
 ## Privacy language
 
-For the hosted product, photographs travel from the browser to the GetYourFit server that holds the private account. Classification runs there; photos do not go to an external AI service. Explain this in plain words before upload consent. Do not say hosted data stays on the wearer's phone. Export and deletion remain visible account actions.
+Explain the [photo recognition privacy contract](photo-recognition.md) in plain words before photo consent. Distinguish on-device review from saved account data. Do not say hosted data stays on the wearer's phone. Export and deletion remain visible account actions.
 
 User copy excludes release numbers, **Local Edition**, **local app**, provider setup details, and developer-only provenance fields. A disabled recovery service is described as **Password reset isn't available here. Keep your password safe.** It does not promise a future release date. Technical provenance remains available in a secondary details view when useful.
 

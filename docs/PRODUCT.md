@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Delegated by the task constraints: React, TypeScript, Vite, and a local Node.js service with SQLite. This keeps the first slice conventional, local-first, and free to run.
+Delegated by the task constraints: React, TypeScript, Vite, and a local Node.js service with SQLite. This kept the first slice conventional and free to run. The data layer has since moved to Postgres on Supabase's free plan, still at zero cost; see [Supabase](supabase.md).
 
 ## Users
 
@@ -32,11 +32,11 @@ For people starting without garments, [Build my wardrobe](../README.md#build-my-
 
 ## Capabilities and Constraints
 
-- Store garment photos and wardrobe records privately on the GetYourFit server, in the wearer's account. Resize photos in the browser before upload; the photo and its facts leave the browser to reach the server, which classifies the photo without an external recognition service. Nothing is sold, shared or used for model training.
+- Store garment photos and wardrobe records privately on the GetYourFit server, in the wearer's account. The [photo recognition guide](photo-recognition.md) owns review, upload timing, and model privacy. Nothing is sold, shared or used for model training.
 - Ask for explicit photo consent and allow the wearer to correct garment facts.
 - Make one complete outfit decision from available owned items. Enforce only ownership, availability, size, weather, dress code, and budget facts.
 - Ask a clarifying question when a required fact is unknown. Never represent an incomplete set as a complete outfit.
-- Every inferred fact records its source, model version, and confidence. macOS-local Apple Vision supplies a fallible clothing label with model revision and confidence. Only clothing labels are returned; no person attributes are exposed or stored. No classification result supplies an outfit fact automatically. The wearer confirms category, color, labelled size, current fit, ownership, availability, weather, and dress code. Those facts record wearer source, model version null, and confidence 1 as explicit confirmation, not a model score. Unsupported devices or failed classification ask for manual confirmation without invented confidence.
+- Every inferred fact records its source, model version, and confidence. See [photo recognition](photo-recognition.md) for classifier provenance, limitations, and manual fallback. No person attributes are exposed or stored. No classification result supplies an outfit fact automatically. The wearer confirms category, color, labelled size, current fit, ownership, availability, weather, and dress code. Those facts record wearer source, model version null, and confidence 1 as explicit confirmation, not a model score.
 - Keep user data private by default. Do not infer ethnicity, rank desirability, sell personal data, or collect body data in this slice. Require explicit 18+ confirmation before account creation.
 - Provide data export and deletion.
 - Defer creator, retailer platform, subscription, body-preview, and merchant features. The consumer shopping scope is owned by [Build my wardrobe](../README.md#build-my-wardrobe).
@@ -49,7 +49,7 @@ It removes mock garments, random outfit shuffling, passkey-only account access, 
 
 - Earlier private product repositories: `GetYourFit/GYF_APP` and `GetYourFit/GYF_MVP`, inspected on 2026-10-05. The former contains a React/Vite prototype with wardrobe and outfit surfaces, but uses mock garments, shuffle-based combinations, and broader community/try-on/profile flows. The latter contains a separate ML and merchant recommendation backend. Neither documents image or model licenses.
 - Retained: React/Vite as a familiar web prototype base and the wardrobe-to-outfit task. Replaced: mock inventory and random shuffle with user-owned photos, explicit garment facts, and an explainable constraint check. Removed: community, social sharing, try-on, body profiling, merchant/retail, and mock ML surfaces because they are outside the first slice or lack trustworthy evidence.
-- No licensed garment image or usable garment recognition model was found. The product starts with the wearer's own photos and does not fabricate sample wardrobe content.
+- No licensed garment image or usable garment recognition model was found in the earlier prototypes. Current recognition and model licensing are documented in [photo recognition](photo-recognition.md); verification photo sources are in the [fixture licence record](../tests/fixtures/README.md). The product starts with the wearer's own photos and does not fabricate sample wardrobe content.
 
 ## Product Principles
 

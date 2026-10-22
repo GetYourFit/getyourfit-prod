@@ -1,4 +1,6 @@
 import { ArrowRight, Check, LockKeyhole } from 'lucide-react';
+import { garments } from '../shared/outfit-board';
+import { PhotoCredits } from './PhotoCredits';
 import { Brand } from './ui';
 import './LandingPage.css';
 
@@ -11,8 +13,8 @@ export function LandingPage() {
     </header>
     <main id="public-main">
       <div className="public-intro">
-        <h1>Your clothes.<br />One clear outfit.</h1>
-        <p>Add your clothes. Tell us your plans.<br className="desktop-break" /> Get a complete outfit, with the reasons.</p>
+        <div className="public-intro-copy"><h1>Your clothes.<br />One clear outfit.</h1>
+        <p>Add your clothes. Tell us your plans.<br className="desktop-break" /> Get a complete outfit, with the reasons.</p></div>
         <div className="public-intro-action">
           <a className="public-primary" href="/plan">Plan an outfit now<ArrowRight size={18} aria-hidden="true" /></a>
           <p className="public-start-note">No account needed. See a full outfit in a minute.</p>
@@ -22,9 +24,9 @@ export function LandingPage() {
         <div className="example-heading"><h2 id="example-title">Example outfit</h2><p>Dinner with friends · Mild weather · Casual</p></div>
         <div className="example-layout">
           <div className="outfit-photographs" aria-label="A complete example: top, trousers and footwear">
-            <figure className="example-piece example-shirt"><img src="/example/shirt.webp" srcSet="/example/shirt-360.webp 360w, /example/shirt-600.webp 600w, /example/shirt.webp 900w" sizes="(max-width: 600px) 50vw, (max-width: 1000px) 48vw, 32vw" alt="Checked cotton shirt from The Met collection" width={900} height={824} fetchPriority="high" /><figcaption>Checked cotton shirt</figcaption></figure>
-            <figure className="example-piece example-trousers"><img src="/example/trousers.webp" srcSet="/example/trousers-360.webp 360w, /example/trousers-600.webp 600w, /example/trousers.webp 646w" sizes="(max-width: 600px) 36vw, (max-width: 1000px) 35vw, 23vw" alt="Cream cotton trousers from The Met collection" width={646} height={1200} /><figcaption>Cotton trousers</figcaption></figure>
-            <figure className="example-piece example-shoes"><img src="/example/oxfords.webp" srcSet="/example/oxfords-360.webp 360w, /example/oxfords-600.webp 600w, /example/oxfords.webp 728w" sizes="(max-width: 600px) 50vw, (max-width: 1000px) 48vw, 32vw" alt="Brown leather lace-up shoes from The Met collection" width={728} height={516} /><figcaption>Leather lace-ups</figcaption></figure>
+            <figure className="example-piece example-shirt"><img src="/example/shirt.webp" srcSet="/example/shirt-360.webp 360w, /example/shirt-600.webp 600w, /example/shirt.webp 900w" sizes="(max-width: 600px) 50vw, (max-width: 1000px) 48vw, 32vw" alt="Checked short-sleeve shirt" width={900} height={824} fetchPriority="high" /><figcaption>Checked short-sleeve shirt</figcaption></figure>
+            <figure className="example-piece example-trousers"><img src="/example/trousers.webp" srcSet="/example/trousers-360.webp 360w, /example/trousers-600.webp 600w, /example/trousers.webp 646w" sizes="(max-width: 600px) 36vw, (max-width: 1000px) 35vw, 23vw" alt="Stone chinos" width={646} height={1200} /><figcaption>Stone chinos</figcaption></figure>
+            <figure className="example-piece example-shoes"><img src="/example/oxfords.webp" srcSet="/example/oxfords-360.webp 360w, /example/oxfords-600.webp 600w, /example/oxfords.webp 900w" sizes="(max-width: 600px) 50vw, (max-width: 1000px) 48vw, 32vw" alt="Brown leather derbies" width={900} height={600} /><figcaption>Leather derbies</figcaption></figure>
           </div>
           <div className="example-reasons">
             <h3>Why this works</h3>
@@ -36,16 +38,16 @@ export function LandingPage() {
               <li><Check size={18} aria-hidden="true" /><span>Each piece is marked for mild weather and casual plans.</span></li>
               <li><Check size={18} aria-hidden="true" /><span>Fit and availability are confirmed by the wearer.</span></li>
             </ul>
-            <p className="example-disclosure">These are illustrative facts, shown with historical collection photographs. Your outfits use only clothes you add. You confirm fit; we don't predict it.</p>
-            </details><p className="example-label">Example facts and collection photos. Your wardrobe starts empty.</p>
+            <p className="example-disclosure">These are illustrative facts. The garment photographs are stand-ins for similar pieces. Your outfits use only clothes you add. You confirm fit; we don't predict it.</p>
+            </details><p className="example-label">Illustrative example with stand-in garment photos. Your wardrobe starts empty.</p>
           </div>
         </div>
       </section>
       <section className="public-privacy" aria-labelledby="public-privacy-title">
         <LockKeyhole size={24} aria-hidden="true" />
-        <div><h2 id="public-privacy-title">Your wardrobe stays private.</h2><p>Your photos go to the GetYourFit server that holds your account, where they are reviewed without an external AI service. They are never sold or used for model training. You can download or delete your data.</p></div>
+        <div><h2 id="public-privacy-title">Your wardrobe stays private.</h2><p>Photo recognition runs on your device. Saving sends your photo to your private account on the GetYourFit server. Photos are never sold or used for model training. You can download or delete your data.</p></div>
       </section>
     </main>
-    <footer className="public-footer"><span>GetYourFit</span><details><summary>Example photo credits</summary><p>Real garment photographs from The Metropolitan Museum of Art, shared under <a href="https://www.metmuseum.org/hubs/open-access">CC0 Open Access</a>: <a href="https://www.metmuseum.org/art/collection/search/91159">shirt</a>, <a href="https://www.metmuseum.org/art/collection/search/91001">trousers</a>, and <a href="https://www.metmuseum.org/art/collection/search/90428">lace-ups</a>. <a href="/example/provenance.json">Source records and image provenance</a>.</p></details></footer>
+    <footer className="public-footer"><span>GetYourFit</span><details><summary>Example photo credits</summary><PhotoCredits items={garments.filter((garment) => ['shirt', 'trousers', 'oxfords'].includes(garment.id))} /></details></footer>
   </div>;
 }

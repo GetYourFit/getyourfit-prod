@@ -6,8 +6,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
 import sharp from 'sharp';
+import { createStore } from '../tests/support/store.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const portProbe = net.createServer();
@@ -19,6 +19,7 @@ await new Promise((resolve, reject) => portProbe.close((error) => error ? reject
 const origin = `http://127.0.0.1:${port}`;
 const session = `gyf-wardrobe-${process.pid}`;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyf-wardrobe-'));
+const store = await createStore();
 const email = `wearer-${randomBytes(8).toString('hex')}@example.test`;
 const password = randomBytes(32).toString('base64url');
 const secret = randomBytes(48).toString('base64url');
@@ -77,7 +78,7 @@ async function startServer() {
   serverError = '';
   server = spawn(process.execPath, ['server/index.mjs'], {
     cwd: root, stdio: ['ignore', 'ignore', 'pipe'],
-    env: { ...process.env, NODE_ENV: 'production', GYF_MAIL_TRANSPORT: 'disabled', GYF_DATA_DIR: dataDir, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: String(port) },
+    env: { ...process.env, NODE_ENV: 'production', ...store.env, BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: origin, GYF_PORT: String(port) },
   });
   server.stderr.on('data', (chunk) => { serverError += chunk; });
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -127,6 +128,7 @@ async function addGarment(category, name, color, fit, testBadPhoto = false) {
   }
   chrome(['upload', element('button', 'Garment photo'), path.join(root, 'tests/fixtures', `${category}.jpg`)]);
   await shown('Choose a different photo');
+  evaluate('() => { [...document.querySelectorAll(".garment-dialog button")].find(button => button.textContent === "Skip recognition and confirm manually")?.click(); return true; }');
   fill('Name', name); select('Category', label(category)); fill('Color', color); fill('Size on label', 'M'); select('Does it fit you now?', fit === 'unknown' ? 'I’m not sure' : fit === 'fits' ? 'Yes, it fits' : 'No, it does not fit');
   check('Mild'); check('Casual'); check('I confirm this garment is mine and these are my facts.');
   click('Save garment'); await shown('Add garment'); await shown(name);
@@ -154,7 +156,7 @@ try {
   let items = browserApi('/api/wardrobe', undefined, 'GET').body;
   assert.equal(items.length, 1);
   assert.equal(items[0].photoConsent.scope, 'local-processing-and-storage');
-  if (process.platform === 'darwin') assert.equal(items[0].interpretation.kind, 'classified', 'Actual local Vision classification did not run.');
+  assert.equal(items[0].interpretation.kind, 'unavailable', 'Manual confirmation must not invent a model result.');
   click('Find an outfit'); await shown('What is the occasion?');
   fill('Occasion', 'Lunch with a friend'); click('Find an outfit'); await shown('What weather should this outfit work for?');
   select('Weather', 'Mild'); click('Find an outfit'); await shown('What is the dress code?');
@@ -223,9 +225,8 @@ try {
   assert.equal(exported.email, email); assert.equal(exported.emailVerified, false); assert.equal(exported.hasPassword, false);
   assert.equal(exported.photos.length, 3); assert.equal(exported.corrections.length, 1);
   assert.equal(exported.corrections[0].source, 'wearer-correction');
-  const stored = new Database(path.join(dataDir, 'getyourfit.sqlite'), { readonly: true });
   for (const photo of exported.photos) {
-    const bytes = stored.prepare('SELECT photo FROM garments WHERE id = ?').get(photo.id).photo;
+    const bytes = (await store.query('SELECT photo FROM garments WHERE id = $1', [photo.id]))[0].photo;
     assert.equal(photo.sha256, createHash('sha256').update(bytes).digest('hex'));
     assert.equal(photo.bytes, bytes.length); assert.equal(photo.mediaType, 'image/jpeg');
     assert.equal(photo.consent, 'local-processing-and-storage'); assert.equal(photo.sources, true);
@@ -233,7 +234,6 @@ try {
     assert.equal(metadata.format, 'jpeg'); assert.ok(Math.max(metadata.width, metadata.height) <= 1200);
     assert.equal(metadata.exif, undefined); assert.equal(metadata.xmp, undefined);
   }
-  stored.close();
   fs.writeFileSync(path.join(dataDir, 'export.json'), JSON.stringify(exported));
   chrome(['click', element('button', 'Remove Black trainers')]); click('Keep');
   assert.equal(browserApi('/api/wardrobe', undefined, 'GET').body.length, 3);
@@ -259,10 +259,12 @@ try {
   await stopServer(); await startServer(); chrome(['open', `${origin}/wardrobe`]); await shown('White T-shirt');
   assert.equal(evaluate('() => document.querySelectorAll(".garment-card img").length'), 2);
   assert.equal(evaluate('() => [...document.querySelectorAll(".garment-card img")].every(img => img.complete && img.naturalWidth > 0)'), true);
+  const [{ id: ownerId }] = await store.query('SELECT id FROM "user" WHERE email = $1', [email]);
+  assert.equal(Number((await store.query('SELECT count(*) AS n FROM garments WHERE user_id = $1', [ownerId]))[0].n), 2);
+  assert.equal(Number((await store.query('SELECT count(*) AS n FROM outfit_exclusions WHERE user_id = $1', [ownerId]))[0].n), 1);
   follow('Account'); await shown('Signed in as'); click('Download export'); click('Delete my data'); click('Erase permanently'); await shown('Example outfit');
-  const db = new Database(path.join(dataDir, 'getyourfit.sqlite'), { readonly: true });
-  assert.equal(db.prepare('SELECT count(*) AS n FROM garments').get().n, 0);
-  assert.equal(db.prepare('SELECT count(*) AS n FROM outfit_exclusions').get().n, 0); db.close();
+  assert.equal(Number((await store.query('SELECT count(*) AS n FROM garments WHERE user_id = $1', [ownerId]))[0].n), 0);
+  assert.equal(Number((await store.query('SELECT count(*) AS n FROM outfit_exclusions WHERE user_id = $1', [ownerId]))[0].n), 0);
   assert.equal(evaluate(`async () => (await fetch(${JSON.stringify(items[0].photoUrl)})).status`), 401);
   assert.equal((await fetch(`${origin}${items[0].photoUrl}`, { headers: otherHeaders })).status, 404);
   await fetch(`${origin}/api/data`, { method: 'DELETE', headers: otherHeaders, body: JSON.stringify({ confirm: 'delete my account' }) });
@@ -273,9 +275,10 @@ try {
       validState, r13: { brokenImageState, disabledActionState, signedOutState }, exportProof: exported,
     }, null, 2));
   }
-  process.stdout.write('verify:wardrobe passed: production signup, consent, invalid decode, real local Vision labels, persisted photos and facts, one question, complete outfit, missing footwear, availability, wearer rejection, export, restart, ownership isolation, origin guard and deletion.\n');
+  process.stdout.write('verify:wardrobe passed: production signup, consent, invalid decode, manual photo review, persisted photos and facts, one question, complete outfit, missing footwear, availability, wearer rejection, export, restart, ownership isolation, origin guard and deletion.\n');
 } finally {
   await stopServer();
   try { chrome(['stop']); } catch (error) { process.stderr.write(`Browser cleanup failed: ${String(error)}\n`); }
+  await store.drop();
   fs.rmSync(dataDir, { recursive: true, force: true });
 }

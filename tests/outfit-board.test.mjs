@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import { composeBoard, garments, layoutFor } from '../shared/outfit-board.ts';
@@ -10,14 +11,18 @@ const input = { occasion: 'Office day', outfitType: 'separates', budget: 6000, c
 const board = (changes = {}) => { const value = { ...input, ...changes }; return composeBoard(value, buildStarterRoles(value, now)); };
 const provenance = JSON.parse(readFileSync(new URL('../public/example/provenance.json', import.meta.url), 'utf8'));
 
-test('every board garment is a real photograph with a recorded CC0 licence', () => {
+test('every board garment is a real photograph with a recorded redistributable licence', () => {
   for (const garment of garments) {
     const record = provenance.assets.find((asset) => asset.name === garment.file);
     assert(record, `${garment.id} has a provenance record`);
-    assert.equal(record.license, 'CC0-1.0');
-    assert.equal(record.id, garment.met);
+    assert(['CC0-1.0', 'CC-BY-2.0', 'CC-BY-SA-3.0', 'CC-BY-SA-4.0', 'Pexels'].includes(record.license));
+    assert.equal(record.record, garment.source);
+    assert.equal(record.author, garment.author);
+    assert.equal(record.license_record, garment.licenseUrl);
     assert.equal(record.width, garment.width);
     assert.equal(record.height, garment.height);
+    const image = readFileSync(new URL(`../public/example/${garment.file}.webp`, import.meta.url));
+    assert.equal(createHash('sha256').update(image).digest('hex'), record.output_sha256);
     for (const file of [`${garment.file}.webp`, `${garment.file}-360.webp`, `${garment.file}-600.webp`]) assert(existsSync(new URL(`../public/example/${file}`, import.meta.url)), file);
   }
 });
@@ -27,6 +32,7 @@ test('a separates plan composes a complete look with a photograph for each piece
   assert.equal(result.looks.length, 4);
   for (const look of result.looks) assert.deepEqual(look.pieces.map((piece) => piece.role), ['top', 'bottom', 'footwear']);
   assert(result.looks.every((look) => look.pieces.every((piece) => !piece.owned && piece.garment.role === piece.role)));
+  assert(result.looks.every((look) => !/\b(?:Top|Bottom|Footwear|One-piece garment) [AB]\b/.test(look.why)));
   assert(result.reasons.length >= 3);
   assert(result.reasons.some((reason) => reason.includes('₹6,000')));
 });
@@ -47,9 +53,26 @@ test('a role the wearer already owns becomes a category tile, not a photograph',
 test('a one-piece plan uses the one-piece layout and zero budget suggests reuse', () => {
   const result = board({ outfitType: 'one-piece', budget: 0 });
   assert.deepEqual(result.looks[0].pieces.map((piece) => piece.role), ['one-piece', 'footwear']);
+  assert.equal(result.looks[0].pieces[1].garment.id, 'pumps');
   assert(result.reasons.some((reason) => reason.includes('reuse or borrow')));
 });
 
 test('funnel steps record no identifying fields', () => {
   assert.deepEqual([...funnelEvents], ['plan_opened', 'plan_submitted', 'outfit_shown', 'save_prompt_shown', 'save_prompt_accepted', 'plan_saved_after_visit']);
+});
+
+test('a chosen look keeps its untouched pieces when the capsule changes and must exist in the plan', async () => {
+  const { confirmStarterRole, starterInputSchema, withCarriedLook } = await import('../shared/starter-plan.ts');
+  const chosen = { ...input, selectedLook: 3 };
+  const roles = buildStarterRoles(chosen, now);
+  const confirmed = confirmStarterRole(roles, 'top', chosen.budget, now);
+  const owned = withCarriedLook({ ...chosen, ownedRoles: ['top'] }, { input: chosen, roles }, confirmed);
+  assert.equal(owned.selectedLook, 1);
+  const labels = composeBoard(owned, confirmed).looks[1].pieces.map((piece) => piece.label);
+  assert.deepEqual(labels, ['Top you already have', 'Bottom B', 'Footwear A']);
+  const onePiece = { ...chosen, outfitType: 'one-piece' };
+  assert.equal(withCarriedLook(onePiece, { input: chosen, roles }, buildStarterRoles(onePiece, now)).selectedLook, 0);
+  assert.equal(withCarriedLook({ ...input }, { input, roles }, roles).selectedLook, undefined);
+  assert.equal(starterInputSchema.safeParse({ ...chosen, ownedRoles: ['top'] }).success, false);
+  assert.equal(starterInputSchema.safeParse({ ...chosen, ownedRoles: ['top'], selectedLook: 1 }).success, true);
 });

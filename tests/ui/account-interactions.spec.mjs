@@ -114,7 +114,7 @@ for (const width of [768, 1440]) {
 }
 
 test('authentication titles follow every signed-out view', async ({ page }) => {
-  await page.route('**/api/session', (route) => route.fulfill({ json: { signedIn: false, emailDeliveryMode: 'smtp' } }));
+  await page.route('**/api/session', (route) => route.fulfill({ json: { signedIn: false } }));
   await page.route('**/api/auth/**', (route) => route.fulfill({ json: {} }));
   await page.goto('/sign-in');
   await expect(page).toHaveTitle('Sign in · GetYourFit');
@@ -123,14 +123,11 @@ test('authentication titles follow every signed-out view', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page).toHaveTitle('Sign in · GetYourFit');
   await page.getByRole('button', { name: 'Forgot password?' }).click();
-  await expect(page).toHaveTitle('Reset your password · GetYourFit');
-  await page.getByLabel('Email', { exact: true }).fill('review@example.test');
-  await page.getByRole('button', { name: 'Send reset link' }).click();
-  await expect(page).toHaveTitle('Check your email · GetYourFit');
-  await page.goto('/sign-in?token=review-reset');
-  await expect(page).toHaveTitle('Choose a new password · GetYourFit');
-  await page.getByLabel('New password').fill(password);
-  await page.getByRole('button', { name: 'Save new password' }).click();
+  await expect(page).toHaveTitle('Forgot your password? · GetYourFit');
+  await expect(page.getByText('We can’t email password reset links yet.')).toBeVisible();
+  await expect(page.getByText('Changing your password requires your current password.')).toBeVisible();
+  await expect(page.getByText('A forgotten password cannot be recovered until email reset is connected, even if you are signed in.')).toBeVisible();
+  await page.getByRole('button', { name: 'Back to sign in' }).click();
   await expect(page).toHaveTitle('Sign in · GetYourFit');
   await page.route('**/api/auth/sign-in/email', (route) => route.fulfill({ json: { twoFactorRedirect: true } }));
   await page.getByLabel('Email', { exact: true }).fill('review@example.test');
@@ -143,6 +140,8 @@ test('authentication titles follow every signed-out view', async ({ page }) => {
   await page.getByLabel('Email', { exact: true }).fill('review@example.test');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('checkbox', { name: /18 or older/ }).check();
+  await page.route('**/api/auth/sign-up/email', (route) => route.fulfill({ status: 422, json: { code: 'USER_ALREADY_EXISTS' } }));
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  await expect(page).toHaveTitle('Check your email · GetYourFit');
+  await expect(page.getByRole('alert')).toContainText('We could not create the account.');
+  await expect(page).toHaveTitle('Create your account · GetYourFit');
 });

@@ -1,16 +1,18 @@
 # GetYourFit
 
-GetYourFit is a private wardrobe companion: choose an explained outfit from clothes you own, or use [Build my wardrobe](#build-my-wardrobe) to plan clothing needs when starting without garments. "You already own it" is a useful result. This v0.1 increment connects local accounts, garment review, a compact wardrobe, a factual outfit check, starter plans, wearer corrections, export, and deletion. It is a local browser path, not a deployed service or a validated style or fit model.
+GetYourFit is a private wardrobe companion: choose an explained outfit from clothes you own, or use [Build my wardrobe](#build-my-wardrobe) to plan clothing needs when starting without garments. "You already own it" is a useful result. This v0.1 increment connects local accounts, garment review, a compact wardrobe, a factual outfit check, starter plans, wearer corrections, export, and deletion. Data is stored in a local SQLite file by default; setting `DATABASE_URL` opts in to Postgres, which production will use on Supabase's free plan ([Supabase](docs/supabase.md)). It is not yet a deployed service, nor a validated style or fit model.
 
-For outfits from owned clothes, create an adult account with email and password, then add your own garment photos with permission. The browser resizes and strips metadata, then uploads the photo to your private account on the GetYourFit server, which classifies and stores it. On macOS with Swift installed, Apple Vision supplies a fallible clothing label with its revision and confidence; elsewhere the app explicitly asks you to confirm the facts yourself. Every outfit fact comes from the wearer. The owned-clothes outfit check requires an occasion, weather, dress code, availability, and confirmed fit; it asks one question when a required fact is unknown and abstains when no complete set exists. A rejected item stays excluded for the same context until you allow it again.
+For outfits from owned clothes, create an adult account with email and password, then add your own garment photos with permission. The browser resizes and strips metadata, then recognizes the garment on your device with FashionCLIP using CPU/WASM, including on Linux-hosted apps and browsers without WebGPU. First use downloads about 154 MB of model weights from Hugging Face; the photo stays on your device until you save it to your private GetYourFit account. You can skip recognition and confirm facts immediately. Unavailable or uncertain recognition also falls back to manual confirmation. See [photo recognition](docs/photo-recognition.md) for model provenance, privacy, limitations, and acceptance checks. Every outfit fact comes from the wearer. The owned-clothes outfit check requires an occasion, weather, dress code, availability, and confirmed fit; it asks one question when a required fact is unknown and abstains when no complete set exists. A rejected item stays excluded for the same context until you allow it again.
 
-See [Mail settings](#mail-settings) for signup, verification, and password recovery requirements. Privacy controls export photos and facts with provenance and corrections, or delete them with the account. Photos and facts are never sold or used for model training. There is no sharing, external recognition service, body inference, buying flow, or seeded wardrobe.
+No email is sent: sign-up needs no confirmation, and a forgotten password cannot be reset by email yet; a signed-in wearer can change it from Account ([Email](docs/supabase.md#email)). Privacy controls export photos and facts with provenance and corrections, or delete them with the account. Photos and facts are never sold or used for model training. There is no sharing, external recognition service, body inference, buying flow, or seeded wardrobe.
 
 ## Try it without an account
 
-**Plan an outfit now** on the home page opens `/plan`, where a visitor answers occasion, weather, outfit form, budget and an optional dress code, then sees a complete outfit with no account. The result is an outfit board: one square composition of real garment photographs (a top, a bottom and footwear, or a one-piece and footwear), a switch between the capsule's looks, the reasons, and **Download as image**, which draws the same board as a PNG in the browser. A role the visitor marks owned in the account flow shows as a "your own" tile instead of a photograph. Photographs are The Metropolitan Museum of Art Open Access (CC0) garments, with each licence, source and hash recorded in `public/example/provenance.json`. They are historical pieces shown as stand-ins, and the page says so.
+**Plan an outfit now** on the home page opens `/plan`, where a visitor answers occasion, weather, outfit form, budget and an optional dress code, then sees a complete outfit with no account. The result is an outfit board: one square composition of real garment photographs (a top, a bottom and footwear, or a one-piece and footwear), a switch between the capsule's looks, the reasons, and **Download as image**, which draws the same board as a PNG in the browser. A role the visitor marks owned in the account flow shows as a "your own" tile instead of a photograph. Photographs are modern garments from Wikimedia Commons and Pexels under their recorded redistribution licences, with each licence, source and hash recorded in `public/example/provenance.json`. They are stand-ins, and the page says so. Attribution and licence links accompany the page and downloaded board.
 
-The answers are not sent to a server while planning (only the anonymous counters below), and no photo goes to any external AI service. **Save this outfit** keeps the answers in this tab's session storage, opens sign-up, and shows the plan as an unsaved draft after sign-up so the visitor can save it.
+The answers are not sent to a server while planning (only the anonymous counters below), and no photo goes to any external AI service. **Save this plan** explains private server storage and keeps the answers and chosen look while you create an account or sign in. The plan saves after account entry without a second save action. Its chosen board appears before the wardrobe and outfit form, with **Download as image** and a disclosure for plan details. Saved plans retain the chosen look through refresh and return. A failed load offers a retry that restores the saved result and clears the load error.
+
+Pending saves use this tab's session storage and are cleared after saving, signing out, or abandoning the draft. Once associated with an account, a pending save cannot transfer to another account. If storage is blocked, account entry retains the draft in memory; keep the tab open until saving finishes. Failed saves retain the chosen board and offer **Try saving plan again**. Retrying a save whose response was lost returns the same plan rather than creating a duplicate.
 
 Drop-off is measured with anonymous daily counters in the local database: `plan_opened`, `plan_submitted`, `outfit_shown`, `save_prompt_shown`, `save_prompt_accepted` and `plan_saved_after_visit`. The `funnel_counts` table holds only a UTC day, a step name and a number: no cookie, identifier, IP address or plan content, and no third-party tracker. Browsers that send Do Not Track or Global Privacy Control are not counted. Run `npm run funnel` with the same `GYF_DATA_DIR` and `BETTER_AUTH_SECRET` as the server to read the totals and step rates.
 
@@ -34,11 +36,11 @@ Use **I already have this** only after confirming a suitable item is yours. Conf
 
 ## Run locally
 
-Requirements: Node.js 22.18 or later. Local Apple Vision classification additionally needs macOS and the Swift toolchain; classification failures are shown honestly and never replaced by fabricated labels.
+Requirements: Node.js 22.18 or later. Local Apple Vision classification additionally needs macOS and the Swift toolchain. Enable it with `GYF_CLASSIFIER=apple-vision` for API clients. The browser uses on-device recognition by default, and failures never produce fabricated labels.
 
 Set `BETTER_AUTH_SECRET` to a random key of at least 32 characters from your local secret store. Generate it once, retain it with the database, and reuse it on every restart. Changing it invalidates sessions and makes existing authenticator secrets unreadable. The server refuses startup without this key before opening the database. You can generate a key with `node -e 'process.stdout.write(require("node:crypto").randomBytes(48).toString("base64url"))'`; store its output privately, outside the repository.
 
-Configure [Mail settings](#mail-settings) before creating an account. For development without a provider, select the local mock mailbox described there.
+By default the server keeps one SQLite file, `getyourfit.sqlite`, in `GYF_DATA_DIR` (`.gyf-data` in the checkout when unset). Setting `DATABASE_URL` to a Postgres connection string opts in to Postgres instead, applying the SQL in [migrations](migrations) at startup; in production that is the Supabase session pooler ([Supabase](docs/supabase.md#connecting)). Without `DATABASE_URL` nothing about the SQLite behavior changes.
 
 ```sh
 npm install
@@ -47,30 +49,11 @@ npm run dev
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-Run `npm run verify:local-account` to prove the explicit no-mail path (`GYF_MAIL_TRANSPORT=disabled`, for tests only) in a production build with a disposable database and random key. It checks consent, signup without mail, wrong-password failure, restart continuity, export, and deletion through real browser controls.
+To develop against Postgres, run `npm run dev:db` in one terminal (a persistent local Postgres 17 under `.gyf-data/postgres`), then `export DATABASE_URL=postgres://postgres:development-only@127.0.0.1:54329/postgres` before `npm run dev` in another.
 
-### Mail settings
+Run `npm run verify:local-account` to prove the account path in a production build with a disposable database and random key. It checks consent, signup without email confirmation, the honest email-reset notice, a signed-in password change, wrong-password failure, restart continuity, export, and deletion through real browser controls. It uses SQLite. For Postgres, run `GYF_VERIFY_BACKEND=postgres node scripts/with-postgres.mjs npm run verify:local-account`. `npm run verify:wardrobe` takes the same switch and wrapper.
 
-Production mail goes through a real SMTP provider configured only by these environment values. Never commit them; the [mail release handoff](docs/deploy-inputs.md#mail-release-handoff) owns the chosen provider and vault mappings.
-
-| Variable | Purpose |
-| --- | --- |
-| `GYF_SMTP_HOST` | SMTP server host. Setting it selects the SMTP transport |
-| `GYF_SMTP_PORT` | Defaults to `587` |
-| `GYF_SMTP_SECURE` | `true` or `false`; defaults to true on port `465` and false otherwise. Without implicit TLS, STARTTLS is required |
-| `GYF_SMTP_USER`, `GYF_SMTP_PASS` | Provider login. Set both or neither |
-| `GYF_MAIL_FROM` | Sender address, required with the host |
-
-`GYF_MAIL_TRANSPORT` is normally unset. Its values:
-
-- `smtp`: chosen automatically when `GYF_SMTP_HOST` is set. Verification and reset links are delivered by the provider, and sign-in requires a verified email, including for accounts created earlier with mail disabled.
-- unset, without `GYF_SMTP_HOST`: email delivery is not connected. Signup and password reset return HTTP 503 `EMAIL_NOT_CONNECTED` and the app says so. Nothing is mocked or silently skipped.
-- `local`: development and test only, refused when `NODE_ENV=production`. It starts the bundled mock mailbox, an authenticated SMTP server on loopback (`GYF_MOCK_SMTP_PORT`, default `1025`) that exposes messages at `/__mail` to the holder of `GYF_MAILBOX_RUNNER_TOKEN`. The mock account is `GYF_MOCK_MAIL_USER` and `GYF_MOCK_MAIL_PASS`; their defaults are placeholders, not a real account. Verification and reset are enforced exactly as with `smtp`.
-- `disabled`: explicit opt-out for automated tests. Signup signs in unverified and recovery returns HTTP 404. Do not use it for real users.
-
-A failed delivery is recorded in the audit log without failing the signup request or revealing whether an account exists. Browser requests to `/__mail` return no messages unless the mock mailbox is active.
-
-`npm run acceptance:mail-delivery --prefix tests/acceptance` runs the [SMTP browser check](tests/acceptance/README.md) used in CI. `npm run verify:mail-delivery` adds STARTTLS enforcement, insecure relay rejection, and deletion waiting for in-flight mail. `npm test` covers transport selection, the mock mailbox, the unconfigured state, and startup validation. `npm run verify:auth` runs the broader account checks with the mock mailbox, then the SMTP verifier. None of these prove delivery by a real provider.
+`scripts/with-postgres.mjs` starts a throwaway Postgres 17 or uses the server named by `GYF_TEST_DATABASE_URL`. `npm test` and `npm run acceptance:postgres` invoke this wrapper automatically. See [Supabase](docs/supabase.md) for the schema, the free-plan limits, the keep-alive plan, and the evaluation of Supabase Auth.
 
 ## Check
 
@@ -80,9 +63,9 @@ npm run build
 npm test
 npm run test:ui
 npm run verify
-npm run verify:auth
 npm run verify:local-account
 npm run verify:wardrobe
+npm run verify:classification
 npm run acceptance
 ```
 

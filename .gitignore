@@ -12,3 +12,6 @@ dist/
 test-results/
 tests/ui/screenshots/*
 !tests/ui/screenshots/linux/
+public/onnx/
+!tests/fixtures/*.sqlite
+.test-run/

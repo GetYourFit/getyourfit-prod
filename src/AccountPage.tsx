@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, LockKeyhole, LogOut, Trash2 } from 'lucide-react';
+import { AccountPassword } from './AccountPassword';
 import { AccountSecurity } from './AccountSecurity';
 import { request } from './api';
+import { discardPendingPlan } from './pending-plan';
 import type { SignedInSession } from './AccountApp';
 import { Notice } from './ui';
-
-const deliveryNote = {
-  disabled: 'Your email address is unverified, and password reset isn’t available here. Keep your password safe.',
-  smtp: 'Verification and recovery messages are sent by email.',
-  'local-test': 'Email delivery is configured for a test environment.',
-  unknown: 'We could not confirm whether email delivery is available.',
-} satisfies Record<SignedInSession['emailDeliveryMode'], string>;
 
 export function AccountPage({ session }: { session: SignedInSession }) {
   const [error, setError] = useState('');
@@ -51,12 +46,14 @@ export function AccountPage({ session }: { session: SignedInSession }) {
 
   const signOut = (path: string, action: string) => perform(action, async () => {
     await request(path, { method: 'POST', body: '{}' });
+    discardPendingPlan();
     window.location.assign('/');
   });
 
   function deleteAccount() {
     return perform('delete', async () => {
       await request('/api/data', { method: 'DELETE', body: JSON.stringify({ confirm: 'delete my account' }) });
+      discardPendingPlan();
       window.location.assign('/');
     });
   }
@@ -78,7 +75,7 @@ export function AccountPage({ session }: { session: SignedInSession }) {
           <li>Your photos, garment facts, plans and outfit corrections are stored in your private account on the GetYourFit server, not in this browser.</li>
           <li>They are never sold or used for model training.</li>
           <li>Your password is stored as a one-way hash.</li>
-          <li>{deliveryNote[session.emailDeliveryMode]}</li>
+          <li>Your email address is not verified. Password changes require your current password. A forgotten password cannot be recovered until email reset is connected, even if you are signed in.</li>
         </ul>
       </div>
     </section>
@@ -94,6 +91,8 @@ export function AccountPage({ session }: { session: SignedInSession }) {
       <div className="settings-copy"><h2 id="sessions-title" className="card-title">Sessions</h2><p className="muted">Sign out of this browser, or sign out everywhere this account is open.</p></div>
       <div className="settings-action button-row"><button className="button button-secondary" onClick={() => void signOut('/api/auth/sign-out', 'sign-out')} disabled={busy !== ''}>Sign out</button><button className="button button-secondary" onClick={() => void signOut('/api/auth/sign-out-everywhere', 'revoke')} disabled={busy !== ''}>Sign out everywhere</button></div>
     </section>
+
+    <AccountPassword />
 
     <AccountSecurity enabled={session.twoFactorEnabled === true} />
 

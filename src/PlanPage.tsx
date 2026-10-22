@@ -21,6 +21,7 @@ const sample = composeBoard(sampleInput, buildStarterRoles(sampleInput, '2026-01
 export default function PlanPage() {
   const [values, setValues] = useState<Values>({ occasion: '', outfitType: 'separates', budget: '5000', currency: 'INR', weather: 'mild', dressCode: 'unknown' });
   const [input, setInput] = useState<StarterInput | null>(null);
+  const [selectedLook, setSelectedLook] = useState(0);
   const [error, setError] = useState('');
   const resultHeading = useRef<HTMLHeadingElement>(null);
   const formHeading = useRef<HTMLHeadingElement>(null);
@@ -32,7 +33,6 @@ export default function PlanPage() {
 
   const board = useMemo(() => input ? composeBoard(input, buildStarterRoles(input, new Date().toISOString())) : null, [input]);
   const look = board?.looks[0];
-  const credits = look?.pieces.flatMap((piece) => piece.owned ? [] : [piece.garment]) ?? [];
 
   useEffect(() => {
     if (!board) return;
@@ -56,14 +56,17 @@ export default function PlanPage() {
     }
     setError('');
     countStep('plan_submitted', { once: false });
+    setSelectedLook(0);
     setInput(parsed.data);
   }
 
   function saveAfterValue() {
     if (!input) return;
-    holdPendingPlan(input);
+    holdPendingPlan({ ...input, selectedLook });
     countStep('save_prompt_accepted');
-    window.location.assign('/sign-up');
+    window.history.pushState({}, '', '/sign-up');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.scrollTo(0, 0);
   }
 
   return <div className="public-page plan-page">
@@ -114,18 +117,17 @@ export default function PlanPage() {
               <h2 id="plan-result-title" tabIndex={-1} ref={resultHeading}>Your outfit for {input.occasion}</h2>
               <p>{input.weather === 'unknown' ? 'Weather not given' : `${label(weatherOptions, input.weather)} weather`} · {input.dressCode === 'unknown' ? 'Dress code not given' : label(dressCodes, input.dressCode)} · {input.outfitType === 'separates' ? 'Top, bottom and shoes' : 'One-piece and shoes'}</p>
             </div>
-            <OutfitBoardPanel input={input} board={board} />
+            <OutfitBoardPanel input={input} board={board} selection={{ index: selectedLook, onChange: setSelectedLook }} />
             <div className="plan-reasons">
               <h3>Why this works</h3>
               <ul>{board.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-              <p className="caption">{look.why} These are general suggestions built from your answers, not a verified fit or a taste prediction. Photographs are historical garments from The Met collection, shown as stand-ins for the kind of piece to look for.</p>
+              <p className="caption">{look.why} These are general suggestions built from your answers, not a verified fit or a taste prediction. Garment photographs are stand-ins for the kind of piece to look for.</p>
             </div>
             <div className="plan-save card" role="region" aria-labelledby="plan-save-title">
               <h3 id="plan-save-title">Keep this outfit</h3>
-              <p>Create a free account to save your plan, then add clothes you already own. Your photos are reviewed on our own server and never sent to an external AI service.</p>
-              <button className="button button-primary button-split" type="button" onClick={saveAfterValue}>Save this outfit<ArrowRight size={18} aria-hidden="true" /></button>
+              <p>Save this plan, including your chosen look, in your private account on the GetYourFit server. Create a free account or sign in to finish saving. Garment photos are examples; no clothes are added to your wardrobe.</p>
+              <button className="button button-primary button-split" type="button" onClick={saveAfterValue}>Save this plan<ArrowRight size={18} aria-hidden="true" /></button>
             </div>
-            <details className="disclosure plan-credits"><summary>Photo credits</summary><p>Real garment photographs from The Metropolitan Museum of Art, shared under <a href="https://www.metmuseum.org/hubs/open-access">CC0 Open Access</a>: {credits.map((garment, index) => <span key={garment.id}>{index > 0 && ', '}<a href={`https://www.metmuseum.org/art/collection/search/${garment.met}`}>{garment.caption.toLowerCase()}</a></span>)}.</p></details>
           </> : <div className="plan-placeholder">
             <h2 id="plan-result-title" className="card-title">Your outfit appears here</h2>
             <OutfitBoard look={sample} heading="Example outfit" />

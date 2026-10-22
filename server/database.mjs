@@ -1,48 +1,27 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
-import './config.mjs';
+import { postgresDriver } from './db/postgres.mjs';
+import { sqliteDriver } from './db/sqlite.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const dataDir = path.resolve(process.env.GYF_DATA_DIR || path.join(root, '.gyf-data'));
-fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-fs.chmodSync(dataDir, 0o700);
+// SQLite in GYF_DATA_DIR is the default. Setting DATABASE_URL opts in to Postgres (the Supabase session pooler in production).
+const driver = process.env.DATABASE_URL ? postgresDriver(process.env.DATABASE_URL) : sqliteDriver();
 
-export const database = new Database(path.join(dataDir, 'getyourfit.sqlite'));
-database.pragma('journal_mode = WAL');
-database.pragma('foreign_keys = ON');
-database.pragma('secure_delete = ON');
+export const backend = driver.kind;
+export const authDatabase = driver.authDatabase;
+export const query = driver.query;
+export const transaction = driver.transaction;
+export const runMigrations = driver.migrate;
+export const reclaimDeletedData = driver.reclaim;
+export const closeDatabase = driver.close;
 
-export function ensureAuthSchema() {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS auth_audit (
-      id TEXT PRIMARY KEY,
-      action TEXT NOT NULL,
-      occurred_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS auth_lockouts (
-      email_hash TEXT PRIMARY KEY,
-      failures INTEGER NOT NULL,
-      window_started INTEGER NOT NULL,
-      locked_until INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS password_reset_tokens (
-      token_hash TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      expires_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS email_verification_tokens (
-      token_hash TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-      expires_at INTEGER NOT NULL,
-      used_at INTEGER
-    );
-  `);
-}
+// Postgres returns timestamptz as Date and jsonb as objects; SQLite returns the ISO text and JSON text that were stored.
+export const asIso = (value) => value instanceof Date ? value.toISOString() : value;
+export const asJson = (value) => typeof value === 'string' ? JSON.parse(value) : value;
 
-export function audit(action) {
-  database.prepare('INSERT INTO auth_audit (id, action, occurred_at) VALUES (?, ?, ?)')
-    .run(crypto.randomUUID(), action, new Date().toISOString());
+// An audit write that fails must never fail the request it describes.
+export async function audit(action) {
+  try {
+    await query('INSERT INTO auth_audit (id, action, occurred_at) VALUES ($1, $2, $3)', [crypto.randomUUID(), action, new Date().toISOString()]);
+  } catch (error) {
+    process.stderr.write(`audit write failed for ${action}: ${error.code ?? error.message}\n`);
+  }
 }
