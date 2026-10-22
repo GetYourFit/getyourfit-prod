@@ -90,7 +90,7 @@ What would change the decision: a mail provider becoming acceptable (then Supaba
 Email is off. There is no mail code, no SMTP setting, and no third-party mail provider anywhere:
 
 - Sign-up needs no confirmation: the account is usable immediately and `emailVerified` stays false.
-- `/api/auth/request-password-reset`, `forget-password`, `reset-password`, `send-verification-email`, `verify-email` and `change-email` answer 503 `EMAIL_NOT_AVAILABLE` (404 for GET).
+- `/api/auth/request-password-reset`, `forget-password`, `reset-password`, `send-verification-email`, `verify-email` and `change-email` answer 503 `EMAIL_NOT_AVAILABLE` (404 for GET) when admitted by the [public request boundary](deploy-inputs.md#public-request-boundary). Exhausted abuse budgets return 429 before the disabled-email response.
 - Forgot password? says reset links cannot be emailed yet. Account > Change password requires the current password and signs out other devices. A forgotten password cannot be recovered until email reset is connected, even with a signed-in session.
 - Because nothing proves who owns an address, sign-up reports "already exists" for a registered email. This is the accepted cost of confirmation being off.
 

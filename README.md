@@ -49,6 +49,8 @@ npm run dev
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
+Authentication, garment uploads, and other wardrobe writes have request limits. If an action returns HTTP 429, wait for the `Retry-After` interval before trying again. Rejected attempts can consume the budget, and people on a shared network share an IP budget. [Deployment inputs](docs/deploy-inputs.md#public-request-boundary) describes how the limits apply.
+
 To develop against Postgres, run `npm run dev:db` in one terminal (a persistent local Postgres 17 under `.gyf-data/postgres`), then `export DATABASE_URL=postgres://postgres:development-only@127.0.0.1:54329/postgres` before `npm run dev` in another.
 
 Run `npm run verify:local-account` to prove the account path in a production build with a disposable database and random key. It checks consent, signup without email confirmation, the honest email-reset notice, a signed-in password change, wrong-password failure, restart continuity, export, and deletion through real browser controls. It uses SQLite. For Postgres, run `GYF_VERIFY_BACKEND=postgres node scripts/with-postgres.mjs npm run verify:local-account`. `npm run verify:wardrobe` takes the same switch and wrapper.

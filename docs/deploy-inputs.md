@@ -25,7 +25,7 @@ Retain the secret with the database across releases and restores. Changing it in
 
 ### Email
 
-No mail provider is configured and the app has no mail settings. Sign-up needs no confirmation, and the password reset and verification routes answer 503 `EMAIL_NOT_AVAILABLE`. Changing a password from Account requires the current password. A forgotten password cannot be recovered until email reset is connected, even with a signed-in session. [Turning email on later](supabase.md#turning-email-on-later) records the exact steps.
+Email availability, recovery behavior, and API responses are owned by [Email](supabase.md#email). [Turning email on later](supabase.md#turning-email-on-later) records the setup steps.
 
 `getyourfit.sqlite` holds accounts, wardrobe records, garment photos as BLOBs, private starter plans, and anonymous daily funnel counters (`funnel_counts`, read with `npm run funnel`; see the README). Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Once `DATABASE_URL` is set the data lives in Postgres instead; the Supabase free plan has no point-in-time recovery or managed daily backups, so [Supabase](supabase.md#backups) records the backup and restore procedure the deployment owner runs. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
 
@@ -36,6 +36,12 @@ No mail provider is configured and the app has no mail settings. Sign-up needs n
 [server/index.mjs](../server/index.mjs) still binds to `127.0.0.1`. Ingress must reach that listener in the same network namespace, preserve the configured public Host and browser Origin, and terminate HTTPS. Foreign Hosts and Origins remain forbidden; writes require an allowed Origin. Session cookies retain Secure, HttpOnly, and SameSite=Lax.
 
 Set `GYF_TRUSTED_PROXIES` only to the addresses of controlled ingress hops, never a hop count, wildcard, or subnet containing clients. The service walks the forwarding chain from its socket peer, stopping at the first untrusted address. Both application and Better Auth limits use that client address; arbitrary client IP headers cannot override it. Ingress must remove spoofed incoming forwarding headers or append the actual client address, and direct access to the backend must remain restricted. Review local-storage wording for server-hosted storage before release.
+
+IP abuse budgets run before body parsing, authentication checks, and disabled-email responses. [Authentication](../server/index.mjs) has a shared IP budget plus route-specific budgets. [Wardrobe](../server/wardrobe.mjs) uploads and photo reviews share budgets; other writes, including outfit checks, corrections, and starter plans, share separate budgets. Wardrobe IP budgets cover unauthenticated attempts, and authenticated writes also consume account budgets. [Funnel](../server/funnel.mjs) attempts consume an IP budget even when the event is invalid. These implementations own the current thresholds.
+
+The [limiter](../server/rate-limit.mjs) keeps bounded, fixed-window counters in process memory and resets them on restart. It does not persist IP addresses. Exhausted budgets or full counter storage return HTTP 429 with `Retry-After` in seconds. Before adding server replicas, enforce equivalent shared limits at ingress. Better Auth's database-backed limits remain enabled separately.
+
+Responses deny framing through CSP and `X-Frame-Options: DENY`. `Permissions-Policy` disables camera, microphone, geolocation, payment, and USB access; garment photos still use file selection.
 
 `npm test` exercises the real production HTTP service on free ports with disposable Postgres databases and per-run credentials: loopback and public requests, foreign rejection, secure signup cookies, forwarding spoof resistance, separate ingress clients, and invalid startup configuration.
 
