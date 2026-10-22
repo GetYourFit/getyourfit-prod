@@ -5,6 +5,7 @@ import compression from 'compression';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
+import { rateLimit } from './rate-limit.mjs';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { auth, clearLockout, isLockedOut, prepareAuthSchema, recordSignInResult } from './auth.mjs';
 import { audit, closeDatabase, query, reclaimDeletedData, runMigrations } from './database.mjs';
@@ -26,11 +27,13 @@ app.use(helmet({
       baseUri: ["'none'"], frameAncestors: ["'none'"], formAction: ["'self'"],
     },
   },
+  frameguard: { action: 'deny' },
   referrerPolicy: { policy: 'no-referrer' },
   crossOriginEmbedderPolicy: false,
 }));
 app.use((request, response, next) => {
   response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
   if (!allowedHosts.has(request.headers.host?.toLowerCase())) return response.status(403).json({ error: 'This service only accepts configured GetYourFit hosts.' });
   const origin = request.headers.origin;
   if (origin && !allowedOrigins.has(origin)) return response.status(403).json({ error: 'This service only accepts configured GetYourFit origins.' });
@@ -59,6 +62,18 @@ async function requireUser(request, response, next) {
 
 app.use('/api/wardrobe', wardrobeRouter(requireUser));
 app.use('/api/funnel', funnelRouter());
+const authBudget = rateLimit({ max: 30 });
+const signInBudget = rateLimit({ max: 5 });
+const signUpBudget = rateLimit({ max: 5 });
+const recoveryBudget = rateLimit({ max: 3 });
+const resetBudget = rateLimit({ max: 5 });
+app.use('/api/auth', authBudget, (request, response, next) => {
+  const route = request.path.toLowerCase().replace(/\/+$/, '');
+  const budget = { '/sign-in/email': signInBudget, '/sign-up/email': signUpBudget,
+    '/request-password-reset': recoveryBudget, '/reset-password': resetBudget }[route];
+  if (budget) return budget(request, response, next);
+  next();
+});
 app.use(express.json({ limit: '32kb' }));
 
 const emailUnavailable = { status: false, code: 'EMAIL_NOT_AVAILABLE', message: 'Email is not available yet, so password reset links cannot be sent. Changing your password from Account requires your current password. A forgotten password cannot be recovered until email reset is connected, even if you are signed in.' };
@@ -138,14 +153,6 @@ app.use('/api/auth', async (request, response, next) => {
     next(error);
   }
 }, toNodeHandler(auth));
-app.use((error, _request, response, next) => {
-  if (response.headersSent) return next(new Error('Request failed after response headers were sent.'));
-  const type = ['entity.parse.failed', 'entity.too.large'].includes(error?.type) ? error.type : 'internal';
-  const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
-  process.stderr.write(`request failed: ${JSON.stringify({ type, status })}\n`);
-  void audit('request-failed');
-  response.status(500).json({ error: 'Something went wrong on our side. Try again.' });
-});
 
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
   const staticRoot = path.join(root, 'dist');
@@ -156,6 +163,15 @@ if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
     response.sendFile('index.html', { root: staticRoot });
   });
 }
+
+app.use((error, _request, response, next) => {
+  if (response.headersSent) return next(new Error('Request failed after response headers were sent.'));
+  const type = ['entity.parse.failed', 'entity.too.large'].includes(error?.type) ? error.type : 'internal';
+  const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? error.status : 500;
+  process.stderr.write(`request failed: ${JSON.stringify({ type, status })}\n`);
+  void audit('request-failed');
+  response.status(500).json({ error: 'Something went wrong on our side. Try again.' });
+});
 
 await runMigrations();
 await prepareAuthSchema();

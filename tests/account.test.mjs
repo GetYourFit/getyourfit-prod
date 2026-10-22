@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import test from 'node:test';
 import sharp from 'sharp';
+import { postgresDriver } from '../server/db/postgres.mjs';
+import { sqliteDriver } from '../server/db/sqlite.mjs';
 import { backends, inspect, start } from './support/server.mjs';
 
 const facts = { name: 'Tee', category: 'top', color: 'grey', size: 'M', fit: 'fits', owned: true, available: true, weather: ['mild'], dressCode: ['casual'] };
@@ -40,9 +42,22 @@ for (const backend of backends) {
   test(`the 50 garment limit holds under concurrent uploads [${backend}]`, async (t) => {
     const server = await start(t, {}, { backend });
     const wearer = await signUp(server);
-    const results = await Promise.all(Array.from({ length: 56 }, (_, index) => wearer.add({ name: `Tee ${index}` }, 30_000)));
+    const first = await wearer.add();
+    assert.equal(first.status, 201);
+    const fixture = backend === 'sqlite' ? sqliteDriver(server.store.dataDir) : postgresDriver(server.store.database.url);
+    try {
+      for (let index = 1; index < 47; index += 1) {
+        await fixture.query(`INSERT INTO garments (id, user_id, facts, provenance, interpretation, photo, created_at, updated_at)
+          SELECT $1, user_id, facts, provenance, interpretation, photo, created_at, updated_at FROM garments WHERE id = $2`,
+        [randomUUID(), first.body.id]);
+      }
+    } finally {
+      await fixture.close();
+    }
+    assert.equal((await wearer.call({ route: '/api/wardrobe' })).body.length, 47);
+    const results = await Promise.all(Array.from({ length: 9 }, (_, index) => wearer.add({ name: `Tee ${index}` }, 30_000)));
     const statuses = results.map((result) => result.status);
-    assert.equal(statuses.filter((status) => status === 201).length, 50);
+    assert.equal(statuses.filter((status) => status === 201).length, 3);
     assert.equal(statuses.filter((status) => status === 409).length, 6);
     assert.equal((await wearer.call({ route: '/api/wardrobe' })).body.length, 50);
   });

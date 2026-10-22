@@ -73,6 +73,6 @@ export function Outfit({ garments, disabled, revision, onGarmentsChanged }: { ga
         </li>)}</ul>
       </div>}
     </div>
-    {decision && 'excludedCount' in decision && decision.excludedCount > 0 && <div className="correction-note"><p className="caption">{decision.excludedCount} {decision.excludedCount === 1 ? 'item stays' : 'items stay'} excluded for this occasion, weather and dress code. Your correction wins.</p><button className="text-link" disabled={busy} onClick={() => void act(async () => { for (const item of garments ?? []) await wardrobeRequest('/correction', savedSchema, { context, garmentId: item.id, excluded: false }); await decide(); })}>Allow excluded items again</button></div>}
+    {decision && 'excludedCount' in decision && decision.excludedCount > 0 && <div className="correction-note"><p className="caption">{decision.excludedCount} {decision.excludedCount === 1 ? 'item stays' : 'items stay'} excluded for this occasion, weather and dress code. Your correction wins.</p><button className="text-link" disabled={busy} onClick={() => void act(async () => { await wardrobeRequest('/correction/reset', savedSchema, context); await decide(); })}>Allow excluded items again</button></div>}
   </section>;
 }

@@ -7,6 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import express from 'express';
 import sharp from 'sharp';
+import { rateLimit } from './rate-limit.mjs';
 import { asIso, asJson, query, reclaimDeletedData, transaction } from './database.mjs';
 import { contextKey, contextSchema, decideOutfit, exclusionSchema, factsSchema, garmentSchema, interpretationSchema, photoSchema } from '../shared/wardrobe.ts';
 import { buildStarterRoles, confirmStarterRole, starterSaveSchema, starterPlanActionSchema, starterPlanSchema, starterInputSchema, withCarriedLook, PLAN_ACCOUNT_MISMATCH } from '../shared/starter-plan.ts';
@@ -89,7 +90,21 @@ async function classify(photo) {
 
 export function wardrobeRouter(requireUser) {
   const router = express.Router();
-  router.use(requireUser, express.json({ limit: '2mb' }));
+  const uploadIPBudget = rateLimit({ max: 30 });
+  const uploadUserBudget = rateLimit({ max: 10, key: (request) => request.user.id });
+  const writeIPBudget = rateLimit({ max: 60 });
+  const writeUserBudget = rateLimit({ max: 30, key: (request) => request.user.id });
+  const uploadRequest = (request) => request.method === 'POST' && ['/', '/review'].includes(request.path.toLowerCase().replace(/\/+$/, '') || '/');
+  router.use((request, response, next) => {
+    if (uploadRequest(request)) return uploadIPBudget(request, response, next);
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return writeIPBudget(request, response, next);
+    next();
+  });
+  router.use(requireUser, (request, response, next) => {
+    if (uploadRequest(request)) return uploadUserBudget(request, response, next);
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return writeUserBudget(request, response, next);
+    next();
+  }, express.json({ limit: '2mb' }));
   router.get('/', async (request, response) => response.json((await listRows(request.user.id)).map(garment)));
   router.post('/review', async (request, response) => {
     const photo = await decodePhoto(request.body);
@@ -160,6 +175,12 @@ export function wardrobeRouter(requireUser) {
     if (!(await query('SELECT id FROM garments WHERE id = $1 AND user_id = $2', [garmentId, request.user.id])).rows.length) return response.status(404).json({ error: 'This garment is not in your wardrobe.' });
     if (excluded) await query('INSERT INTO outfit_exclusions (user_id, garment_id, context, recorded_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING', [request.user.id, garmentId, contextKey(context), new Date().toISOString()]);
     else await query('DELETE FROM outfit_exclusions WHERE user_id = $1 AND garment_id = $2 AND context = $3', [request.user.id, garmentId, contextKey(context)]);
+    response.json({ saved: true });
+  });
+  router.post('/correction/reset', async (request, response) => {
+    const context = contextSchema.safeParse(request.body);
+    if (!context.success) return response.status(400).json({ error: 'Choose an outfit context to correct.' });
+    await query('DELETE FROM outfit_exclusions WHERE user_id = $1 AND context = $2', [request.user.id, contextKey(context.data)]);
     response.json({ saved: true });
   });
   router.get('/starter-plans', async (request, response) => response.json(await listStarterPlans(request.user.id)));

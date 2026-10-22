@@ -25,7 +25,7 @@ Preconditions:
 
 - **Create.** Choose Create an account, enter a name, email, and password of at least 12 characters, confirm the 18+ statement, and choose Create account. The wardrobe appears without a mail link. Signup without consent must fail.
 - **Sign in.** Sign out and use the same credentials. An incorrect password fails. Restart the service with the same database and key; the existing session must still work.
-- **Recovery boundary.** Choose Forgot password? on the sign-in page: it says reset links cannot be emailed yet. The reset and verification API routes return 503 EMAIL_NOT_AVAILABLE and create no token. While signed in, Account > Change password takes the current password and a new one.
+- **Recovery boundary.** Choose Forgot password? on the sign-in page: it says reset links cannot be emailed yet. See [Email](../../../../docs/supabase.md#email) for the reset and verification API response contract; these routes create no token. While signed in, Account > Change password takes the current password and a new one.
 - **TOTP.** Enter the password and choose Set up authenticator. Confirm an invalid code fails and a current code works. Restart with the retained key, then sign out and prove sign-in requests the second code.
 
 ## Gotchas
