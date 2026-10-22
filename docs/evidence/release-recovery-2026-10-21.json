@@ -1,0 +1,164 @@
+{
+  "schema": "gyf-release-recovery-evidence/v1",
+  "observedOn": "2026-10-21",
+  "provenance": "Sanitized projection of recorded machine results and browser snapshots; not a new execution.",
+  "scope": {
+    "runtime": "isolated local production builds using SQLite",
+    "data": "disposable synthetic accounts and three licensed garment fixtures",
+    "productionDeploymentProven": false,
+    "globalAvailabilityProven": false,
+    "postgresRestorationProven": false
+  },
+  "identities": {
+    "backupSourceRevision": "4010add254ff602a16b7bc1aed8aaea9243f74e0",
+    "testedCandidateRevision": "7b31abed36090adaa01f82a88f1bf2ffc35b2819",
+    "compatibleRollbackRevision": "b6977251d5da58b88718005a9ccca02412ea3c63",
+    "incompatiblePriorRevision": "c7f5720352d169f0e3281b1eff94d8772a6bc823"
+  },
+  "backup": {
+    "method": "SQLite online backup API",
+    "integrity": "ok",
+    "sha256": "4341730f05f9ebfa388b7dc5edf0f1f1ab77fc04ef2507c636502f649f3cce4c"
+  },
+  "compatibleRollback": {
+    "source": "compatible-rollback.json",
+    "revision": "b6977251d5da58b88718005a9ccca02412ea3c63",
+    "signin": true,
+    "export": true,
+    "savedLook": 4,
+    "photoIntegrity": true,
+    "outfitMatchesCandidate": true,
+    "databaseIntegrity": "ok",
+    "backupUnchanged": true,
+    "browser": {
+      "selectedLook4": true,
+      "garmentCount": 3
+    }
+  },
+  "initialRestoration": {
+    "source": "rehearsal.json",
+    "revision": "4010add254ff602a16b7bc1aed8aaea9243f74e0",
+    "exportedRecordsAndOutfitMatchBackupSource": true,
+    "browser": {
+      "selectedLook4": true,
+      "garmentCount": 3
+    }
+  },
+  "finalRestoration": {
+    "source": "final-candidate.json",
+    "revision": "7b31abed36090adaa01f82a88f1bf2ffc35b2819",
+    "signin": true,
+    "export": true,
+    "savedLook": 4,
+    "photoIntegrity": true,
+    "outfitMatchesCandidate": true,
+    "databaseIntegrity": "ok",
+    "backupUnchanged": true,
+    "browser": {
+      "selectedLook4": true,
+      "garmentCount": 3
+    }
+  },
+  "incompatibleRollback": {
+    "source": "rehearsal.json",
+    "revision": "c7f5720352d169f0e3281b1eff94d8772a6bc823",
+    "compatible": false,
+    "exportHttpStatus": 500,
+    "databaseIntegrity": "ok",
+    "rawPlanInputRetained": true
+  },
+  "candidateAcceptance": {
+    "source": "final-acceptance/report.json",
+    "revision": "7b31abed36090adaa01f82a88f1bf2ffc35b2819",
+    "worktreeClean": true,
+    "artifact": "production-build",
+    "runtime": "production-start",
+    "startedAt": "2026-10-21T04:07:38.783Z",
+    "summary": {
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    "cases": [
+      {
+        "name": "V02 visible text meets WCAG AA contrast on phone and desktop",
+        "status": "passed"
+      },
+      {
+        "name": "V01 browser signup, real photo, clarification and exact refresh",
+        "status": "passed"
+      },
+      {
+        "name": "V02 public outfit example leads to private signup by keyboard",
+        "status": "passed"
+      },
+      {
+        "name": "V01 API signup creates a usable private session without mail",
+        "status": "passed"
+      },
+      {
+        "name": "V01 wrong and unknown credentials are refused without enumeration",
+        "status": "passed"
+      },
+      {
+        "name": "V01 API real photo persists and invalid uploads are refused",
+        "status": "passed"
+      },
+      {
+        "name": "V01 API explicit facts return a complete explained outfit from owned garments",
+        "status": "passed"
+      },
+      {
+        "name": "V01 one owned shirt does not fabricate a complete outfit",
+        "status": "passed"
+      },
+      {
+        "name": "V01 unknown weather or dress code requests one fact or abstains",
+        "status": "passed"
+      },
+      {
+        "name": "V03 zero-garment starter plan saves honest needs, replaces and rejects separately from owned clothes",
+        "status": "passed"
+      },
+      {
+        "name": "V04 zero-garment India shopping links disclose commission, carry no private data and abstain honestly",
+        "status": "passed"
+      },
+      {
+        "name": "V01 users and anonymous sessions cannot access private garments or photos",
+        "status": "passed"
+      }
+    ]
+  },
+  "originalRecordDigests": [
+    {
+      "name": "rehearsal.json",
+      "sha256": "4e1dc8ea16dcb92870470d4dba43344ffc244187ea0c11b240b9669e8afae1e0"
+    },
+    {
+      "name": "compatible-rollback.json",
+      "sha256": "5b20b85ec624997a2018a9948ba3c02843402a38536c9d8ba83dd18b0f1bdbf5"
+    },
+    {
+      "name": "final-candidate.json",
+      "sha256": "d16368fbcef391f9f69a114b181473315da4fb7a52f3c6c86fc6e2935cc95e25"
+    },
+    {
+      "name": "final-acceptance/report.json",
+      "sha256": "9fddcb86d49ccf3398ae85ef97078ea25ae7bdf603403b20c5470a0bcf22d37a"
+    },
+    {
+      "name": "compatible-rollback-browser.txt",
+      "sha256": "6d5094ac294cee4d9c1d496d8c42d4dafb7c8798197484042369d9328e29882e"
+    },
+    {
+      "name": "restored-browser.txt",
+      "sha256": "6f3b4ca1d8e665030047143ab695fdf6cef25fec814c09d5563317777cfb1a8d"
+    },
+    {
+      "name": "final-browser.txt",
+      "sha256": "c7d99b901603031777e7181657ca84429d93ab1e309f62773f3fd7ba14cac54f"
+    }
+  ]
+}
