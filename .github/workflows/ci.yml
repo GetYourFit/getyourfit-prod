@@ -26,6 +26,9 @@ jobs:
     env:
       GYF_TEST_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
       GYF_DATABASE_SSL: disable
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
