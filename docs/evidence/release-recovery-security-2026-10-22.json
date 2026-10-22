@@ -1,0 +1,1179 @@
+{
+  "schema": "gyf-security-preserving-recovery/v1",
+  "result": "passed",
+  "startedAt": "2026-10-22T20:40:16.132Z",
+  "completedAt": "2026-10-22T20:40:35.983Z",
+  "scope": {
+    "runtime": "isolated local production builds; SQLite",
+    "data": "random disposable synthetic account; three CC0 garment fixtures",
+    "fixtureLicenses": "../../tests/fixtures/README.md",
+    "classificationAccuracyTested": false,
+    "productionMutation": false,
+    "productionDeploymentProven": false,
+    "globalAvailabilityProven": false,
+    "postgresRestorationProven": false
+  },
+  "ancestry": {
+    "liveMainAtStart": "1bf4224f678304fc530d1efa30688992c52b81de",
+    "liveMainAtCompletion": "1bf4224f678304fc530d1efa30688992c52b81de",
+    "baselineRevision": "1bf4224f678304fc530d1efa30688992c52b81de",
+    "baselineIsLiveMergedMain": true,
+    "baselineAncestorOfCandidate": true,
+    "ancestryCheck": "git merge-base --is-ancestor BASELINE CANDIDATE",
+    "remoteObservation": "git ls-remote origin refs/heads/main"
+  },
+  "executableIdentity": {
+    "candidate": {
+      "revision": "6afda4c3ef591c9a17d331a7b9e4e44737448afd",
+      "gitTree": "e3121aa30579946625715817c7a73d0b207d3587",
+      "trackedNonDocumentationInputCount": 209,
+      "trackedNonDocumentationInputsSha256": "bad368031632e71cd820b18eda827a274e87efa846a433e6f19cd75752513449"
+    },
+    "baseline": {
+      "revision": "1bf4224f678304fc530d1efa30688992c52b81de",
+      "gitTree": "7375540ced8a0e9bf776a024e0de214d181caaef",
+      "trackedNonDocumentationInputCount": 205,
+      "trackedNonDocumentationInputsSha256": "0d705f1f9f587397ef450978a5ed938ab72390118f79e277a4213564cba9ae41"
+    },
+    "fingerprintEncoding": "SHA-256 of UTF-8 JSON array of {path,mode,type,blob} from git ls-tree -r -z --full-tree REVISION, in Git order, excluding docs/ and paths ending .md; every file also checked against its Git blob",
+    "workingCopyMatchesCandidateInputs": true,
+    "candidateSnapshotMatchesGitInputs": true,
+    "baselineSnapshotMatchesGitInputs": true
+  },
+  "builds": {
+    "command": "npm run build",
+    "candidateReleaseMetadata": {
+      "revision": "6afda4c3ef591c9a17d331a7b9e4e44737448afd",
+      "modified": false
+    },
+    "candidateBuiltFiles": {
+      "fileCount": 46,
+      "sha256": "85f6f2eb6d6b3b0896d26b0ae4f1d99c79faf485c1d9ff4e1d7abdd7bfc5876e",
+      "files": [
+        {
+          "path": "assets/AccountApp-CeeVfaeW.js",
+          "sha256": "74881f1468e0a1d8a4b15777b04a1366abf2dd2dfbffbfdfbae5af1f46d382c7"
+        },
+        {
+          "path": "assets/classification.worker-D3ROweAD.js",
+          "sha256": "e6e9f75fcd0f25cef23f1dd3713c61d81dd2ee690f3d988a791e834d47130b85"
+        },
+        {
+          "path": "assets/index-BZGRae1h.js",
+          "sha256": "be48de57c2d309e1ef72dc1c55407c4a7dc4280df4a05f66f5f7321d3ef888a9"
+        },
+        {
+          "path": "assets/index-YrB5uuuG.css",
+          "sha256": "609f2e45443b4f83f0159c9cc84855854432e1fdf3ffe492fb2e6baddce8f497"
+        },
+        {
+          "path": "assets/ort-wasm-simd-threaded.jsep-B0T3yYHD.wasm",
+          "sha256": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39"
+        },
+        {
+          "path": "assets/OutfitBoard-VEFlgqpL.js",
+          "sha256": "f02aa32ec9fca2374f161c96361052f5d8412e183b9b7d6a0db1a3e5e74fc1d5"
+        },
+        {
+          "path": "assets/PlanPage-v-3l0b4_.js",
+          "sha256": "b9c2b09d8da6ab228c812a6db347cf9f8cf73d513212cf1173f75cd3c35e7656"
+        },
+        {
+          "path": "example/boots-360.webp",
+          "sha256": "f0e72c70027772693ede222dd587f843b15d264e7d054c277d931be1d866addb"
+        },
+        {
+          "path": "example/boots-600.webp",
+          "sha256": "d0d6de16f326c80efc29481ad5e107786507b516d15d1dc2d860193f79b70857"
+        },
+        {
+          "path": "example/boots.webp",
+          "sha256": "0f791d55e765b63726ec1c7d85914c418ffb740a1428c7e50fa817be0c894769"
+        },
+        {
+          "path": "example/dress-blue-360.webp",
+          "sha256": "47c790d98fc4735b5d69457f016bc71f682cbb538fe8ad958826bc35811942c7"
+        },
+        {
+          "path": "example/dress-blue-600.webp",
+          "sha256": "b36dbf20982dca69c717dc2a19f8579004f2f4da348da01db229169eec7eaa6a"
+        },
+        {
+          "path": "example/dress-blue.webp",
+          "sha256": "135c5eb394b25a5244d61329cd951c2f410a15f3407c21fde15195cb82f7f622"
+        },
+        {
+          "path": "example/dress-silk-360.webp",
+          "sha256": "6264110ffcf6029cd100454895c2e71b5b585d9c80d579e66f7335f737eb3bda"
+        },
+        {
+          "path": "example/dress-silk-600.webp",
+          "sha256": "d6d3241e29e8ed105bded86864be4095bbbd7d5afef4bd27d7b554b18577efd0"
+        },
+        {
+          "path": "example/dress-silk.webp",
+          "sha256": "2e4fd31fe481630d69f4044f5cb7549bd6425fa1b403a599cfbe29e88a2c8140"
+        },
+        {
+          "path": "example/oxfords-360.webp",
+          "sha256": "ee3a14f2d9a18a1c2057aa65afaaad8c9277ed60c05f47ae5b0b19532b330902"
+        },
+        {
+          "path": "example/oxfords-600.webp",
+          "sha256": "1fd6de453ecd75baad709074b72fde176e4e704fa0ed2c5d4ba2e8ee3b3f2196"
+        },
+        {
+          "path": "example/oxfords.webp",
+          "sha256": "000cdadbcca68d87468ab4e8ea0592381620942395460297c0c8b92c413485ad"
+        },
+        {
+          "path": "example/provenance.json",
+          "sha256": "0cdc43e6b8e9edc730f70cfd52818845f52576d93d13c9a357d917bff262b521"
+        },
+        {
+          "path": "example/pumps-360.webp",
+          "sha256": "3b53e23ebfedfae7c36bd8a574e0dde4f31a5a7488d37dea34b2ce082ed4a4c3"
+        },
+        {
+          "path": "example/pumps-600.webp",
+          "sha256": "887e3de7cede45d72deb588e65210d41dfa93388d186139258c98ef9ab12d8ee"
+        },
+        {
+          "path": "example/pumps.webp",
+          "sha256": "5acffff3c5538f7a8cad2b298783a21d8b3cdd7ffff8a4656b602f22c04e3a2c"
+        },
+        {
+          "path": "example/shirt-360.webp",
+          "sha256": "d395294ff0893bff6a8c1d30674d6428a3bf0fa029b65eea3594cac113847d59"
+        },
+        {
+          "path": "example/shirt-600.webp",
+          "sha256": "a589fa715e54fd79af5b12a9cc1f9787d9a42273a8bace90423cb3702fe93e43"
+        },
+        {
+          "path": "example/shirt.webp",
+          "sha256": "a11b180db75181b37d617761bfcf25c8882f4d197c32d4e56a07f938927bbe6c"
+        },
+        {
+          "path": "example/sweater-360.webp",
+          "sha256": "11f5842c9f86458765ae9ad9bb4fc0578c4b7599699fa2b3e51e1e9bbdc3b7ea"
+        },
+        {
+          "path": "example/sweater-600.webp",
+          "sha256": "4078186fed6ec559e9cf5d887be12474a2b69f88f3fedac2f54e840f1e0e1a7e"
+        },
+        {
+          "path": "example/sweater.webp",
+          "sha256": "80b05c26297f32902d0dc916b87bfb964a90ce9b92f41d8a8630179cfcb01225"
+        },
+        {
+          "path": "example/trousers-360.webp",
+          "sha256": "e5d8d1a57352feb094e109bcab33cf9b280d63894d5d757264a640b493d42c90"
+        },
+        {
+          "path": "example/trousers-600.webp",
+          "sha256": "ef84e5cddae153fa83d1134303d057e941334e89d25f24b40c89bf87836e7c08"
+        },
+        {
+          "path": "example/trousers-tan-360.webp",
+          "sha256": "5359e7d701dfa78eeee9fb61d617db4bd360e2f6b6d54696ac62e376333d2d8e"
+        },
+        {
+          "path": "example/trousers-tan-600.webp",
+          "sha256": "d0f498a366345ebad5a98e113db86d147efa242f092873c262b5329210d0b912"
+        },
+        {
+          "path": "example/trousers-tan.webp",
+          "sha256": "65e85b2004591081654fa234a62bc99468ea0fe6fc9001bd5a366bf095859e26"
+        },
+        {
+          "path": "example/trousers.webp",
+          "sha256": "5ddc72a311917ed86287698109cdfa8781c84394dfa09508f94ca6a62298447b"
+        },
+        {
+          "path": "favicon.svg",
+          "sha256": "adcf2af84ad646fab2a99b3fd87e50b3d006a15eacdd7de8033a2e99bdb56dbb"
+        },
+        {
+          "path": "fonts/manrope-FONTLOG.txt",
+          "sha256": "b6b54bcc1dbd1b18d5afd087ec0b578097644b1c9ec3e0a642d4df7808f449c2"
+        },
+        {
+          "path": "fonts/manrope-latin.woff2",
+          "sha256": "e310b55a7fd9677f5e3555e6c6c4d064fa1f1d24393f0ddbe217cea12a8c432f"
+        },
+        {
+          "path": "fonts/manrope-OFL.txt",
+          "sha256": "58172e0c0fac2cda8a37b348164bb55e44b0e69051e557e92b1d3f6910141f7b"
+        },
+        {
+          "path": "fonts/provenance.json",
+          "sha256": "ff93ff801d1b89bc16be132cb5a1583dddb7c5dcc02162ac7e3fc1159e67ad3f"
+        },
+        {
+          "path": "index.html",
+          "sha256": "8e34daf6826f2c123e502724564ec24446ab0318d6b52d31d3f94fada0430069"
+        },
+        {
+          "path": "onnx/ort-wasm-simd-threaded.jsep.mjs",
+          "sha256": "08fb86ec433c78bfb032c5d84a68b8e8e5a8d81268fa39e24314179a5767a5b9"
+        },
+        {
+          "path": "onnx/ort-wasm-simd-threaded.jsep.wasm",
+          "sha256": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39"
+        },
+        {
+          "path": "recognition-licenses.txt",
+          "sha256": "a855050a04d16a5650a2cd3a30e4191c178edb3fb4b18fee252867e9bdfff2db"
+        },
+        {
+          "path": "release.json",
+          "sha256": "75b79e44d107751bac8a261955722161c02a5a91be095c1a7b79480c9724d7c8"
+        },
+        {
+          "path": "robots.txt",
+          "sha256": "8cf5251a50adfc27aaab98822ed7ff3c5090300b43b8ff40152765fc837c3231"
+        }
+      ]
+    },
+    "baselineBuiltFiles": {
+      "fileCount": 45,
+      "sha256": "6485c8b61559c3419c4198ee7db2cf9b97e464ff93961dd74fcb93d073b868ec",
+      "files": [
+        {
+          "path": "assets/AccountApp-CeeVfaeW.js",
+          "sha256": "74881f1468e0a1d8a4b15777b04a1366abf2dd2dfbffbfdfbae5af1f46d382c7"
+        },
+        {
+          "path": "assets/classification.worker-D3ROweAD.js",
+          "sha256": "e6e9f75fcd0f25cef23f1dd3713c61d81dd2ee690f3d988a791e834d47130b85"
+        },
+        {
+          "path": "assets/index-BZGRae1h.js",
+          "sha256": "be48de57c2d309e1ef72dc1c55407c4a7dc4280df4a05f66f5f7321d3ef888a9"
+        },
+        {
+          "path": "assets/index-YrB5uuuG.css",
+          "sha256": "609f2e45443b4f83f0159c9cc84855854432e1fdf3ffe492fb2e6baddce8f497"
+        },
+        {
+          "path": "assets/ort-wasm-simd-threaded.jsep-B0T3yYHD.wasm",
+          "sha256": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39"
+        },
+        {
+          "path": "assets/OutfitBoard-VEFlgqpL.js",
+          "sha256": "f02aa32ec9fca2374f161c96361052f5d8412e183b9b7d6a0db1a3e5e74fc1d5"
+        },
+        {
+          "path": "assets/PlanPage-v-3l0b4_.js",
+          "sha256": "b9c2b09d8da6ab228c812a6db347cf9f8cf73d513212cf1173f75cd3c35e7656"
+        },
+        {
+          "path": "example/boots-360.webp",
+          "sha256": "f0e72c70027772693ede222dd587f843b15d264e7d054c277d931be1d866addb"
+        },
+        {
+          "path": "example/boots-600.webp",
+          "sha256": "d0d6de16f326c80efc29481ad5e107786507b516d15d1dc2d860193f79b70857"
+        },
+        {
+          "path": "example/boots.webp",
+          "sha256": "0f791d55e765b63726ec1c7d85914c418ffb740a1428c7e50fa817be0c894769"
+        },
+        {
+          "path": "example/dress-blue-360.webp",
+          "sha256": "47c790d98fc4735b5d69457f016bc71f682cbb538fe8ad958826bc35811942c7"
+        },
+        {
+          "path": "example/dress-blue-600.webp",
+          "sha256": "b36dbf20982dca69c717dc2a19f8579004f2f4da348da01db229169eec7eaa6a"
+        },
+        {
+          "path": "example/dress-blue.webp",
+          "sha256": "135c5eb394b25a5244d61329cd951c2f410a15f3407c21fde15195cb82f7f622"
+        },
+        {
+          "path": "example/dress-silk-360.webp",
+          "sha256": "6264110ffcf6029cd100454895c2e71b5b585d9c80d579e66f7335f737eb3bda"
+        },
+        {
+          "path": "example/dress-silk-600.webp",
+          "sha256": "d6d3241e29e8ed105bded86864be4095bbbd7d5afef4bd27d7b554b18577efd0"
+        },
+        {
+          "path": "example/dress-silk.webp",
+          "sha256": "2e4fd31fe481630d69f4044f5cb7549bd6425fa1b403a599cfbe29e88a2c8140"
+        },
+        {
+          "path": "example/oxfords-360.webp",
+          "sha256": "ee3a14f2d9a18a1c2057aa65afaaad8c9277ed60c05f47ae5b0b19532b330902"
+        },
+        {
+          "path": "example/oxfords-600.webp",
+          "sha256": "1fd6de453ecd75baad709074b72fde176e4e704fa0ed2c5d4ba2e8ee3b3f2196"
+        },
+        {
+          "path": "example/oxfords.webp",
+          "sha256": "000cdadbcca68d87468ab4e8ea0592381620942395460297c0c8b92c413485ad"
+        },
+        {
+          "path": "example/provenance.json",
+          "sha256": "0cdc43e6b8e9edc730f70cfd52818845f52576d93d13c9a357d917bff262b521"
+        },
+        {
+          "path": "example/pumps-360.webp",
+          "sha256": "3b53e23ebfedfae7c36bd8a574e0dde4f31a5a7488d37dea34b2ce082ed4a4c3"
+        },
+        {
+          "path": "example/pumps-600.webp",
+          "sha256": "887e3de7cede45d72deb588e65210d41dfa93388d186139258c98ef9ab12d8ee"
+        },
+        {
+          "path": "example/pumps.webp",
+          "sha256": "5acffff3c5538f7a8cad2b298783a21d8b3cdd7ffff8a4656b602f22c04e3a2c"
+        },
+        {
+          "path": "example/shirt-360.webp",
+          "sha256": "d395294ff0893bff6a8c1d30674d6428a3bf0fa029b65eea3594cac113847d59"
+        },
+        {
+          "path": "example/shirt-600.webp",
+          "sha256": "a589fa715e54fd79af5b12a9cc1f9787d9a42273a8bace90423cb3702fe93e43"
+        },
+        {
+          "path": "example/shirt.webp",
+          "sha256": "a11b180db75181b37d617761bfcf25c8882f4d197c32d4e56a07f938927bbe6c"
+        },
+        {
+          "path": "example/sweater-360.webp",
+          "sha256": "11f5842c9f86458765ae9ad9bb4fc0578c4b7599699fa2b3e51e1e9bbdc3b7ea"
+        },
+        {
+          "path": "example/sweater-600.webp",
+          "sha256": "4078186fed6ec559e9cf5d887be12474a2b69f88f3fedac2f54e840f1e0e1a7e"
+        },
+        {
+          "path": "example/sweater.webp",
+          "sha256": "80b05c26297f32902d0dc916b87bfb964a90ce9b92f41d8a8630179cfcb01225"
+        },
+        {
+          "path": "example/trousers-360.webp",
+          "sha256": "e5d8d1a57352feb094e109bcab33cf9b280d63894d5d757264a640b493d42c90"
+        },
+        {
+          "path": "example/trousers-600.webp",
+          "sha256": "ef84e5cddae153fa83d1134303d057e941334e89d25f24b40c89bf87836e7c08"
+        },
+        {
+          "path": "example/trousers-tan-360.webp",
+          "sha256": "5359e7d701dfa78eeee9fb61d617db4bd360e2f6b6d54696ac62e376333d2d8e"
+        },
+        {
+          "path": "example/trousers-tan-600.webp",
+          "sha256": "d0f498a366345ebad5a98e113db86d147efa242f092873c262b5329210d0b912"
+        },
+        {
+          "path": "example/trousers-tan.webp",
+          "sha256": "65e85b2004591081654fa234a62bc99468ea0fe6fc9001bd5a366bf095859e26"
+        },
+        {
+          "path": "example/trousers.webp",
+          "sha256": "5ddc72a311917ed86287698109cdfa8781c84394dfa09508f94ca6a62298447b"
+        },
+        {
+          "path": "favicon.svg",
+          "sha256": "adcf2af84ad646fab2a99b3fd87e50b3d006a15eacdd7de8033a2e99bdb56dbb"
+        },
+        {
+          "path": "fonts/manrope-FONTLOG.txt",
+          "sha256": "b6b54bcc1dbd1b18d5afd087ec0b578097644b1c9ec3e0a642d4df7808f449c2"
+        },
+        {
+          "path": "fonts/manrope-latin.woff2",
+          "sha256": "e310b55a7fd9677f5e3555e6c6c4d064fa1f1d24393f0ddbe217cea12a8c432f"
+        },
+        {
+          "path": "fonts/manrope-OFL.txt",
+          "sha256": "58172e0c0fac2cda8a37b348164bb55e44b0e69051e557e92b1d3f6910141f7b"
+        },
+        {
+          "path": "fonts/provenance.json",
+          "sha256": "ff93ff801d1b89bc16be132cb5a1583dddb7c5dcc02162ac7e3fc1159e67ad3f"
+        },
+        {
+          "path": "index.html",
+          "sha256": "8e34daf6826f2c123e502724564ec24446ab0318d6b52d31d3f94fada0430069"
+        },
+        {
+          "path": "onnx/ort-wasm-simd-threaded.jsep.mjs",
+          "sha256": "08fb86ec433c78bfb032c5d84a68b8e8e5a8d81268fa39e24314179a5767a5b9"
+        },
+        {
+          "path": "onnx/ort-wasm-simd-threaded.jsep.wasm",
+          "sha256": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39"
+        },
+        {
+          "path": "recognition-licenses.txt",
+          "sha256": "a855050a04d16a5650a2cd3a30e4191c178edb3fb4b18fee252867e9bdfff2db"
+        },
+        {
+          "path": "robots.txt",
+          "sha256": "8cf5251a50adfc27aaab98822ed7ff3c5090300b43b8ff40152765fc837c3231"
+        }
+      ]
+    },
+    "baselineReleaseEndpointStatus": 404,
+    "baselineIdentityMethod": "exact Git archive; all tracked non-documentation input blobs checked before build; built-file digest manifest",
+    "candidateCopiedBuildMatchesOriginal": true
+  },
+  "releaseProbe": {
+    "exactRevision": "6afda4c3ef591c9a17d331a7b9e4e44737448afd",
+    "runningIdentity": {
+      "revision": "6afda4c3ef591c9a17d331a7b9e4e44737448afd",
+      "modified": false
+    },
+    "noStore": true,
+    "expectedRevisionExit": 0,
+    "wrongRevisionExit": 1,
+    "restoredRunningIdentityMatches": true
+  },
+  "backup": {
+    "sourceRevision": "6afda4c3ef591c9a17d331a7b9e4e44737448afd",
+    "method": "SQLite online backup API",
+    "integrity": "ok",
+    "sha256": "d20f77f9d56372607b343da0ce840818a20f9df1caebd25a1d3a88735eacd6b6",
+    "originalBytesUnchanged": true,
+    "productionDataUsed": false,
+    "separateCopiesForRollbackAndRestoration": true
+  },
+  "candidate": {
+    "revision": "6afda4c3ef591c9a17d331a7b9e4e44737448afd",
+    "signin": true,
+    "preBackupSessionRetained": true,
+    "accountExport": true,
+    "fullExportRecordsMatchCandidate": "comparison source",
+    "selectedLook": 4,
+    "garmentCount": 3,
+    "originalPhotoByteEquality": true,
+    "storedPhotoSha256": [
+      "7864121900a1cb63a6ffff70d41fd911071020a4719871bca3d8ef92cd5eff27",
+      "0ca6b86c2b71b36a7498e81c1c1977c94c1579364b4a113c24bc5fdcc65aee2d",
+      "09c9942372b2fc712951bf5f52836bfd3971fb16be22573a5ac38fd676d0423f"
+    ],
+    "ownedOutfit": "complete",
+    "outfitMatchesCandidate": "comparison source",
+    "correctionExcludesItem": true,
+    "correctionResetRestoresOutfit": true,
+    "anonymousPhotoStatus": 401,
+    "databaseIntegrity": "ok",
+    "browser": {
+      "engine": "Chromium",
+      "signin": true,
+      "selectedLook4AfterReload": true,
+      "storedGarmentPhotosLoaded": 3,
+      "ownedOutfitVisible": true,
+      "viewportWidthsWithoutOverflow": [
+        1440,
+        390
+      ],
+      "pageErrors": 0,
+      "externalRequestsBlocked": true
+    }
+  },
+  "rollback": {
+    "revision": "1bf4224f678304fc530d1efa30688992c52b81de",
+    "signin": true,
+    "preBackupSessionRetained": true,
+    "accountExport": true,
+    "fullExportRecordsMatchCandidate": true,
+    "selectedLook": 4,
+    "garmentCount": 3,
+    "originalPhotoByteEquality": true,
+    "storedPhotoSha256": [
+      "7864121900a1cb63a6ffff70d41fd911071020a4719871bca3d8ef92cd5eff27",
+      "0ca6b86c2b71b36a7498e81c1c1977c94c1579364b4a113c24bc5fdcc65aee2d",
+      "09c9942372b2fc712951bf5f52836bfd3971fb16be22573a5ac38fd676d0423f"
+    ],
+    "ownedOutfit": "complete",
+    "outfitMatchesCandidate": true,
+    "correctionExcludesItem": true,
+    "correctionResetRestoresOutfit": true,
+    "anonymousPhotoStatus": 401,
+    "databaseIntegrity": "ok",
+    "browser": {
+      "engine": "Chromium",
+      "signin": true,
+      "selectedLook4AfterReload": true,
+      "storedGarmentPhotosLoaded": 3,
+      "ownedOutfitVisible": true,
+      "viewportWidthsWithoutOverflow": [
+        1440,
+        390
+      ],
+      "pageErrors": 0,
+      "externalRequestsBlocked": true
+    }
+  },
+  "restoration": {
+    "revision": "6afda4c3ef591c9a17d331a7b9e4e44737448afd",
+    "signin": true,
+    "preBackupSessionRetained": true,
+    "accountExport": true,
+    "fullExportRecordsMatchCandidate": true,
+    "selectedLook": 4,
+    "garmentCount": 3,
+    "originalPhotoByteEquality": true,
+    "storedPhotoSha256": [
+      "7864121900a1cb63a6ffff70d41fd911071020a4719871bca3d8ef92cd5eff27",
+      "0ca6b86c2b71b36a7498e81c1c1977c94c1579364b4a113c24bc5fdcc65aee2d",
+      "09c9942372b2fc712951bf5f52836bfd3971fb16be22573a5ac38fd676d0423f"
+    ],
+    "ownedOutfit": "complete",
+    "outfitMatchesCandidate": true,
+    "correctionExcludesItem": true,
+    "correctionResetRestoresOutfit": true,
+    "anonymousPhotoStatus": 401,
+    "databaseIntegrity": "ok",
+    "browser": {
+      "engine": "Chromium",
+      "signin": true,
+      "selectedLook4AfterReload": true,
+      "storedGarmentPhotosLoaded": 3,
+      "ownedOutfitVisible": true,
+      "viewportWidthsWithoutOverflow": [
+        1440,
+        390
+      ],
+      "pageErrors": 0,
+      "externalRequestsBlocked": true
+    }
+  },
+  "securityControls": {
+    "candidate": {
+      "authBudgetData": "fresh disposable SQLite database; production limits unchanged",
+      "auth": [
+        {
+          "route": "/api/auth/sign-up/email",
+          "statuses": [
+            400,
+            400,
+            400,
+            400,
+            400,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/sign-in/email",
+          "statuses": [
+            401,
+            401,
+            401,
+            401,
+            401,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/request-password-reset",
+          "statuses": [
+            503,
+            503,
+            503,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/reset-password",
+          "statuses": [
+            503,
+            503,
+            503,
+            503,
+            503,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/*",
+          "aggregateLimit": 30,
+          "remainingStatuses": [
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            429
+          ],
+          "retryAfterPositive": true
+        }
+      ],
+      "errors": [
+        {
+          "route": "/index.html",
+          "method": "GET",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/index.html",
+          "method": "HEAD",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/sign-in",
+          "method": "GET",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/sign-in",
+          "method": "HEAD",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/api/session",
+          "method": "POST",
+          "input": "malformed JSON",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        }
+      ],
+      "authenticatedSharedUpload": {
+        "attempts": [
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 429
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 429
+          }
+        ],
+        "max": 10,
+        "oversizedBodiesDeniedBeforeParsing": true,
+        "forgedClientHeadersDoNotBypass": true,
+        "retryAfterPositive": true
+      },
+      "anonymousSharedUpload": {
+        "alternatingRoutes": [
+          "/api/wardrobe",
+          "/api/wardrobe/review"
+        ],
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          429,
+          429
+        ],
+        "max": 30,
+        "oversizedBodiesDeniedBeforeAuthenticationAndParsing": true,
+        "forgedClientHeadersDoNotBypass": true,
+        "retryAfterPositive": true
+      }
+    },
+    "rollback": {
+      "authBudgetData": "fresh disposable SQLite database; production limits unchanged",
+      "auth": [
+        {
+          "route": "/api/auth/sign-up/email",
+          "statuses": [
+            400,
+            400,
+            400,
+            400,
+            400,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/sign-in/email",
+          "statuses": [
+            401,
+            401,
+            401,
+            401,
+            401,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/request-password-reset",
+          "statuses": [
+            503,
+            503,
+            503,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/reset-password",
+          "statuses": [
+            503,
+            503,
+            503,
+            503,
+            503,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/*",
+          "aggregateLimit": 30,
+          "remainingStatuses": [
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            429
+          ],
+          "retryAfterPositive": true
+        }
+      ],
+      "errors": [
+        {
+          "route": "/index.html",
+          "method": "GET",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/index.html",
+          "method": "HEAD",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/sign-in",
+          "method": "GET",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/sign-in",
+          "method": "HEAD",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/api/session",
+          "method": "POST",
+          "input": "malformed JSON",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        }
+      ],
+      "authenticatedSharedUpload": {
+        "attempts": [
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 429
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 429
+          }
+        ],
+        "max": 10,
+        "oversizedBodiesDeniedBeforeParsing": true,
+        "forgedClientHeadersDoNotBypass": true,
+        "retryAfterPositive": true
+      },
+      "anonymousSharedUpload": {
+        "alternatingRoutes": [
+          "/api/wardrobe",
+          "/api/wardrobe/review"
+        ],
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          429,
+          429
+        ],
+        "max": 30,
+        "oversizedBodiesDeniedBeforeAuthenticationAndParsing": true,
+        "forgedClientHeadersDoNotBypass": true,
+        "retryAfterPositive": true
+      }
+    },
+    "restored": {
+      "authBudgetData": "fresh disposable SQLite database; production limits unchanged",
+      "auth": [
+        {
+          "route": "/api/auth/sign-up/email",
+          "statuses": [
+            400,
+            400,
+            400,
+            400,
+            400,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/sign-in/email",
+          "statuses": [
+            401,
+            401,
+            401,
+            401,
+            401,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/request-password-reset",
+          "statuses": [
+            503,
+            503,
+            503,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/reset-password",
+          "statuses": [
+            503,
+            503,
+            503,
+            503,
+            503,
+            429
+          ],
+          "retryAfterPositive": true
+        },
+        {
+          "route": "/api/auth/*",
+          "aggregateLimit": 30,
+          "remainingStatuses": [
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            404,
+            429
+          ],
+          "retryAfterPositive": true
+        }
+      ],
+      "errors": [
+        {
+          "route": "/index.html",
+          "method": "GET",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/index.html",
+          "method": "HEAD",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/sign-in",
+          "method": "GET",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/sign-in",
+          "method": "HEAD",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        },
+        {
+          "route": "/api/session",
+          "method": "POST",
+          "input": "malformed JSON",
+          "status": 500,
+          "securityHeadersRetained": true,
+          "sanitizedBody": true
+        }
+      ],
+      "authenticatedSharedUpload": {
+        "attempts": [
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 400
+          },
+          {
+            "route": "/api/wardrobe",
+            "status": 429
+          },
+          {
+            "route": "/api/wardrobe/review",
+            "status": 429
+          }
+        ],
+        "max": 10,
+        "oversizedBodiesDeniedBeforeParsing": true,
+        "forgedClientHeadersDoNotBypass": true,
+        "retryAfterPositive": true
+      },
+      "anonymousSharedUpload": {
+        "alternatingRoutes": [
+          "/api/wardrobe",
+          "/api/wardrobe/review"
+        ],
+        "statuses": [
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          401,
+          429,
+          429
+        ],
+        "max": 30,
+        "oversizedBodiesDeniedBeforeAuthenticationAndParsing": true,
+        "forgedClientHeadersDoNotBypass": true,
+        "retryAfterPositive": true
+      }
+    }
+  },
+  "cleanup": {
+    "disposableServicesStopped": true,
+    "sharedServicesRestarted": false
+  },
+  "successorPolicy": {
+    "evidenceBelongsToTestedRevision": "6afda4c3ef591c9a17d331a7b9e4e44737448afd",
+    "documentationChangesDoNotRelabelBuild": true,
+    "runtimeChangesRequireNewRecovery": true,
+    "finalCommittedSuccessorRequiresCleanBuildAndExactReleaseProbe": true,
+    "independentNormalValidationStillRequired": true
+  }
+}

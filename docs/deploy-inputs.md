@@ -67,7 +67,7 @@ node scripts/check-release.mjs http://127.0.0.1:PORT FULL_COMMIT_SHA
 
 The check requires the exact revision, `modified: false`, database health, and an HTML public page. Each of its three requests has a ten-second timeout. Redirects fail. This check cannot prove signup, saved-look continuity, photo recognition, or outfit behavior. Verify those with a real browser and isolated accounts on the same candidate.
 
-Production changes remain the deployment owner's responsibility. The existing helper automatically rolls back to the checkout that preceded its invocation. Before deploying the release-identity candidate, establish and publicly verify the compatible baseline `b6977251d5da58b88718005a9ccca02412ea3c63` through that same helper. Confirm the release checkout is clean at that SHA and verify the public browser's saved-look and owned-outfit paths. This baseline predates `/api/release`, so it needs browser and built-asset verification. Do not deploy the final candidate directly from `c7f5720`.
+Production changes remain the deployment owner's responsibility. The existing helper automatically rolls back to the checkout that preceded its invocation. Before deploying the release-identity candidate, establish and publicly verify the merged baseline `1bf4224f678304fc530d1efa30688992c52b81de` through that same helper. This baseline contains the authentication and shared upload budgets and retains security headers on errors. The [current isolated recovery receipt](evidence/release-recovery-security-2026-10-22.json) binds its ancestry, build, compatibility, and security checks to that exact revision. Confirm a clean release checkout and verify the public browser's saved-look and owned-outfit paths. This baseline predates `/api/release`, so compare its built assets with its exact clean build as well. Do not deploy the candidate directly from an older checkout: the helper would retain that older checkout as its automatic rollback target.
 
 After the compatible baseline is established, the authorized operator uses the helper with the exact merged, tested candidate SHA:
 
@@ -76,7 +76,7 @@ After the compatible baseline is established, the authorized operator uses the h
 node scripts/check-release.mjs https://app.getyourfit.co FULL_COMMIT_SHA
 ```
 
-For an authorized application rollback, run `~/.local/state/getyourfit/deploy.sh b6977251d5da58b88718005a9ccca02412ea3c63` and verify the public browser again. Keep the same database and secret.
+For an authorized application rollback, run `~/.local/state/getyourfit/deploy.sh 1bf4224f678304fc530d1efa30688992c52b81de` and verify the public browser and built assets again. Keep the same database and secret. Never use `b6977251d5da58b88718005a9ccca02412ea3c63` as a current baseline or rollback target: its historical data-compatibility result predates the security hardening.
 
 The existing helper's HTTP 200 probe does not establish release identity. Treat the second command as mandatory before recording a successful release. Do not deploy an unmerged revision. Retain the current database, auth secret, runtime configuration, and prior application revision. This release does not authorize a database cutover, a restart by a validation worker, or changes to `getyourfit.co`.
 
@@ -86,13 +86,27 @@ Use disposable test accounts and a private scratch directory. Keep the productio
 
 1. Start the candidate with its own `GYF_DATA_DIR`, a generated test secret, and an unused loopback port. Leave `DATABASE_URL` unset. Complete signup, chosen-look save/reload, photo upload, and an owned-outfit check.
 2. Use SQLite's online backup API or `sqlite3 SOURCE '.backup BACKUP'` against that isolated database. Check `PRAGMA integrity_check` on the backup. Retain the test secret separately from the proof report.
-3. Stop only the disposable candidate process. Run the selected compatible rollback revision against a separate copy of the backup, with the same test secret and another unused port. Verify signin, garment photos, and saved-plan reads. Preserve additive tables and rows. Never restore a database merely to roll back application code.
-4. Copy the backup to another empty private data directory. Start the candidate there with the same test secret. Verify signin, saved look, photo content, and outfit behavior again. Check database integrity and compare the exported test records.
+3. Stop only the disposable candidate process. Run the selected merged, security-preserving rollback revision against a separate copy of the backup, with the same test secret and another unused port. Verify signin, garment photos, saved-plan reads, export equality, and the owned-outfit response. Check authentication budgets, shared upload/review budgets before parsing, and security headers on error responses. Preserve additive tables and rows. Never restore a database merely to roll back application code.
+4. Copy the backup to another empty private data directory. Start the candidate there with the same test secret. Verify signin, saved look, original photo bytes, and outfit behavior again, including correction/reset. Check database integrity, compare the exported test records, and repeat the security controls on the candidate runtime.
 5. Stop the disposable processes. Commit a sanitized report with the exact backup-source, candidate, and rollback revisions, backup integrity, browser results, and compatibility limits. Link the report from this runbook. Keep backups, credentials, account identities, photos, local paths, and raw dumps outside the repository.
 
 This procedure covers the current SQLite runtime. Postgres backup and cutover procedures belong to [Supabase](supabase.md). The Mac tunnel remains dependent on one machine being awake and connected; local validation does not establish global production availability.
 
-### Verified compatibility boundary
+### Current recovery evidence
+
+The [security-preserving recovery receipt](evidence/release-recovery-security-2026-10-22.json) records a new isolated rehearsal of candidate `6afda4c3ef591c9a17d331a7b9e4e44737448afd` and merged baseline `1bf4224f678304fc530d1efa30688992c52b81de`. It records live `main` resolution and ancestry, exact source and built-asset digests, the running candidate's release identity, SQLite online backup integrity, copied-backup rollback, and a separate candidate restoration. Its result fields describe actual checks, including full exported-record and photo-byte equality, browser signin and Look 4 continuity, the owned-outfit response, correction/reset, and authentication, upload-budget, and error-header negative controls. The receipt is valid only when its overall result and every recorded check pass.
+
+These inputs use disposable synthetic accounts and the [licensed garment fixtures](../tests/fixtures/README.md). The receipt covers local production builds and SQLite recovery. It does not establish production deployment, global availability, Postgres restoration, or new photo-classification accuracy. Normal independent quality and acceptance checks remain required at the resulting release head.
+
+The tested candidate precedes this documentation and evidence update. To establish equivalence after a documentation-only successor is committed, run:
+
+```sh
+git diff --exit-code 6afda4c3ef591c9a17d331a7b9e4e44737448afd HEAD -- . ':(exclude)docs/**' ':(exclude)*.md'
+```
+
+The receipt also compares every tracked non-documentation input in the tested snapshots with its Git blob and the working copy. This includes server and browser source, shared schemas, migrations, public assets, package manifests and lockfile, build configuration, scripts, tests, and CI configuration. An executable-input difference requires a new recovery rehearsal. Documentation equivalence does not make the historical build report a new SHA: after the final clean commit, build again and run the exact-release check against that commit's disposable service before rollout. Retain that check's result with release validation evidence, outside this document, to avoid a self-referential commit identity.
+
+### Historical compatibility boundary (2026-10-21)
 
 The [sanitized recovery report](evidence/release-recovery-2026-10-21.json) records the 2026-10-21 isolated SQLite results and digests of the original private records. Its `identities` object distinguishes the backup-source revision `4010add254ff602a16b7bc1aed8aaea9243f74e0` from the final tested candidate `7b31abed36090adaa01f82a88f1bf2ffc35b2819`.
 
@@ -102,4 +116,4 @@ The older production checkout `c7f5720352d169f0e3281b1eff94d8772a6bc823` failed 
 
 The report's `initialRestoration` records exact exported-record and outfit equality after restoring a separate backup copy into `4010add254ff602a16b7bc1aed8aaea9243f74e0`. Its `finalRestoration` records the later check at `7b31abed36090adaa01f82a88f1bf2ffc35b2819`: signin, export, saved Look 4, original photo bytes, matching owned-outfit result, database integrity, and an unchanged backup. The final browser snapshot recorded Look 4 selected and three garments. `candidateAcceptance` retains the exact clean revision and all 12 passing cases from the production-build acceptance report.
 
-This review update changes only documentation and sanitized evidence. The recorded executions belong to the revisions above, not a subsequent documentation commit. The release owner must bind the eventual merged SHA to its own green checks and release identity before rollout. Any runtime source change requires new recovery evidence at its exact revision. These results use synthetic accounts and licensed fixtures on isolated local services. They do not establish production deployment, global availability, or Postgres restoration.
+These historical executions belong only to the revisions above. They precede the merged security hardening and cannot authorize the current runtime or its rollback target. The current recovery receipt is separate and does not relabel those results. The release owner must bind the eventual merged SHA to its own green checks, clean built release identity, and public visitor verification before recording deployment.
