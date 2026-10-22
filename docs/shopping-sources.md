@@ -35,7 +35,7 @@ The interface reads these flags. While a flag is `false`, the page says that pho
    ```
 
 3. Use the response only when `affiliated` is `true` and the campaign is the expected one. Store `tracking_url` unchanged as `affiliateUrl`, then update `verifiedAt`.
-4. Run `npm test`. The schema rejects extra affiliate query fields and links whose channel, retailer host, or destination differs from the source record.
+4. Run the build and test commands in [Check](../README.md#check). The schema rejects extra affiliate query fields and links whose channel, retailer host, or destination differs from the source record.
 
 When the campaign is paused, blocked, or no longer affiliated, remove the source from the file. The plan then falls back to its text needs and external search links.
 
