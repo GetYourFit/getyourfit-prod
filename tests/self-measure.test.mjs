@@ -105,6 +105,10 @@ test('weekly public command refuses source execution flags without leaking suppl
 test('existing workflow ingestion, kept change, known-bad regression, contradiction and undo', {
   skip: !process.env.GYF_WORKFLOW_ROOT && 'Set GYF_WORKFLOW_ROOT to the canonical Workflow checkout for the integration drill.',
 }, async () => {
+  const command = await execute(process.execPath, ['scripts/self-measure.mjs', '--workflow', process.env.GYF_WORKFLOW_ROOT]);
+  const actual = JSON.parse(command.stdout);
+  assert.notEqual(actual.workflow.reason, 'workflow_interface_unavailable');
+  assert.ok(Array.isArray(actual.workflow.observations));
   const { stdout } = await execute('uv', ['run', '--no-project', '--offline', '--no-cache', 'scripts/self-measure/prove-workflow.py', '--workflow', process.env.GYF_WORKFLOW_ROOT], { timeout: 60000 });
   const proof = JSON.parse(stdout);
   assert.equal(proof.synthetic, true);

@@ -30,10 +30,10 @@ try {
       try {
         const child = await new Promise((resolve, reject) => {
           // Input is data on stdin; no shell or fetched command is evaluated.
-          const process = execFile('uv', ['run', '--no-project', '--offline', '--no-cache', new URL('./self-measure/workflow.py', import.meta.url).pathname, values.workflow],
+          const child = execFile('uv', ['run', '--no-project', '--offline', '--no-cache', new URL('./self-measure/workflow.py', import.meta.url).pathname, values.workflow],
             { cwd: root, timeout: 30000, maxBuffer: 1024 * 1024,
               env: Object.fromEntries(['PATH', 'TMPDIR', 'TEMP', 'LANG'].filter((key) => process.env[key]).map((key) => [key, process.env[key]])) }, (error, stdout) => error ? reject(error) : resolve(stdout));
-          process.stdin.end(JSON.stringify({ date: asOf.slice(0, 10), signal: signal.metric ? signal : null }));
+          child.stdin.end(JSON.stringify({ date: asOf.slice(0, 10), signal: signal.metric ? signal : null }));
         });
         queue = JSON.parse(child);
       } catch { queue = unavailable('workflow_interface_unavailable'); }
