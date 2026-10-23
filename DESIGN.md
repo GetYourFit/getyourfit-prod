@@ -78,6 +78,12 @@ Controls have compact corners; photograph and panel corners are quieter. Small c
 - **Notices and disclosures:** Written errors and retries remain next to the relevant task. Technical provenance, needs editing and shopping limitations stay in existing disclosures. Error and result focus behavior is preserved.
 - **Garment review:** The existing consent, image review and correctable facts remain in a focused native dialog. Model progress and manual confirmation are different states; manual details do not prove recognition.
 
+## Quality gate
+
+The [UI quality suite](tests/ui/quality.spec.mjs) owns the rendered design checks, covered screens, keyboard journeys, and known-bad cases. [Playwright configuration](playwright.config.mjs) owns screenshot tolerance and output paths. See [Check](README.md#check) for commands and browser setup. Automated checks do not establish full WCAG conformance.
+
+Visual baselines come from the pinned Playwright image in the [quality CI job](.github/workflows/ci.yml). Other platforms skip pixel comparison unless `UI_VISUAL=1` is set. After an intended visual change, take the images from the `ui-quality` CI artifact or run `npm run test:ui:update` inside that pinned image. Review the screenshots and diffs before committing the baselines in `tests/ui/screenshots/linux`. Dialog screenshots capture the viewport so their internal scrolling is visible.
+
 ## Do's and Don'ts
 
 - Do show licensed real garments and retain source attribution. The original photographic backdrops in shared/outfit-board.ts are intentional image-specific exceptions to UI tokens.
