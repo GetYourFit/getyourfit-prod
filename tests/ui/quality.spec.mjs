@@ -122,7 +122,16 @@ test('public page', async ({ page }) => {
   await checkScreen(page, 'public');
 });
 
-test('public keyboard focus and entry routes', async ({ page }) => {
+test('public hover contrast, keyboard focus and entry routes', async ({ page }) => {
+  function contrast(first, second) {
+    const luminance = (color) => color.match(/[\d.]+/g).slice(0, 3)
+      .map((channel) => Number(channel) / 255)
+      .map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+      .reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0);
+    const values = [luminance(first), luminance(second)].sort((a, b) => b - a);
+    return (values[0] + 0.05) / (values[1] + 0.05);
+  }
+
   async function tabTo(control, color) {
     for (let step = 0; step < 30 && !await control.evaluate((element) => element === document.activeElement); step++) {
       await page.keyboard.press('Tab');
@@ -138,6 +147,21 @@ test('public keyboard focus and entry routes', async ({ page }) => {
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
+    for (const name of ['Use my own clothes', 'Build my wardrobe']) {
+      const action = page.getByRole('link', { name, exact: true });
+      await tabTo(action, 'rgb(233, 242, 157)');
+      await action.hover();
+      const primary = name === 'Use my own clothes';
+      await expect(action).toHaveCSS(primary ? 'background-color' : 'border-top-color', 'rgb(255, 248, 238)');
+      const colors = await action.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const panel = getComputedStyle(element.closest('.dressing-room')).backgroundColor;
+        return { text: style.color, background: style.backgroundColor === 'rgba(0, 0, 0, 0)' ? panel : style.backgroundColor, border: style.borderTopColor, panel };
+      });
+      expect(contrast(colors.text, colors.background), `${name} hover text at ${width}px`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(primary ? colors.background : colors.border, colors.panel), `${name} hover boundary at ${width}px`).toBeGreaterThanOrEqual(3);
+    }
+    await page.mouse.move(0, 0);
     const example = page.getByRole('region', { name: 'Example outfit', exact: true });
     for (const preview of await example.getByRole('button', { name: /^Preview Look/ }).all()) {
       await tabTo(preview, 'rgb(163, 59, 36)');

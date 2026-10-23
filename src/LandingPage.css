@@ -11,9 +11,9 @@
 .dressing-actions { display: grid; gap: var(--space-3); max-width: 360px; margin-top: var(--space-3); }
 .dressing-actions .button { min-height: 56px; }
 .dressing-actions .button-primary { background: var(--color-highlight); color: var(--color-shell); }
-.dressing-actions .button-primary:hover { background: var(--color-on-shell); }
+.dressing-actions .button-primary:hover:not(:disabled) { background: var(--color-on-shell); }
 .dressing-actions .button-secondary { background: transparent; color: var(--color-on-shell); border-color: var(--color-shell-muted); }
-.dressing-actions .button-secondary:hover { border-color: var(--color-on-shell); }
+.dressing-actions .button-secondary:hover:not(:disabled) { border-color: var(--color-on-shell); }
 .dressing-note { color: var(--color-shell-muted); font-size: var(--text-caption); margin-top: calc(var(--space-3) * -1); }
 .dressing-scroll { display: flex; min-height: var(--target-min); align-items: center; gap: var(--space-3); margin-top: var(--space-5); color: var(--color-shell-muted); font-size: var(--text-caption); text-decoration: none; }
 .dressing-copy :focus-visible { outline-color: var(--color-highlight); }
