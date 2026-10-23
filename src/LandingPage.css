@@ -16,7 +16,7 @@
 .dressing-actions .button-secondary:hover { border-color: var(--color-on-shell); }
 .dressing-note { color: var(--color-shell-muted); font-size: var(--text-caption); margin-top: calc(var(--space-3) * -1); }
 .dressing-scroll { display: flex; min-height: var(--target-min); align-items: center; gap: var(--space-3); margin-top: var(--space-5); color: var(--color-shell-muted); font-size: var(--text-caption); text-decoration: none; }
-.dressing-room :focus-visible { outline-color: var(--color-highlight); }
+.dressing-copy :focus-visible { outline-color: var(--color-highlight); }
 .dressing-example { display: grid; gap: var(--space-3); min-width: 0; padding: var(--space-5); background: var(--color-canvas); color: var(--color-ink); border-radius: var(--radius-photo); }
 .dressing-example-heading { display: grid; gap: var(--space-1); }
 .dressing-example-heading h2 { font-size: var(--text-title-sm); line-height: var(--leading-snug); }

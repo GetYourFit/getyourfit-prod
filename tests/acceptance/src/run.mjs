@@ -464,7 +464,7 @@ async function starterPlanJourney(context, page) {
     else await route.continue();
   });
   await page.goto(baseURL);
-  await page.getByRole('link', { name: /^build my wardrobe/i }).click();
+  await page.getByRole('link', { name: /^use my own clothes$/i }).click();
   const user = credentials();
   await page.getByLabel(/your name/i).fill(user.name);
   await page.getByLabel(/^email/i).fill(user.email);
@@ -963,7 +963,7 @@ async function browserJourney(context, page) {
   });
   await page.goto(baseURL);
   await page.getByRole('main').waitFor();
-  await page.getByRole('link', { name: /build my wardrobe|get started|sign up|create.*account/i }).or(page.getByRole('button', { name: /get started|sign up|create.*account/i })).first().click();
+  await page.getByRole('link', { name: /^use my own clothes$/i }).click();
   const user = credentials();
   await page.getByLabel(/^email/i).fill(user.email);
   await page.getByLabel(/^password/i).fill(user.password);

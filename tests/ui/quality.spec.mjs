@@ -122,6 +122,50 @@ test('public page', async ({ page }) => {
   await checkScreen(page, 'public');
 });
 
+test('public keyboard focus and entry routes', async ({ page }) => {
+  async function tabTo(control, color) {
+    for (let step = 0; step < 30 && !await control.evaluate((element) => element === document.activeElement); step++) {
+      await page.keyboard.press('Tab');
+    }
+    await expect(control).toBeFocused();
+    await expect(control).toBeVisible();
+    expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+    await expect(control).toHaveCSS('outline-style', 'solid');
+    await expect(control).toHaveCSS('outline-width', '3px');
+    await expect(control).toHaveCSS('outline-color', color);
+  }
+
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    const example = page.getByRole('region', { name: 'Example outfit', exact: true });
+    for (const preview of await example.getByRole('button', { name: /^Preview Look/ }).all()) {
+      await tabTo(preview, 'rgb(163, 59, 36)');
+      await page.keyboard.press('Space');
+      await expect(preview).toHaveAttribute('aria-pressed', 'true');
+    }
+    const credits = example.locator('summary');
+    await tabTo(credits, 'rgb(163, 59, 36)');
+    await page.keyboard.press('Enter');
+    const links = example.getByRole('link');
+    expect(await links.count()).toBeGreaterThan(0);
+    for (const link of await links.all()) await tabTo(link, 'rgb(163, 59, 36)');
+
+    const planner = page.getByRole('link', { name: 'Build my wardrobe', exact: true });
+    await tabTo(planner, 'rgb(233, 242, 157)');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/plan\?look=3$/);
+    await expect(page.getByLabel('Email', { exact: true })).toHaveCount(0);
+
+    await page.goto('/');
+    await tabTo(page.getByRole('link', { name: 'Use my own clothes', exact: true }), 'rgb(233, 242, 157)');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/sign-up$/);
+    await expect(page.getByLabel('Your name')).toBeFocused();
+    await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  }
+});
+
 test('account entry', async ({ page }) => {
   await page.goto('/sign-in');
   await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
