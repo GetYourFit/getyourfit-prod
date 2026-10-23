@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LockKeyhole } from 'lucide-react';
 import { Brand, Field, Notice } from './ui';
+import { readPendingPlan } from './pending-plan';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot';
 function authTitle(mode: Mode, needsCode: boolean) {
@@ -49,6 +50,7 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
   const formRef = useRef<HTMLFormElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const [ageMissing, setAgeMissing] = useState(false);
+  const [pending] = useState(readPendingPlan);
 
   useEffect(() => { document.title = `${authTitle(mode, needsCode)} · GetYourFit`; }, [mode, needsCode]);
   useEffect(() => { formRef.current?.querySelector<HTMLInputElement>('input')?.focus(); }, [mode, needsCode]);
@@ -116,7 +118,13 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
   return <div className="auth-page">
     <header className="auth-header"><Brand href="/" /></header>
     <main className="auth-main">
-      <div className="auth-panel">
+      <aside className="auth-story" aria-label="Your wardrobe, your way">
+        <h2>{pending ? 'Keep the look.\nMake it yours.' : 'Good mornings\nstart here.'}</h2>
+        <p>{pending ? `Your chosen Look ${(pending.input.selectedLook ?? 0) + 1} for ${pending.input.occasion} is waiting. Sign in or create an account to save it privately.` : 'A place for the clothes you own, the plans you make, and the outfits you come back to.'}</p>
+        <div className="auth-story-piece"><img src="/example/sweater-360.webp" alt="Textured sweater shown as an illustrative example" width={360} height={330} /><span>Real clothes. A little more possibility.</span></div>
+        <p className="auth-story-note">Example photo. Your wardrobe starts empty. <a href="https://commons.wikimedia.org/?curid=46436817" target="_blank" rel="noopener noreferrer">Sweater by Robert Sheie</a>, <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener noreferrer">CC BY 2.0</a>.</p>
+      </aside>
+      <div className="auth-content"><div className="auth-panel">
         <div className="auth-intro"><h1 className="page-title">{title}</h1><p className="muted">{intro}</p></div>
         {error && <Notice ref={errorRef} id="auth-error" tone="error" role="alert" focusable>{error}{error.includes('connect to GetYourFit') && <span><button type="button" className="text-link" onClick={() => void retryService()} disabled={busy}>Try the connection again</button></span>}</Notice>}
         {mode === 'forgot' ? <Notice tone="info" role="status">We can’t email password reset links yet. Changing your password requires your current password. A forgotten password cannot be recovered until email reset is connected, even if you are signed in.</Notice> : needsCode ? <form ref={formRef} onSubmit={verifyCode} className="auth-form" aria-busy={busy}>
@@ -137,6 +145,7 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
         </div>}
       </div>
       <p className="auth-privacy"><LockKeyhole size={16} aria-hidden="true" /><span>Your wardrobe is stored in your private account on the GetYourFit server. Your email address is not verified, and password reset by email is not available yet.</span></p>
+      </div>
     </main>
   </div>;
 }

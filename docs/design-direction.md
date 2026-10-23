@@ -1,140 +1,60 @@
-# GetYourFit design direction
+# GetYourFit experience direction
 
-Written on 2026-10-14 before UI changes. This is the direction for the public first screen and the subsequent wardrobe-to-outfit journey. It does not claim that the redesign or its measurements have shipped. [Requirements](requirements.md) remain the capability boundary; [PRODUCT.md](PRODUCT.md) contains the wider product intent.
+2026-10-23. Replacement of the public and private visual system, building on revision `96451e8`. This describes the implementation, not a deployment or a claim that the full Fashion Decision Intelligence contract is complete. [Product truth](../PRODUCT.md), [capability sequencing](requirements.md), and [design tokens](../DESIGN.md) retain separate ownership.
 
-## Audience and value
+## Wearer and mechanism
 
-Design for a wearer with an occasion in mind, using a phone near their wardrobe. They need to see an understandable outcome before investing in an account or entering garment facts. This scene is a design assumption from the task, not a user-research finding.
+Assumed scene: a person on a phone near their clothes, deciding what to wear or which pieces to plan for. This is a task-grounded assumption, not a research interview. The immediate two jobs are **Use my own clothes** and **Build my wardrobe**. The public demonstration uses licensed stand-in photographs; private wardrobes begin empty. The current factual checker uses confirmed facts. Model-driven taste, natural-language interpretation, and fit prediction are not implied by the interface.
 
-**Get one complete outfit, with the reasons, from the clothes you already own.**
+## Direction contract
 
-The product checks facts the wearer confirms. It does not currently judge taste or predict fit. Put that distinction beside the explanation and photo review, where it affects a decision.
+- **Thesis:** Make complete outfits easier to see and useful decisions easier to keep.
+- **Own world:** An independent fashion contact sheet. Warm paper, plum shell, rust actions, a pale citron selection accent, precise Manrope typography, fully visible real garments. This is a replacement of the previous cool green system.
+- **Story:** See a complete labeled example, compare four looks, choose an owned-clothes journey or a needs plan, then keep a useful result in a private account. Account entry remembers the visitor's chosen look in its copy.
+- **First viewport:** Public: job-led value and two explicit paths beside a real complete outfit. Private: familiar navigation, one page title, the saved plan first when present, then clothes, a factual outfit checker, and planning. No fabricated personal content, dashboard scores, or trend claims.
+- **Form:** Candidate 3, seed `seed:42968a7142ccaea8`. The signature interaction is the complete-look comparison strip. Its selected look passes into the public planner and the existing account-save boundary. Brief-delegated selection; no taste questionnaire or comp approval gate. Built directly in code.
+- **Reach:** Plum shell on private navigation; warm paper on work areas; rust primary controls; larger image wells and clear text rhythm; the same fields, notices, dialogs and tokens across every route.
+- **Risk:** Warm editorial styling can become decoration. Standard controls and actual garment facts keep the working app legible. A large initial photograph is still a stand-in, not evidence of taste intelligence.
 
-## Reference study
+Seven grounded candidates considered, in order: wardrobe lookbook, dressing-room mirror, fashion contact sheet, clothing care label, fabric swatch library, weekend packing list, independent boutique window. These span publication, physical ritual, labeling and display systems. A generic dashboard and a cinematic luxury-brand homepage were rejected as category defaults that obscure the task.
 
-The following primary pages were reviewed on 2026-10-14. Borrowing is our design judgment, not an endorsement or evidence about those products' users. No reference brand's photographs, logos, copy, or interface assets will ship in GetYourFit.
+Catalog challengers were judged through the Operate rule: only type, palette, density and one signature move transfer; familiar navigation and controls stay. Split-flap concourse: declined for poor audience identification; kept its disciplined stable positions while look imagery changes. Factory record catalog: declined because codes hide garment meaning; kept its commitment to one shell color. Garden guide map: declined because organic divisions compete with garment silhouettes; kept explicit selection states. Cassette inlay: competitive on audience familiarity, loses product clarity when a flip hides the other pieces; keep every complete look visible together. Dance notation: declined because symbolic reading adds work; retain an explicit list of the actual pieces. These are design judgments, not comparative user results.
 
-| Primary page | What is borrowed | What is not borrowed |
+## Bounded primary-source research
+
+Reviewed 2026-10-23. No competitor assets or copy are shipped. This two-product review does not establish novelty or superiority.
+
+| Source | Concrete mechanism | GetYourFit decision |
 | --- | --- | --- |
-| [Anthropic's Claude overview](https://claude.com/product/overview) | Concrete tasks and their resulting artifacts establish value; a clear primary action follows. Give the outfit and its reasons the same status. | Simulated chat, enterprise examples, news overlays, floating decorative tiles, and the brand's typography. |
-| [OpenAI's ChatGPT overview](https://chatgpt.com/overview/) | Explain useful everyday outcomes with actual product examples before asking someone to start. Give returning users a separate sign-in path. | A general assistant input, provider claims, capability menus, or copied conversation examples. |
-| [Apple's iPhone surface](https://www.apple.com/iphone/) | Large product photography, a decisive type hierarchy, short explanatory passages, and space around the object being considered. | Hardware marketing claims, autoplay video, glass treatments, and a large retail navigation. |
-| [Linear's product surface](https://linear.app/) | Demonstrate the product at useful scale, maintain precise spacing, and separate the primary task from navigation. | Dark developer-tool styling, dashboard density, sidebars, telemetry, and ornamental gradients. |
-| [Airbnb's public surface](https://www.airbnb.com/) | Start with the visitor's task and make the account a supporting action. Its loading search surface also preserves the control's shape. | Marketplace filters, promotional clutter, pricing, and location discovery. |
-| [Pinterest's public introduction](https://about.pinterest.com/) | Real images make the proposition tangible; photographs deserve space and recognizable detail. | Infinite discovery, a distracting masonry feed, shopping, and engagement mechanics. |
-| [Vestiaire Collective](https://www.vestiairecollective.com/) | Garment identity, category, and descriptive facts accompany the visual object. Offer photo assistance and manual correction as distinct paths. | Commerce, discounts, designer prestige, authenticity claims, and promotional urgency. |
+| [Indyx: how it works](https://www.myindyx.com/how-it-works/) | Outfit boards make the relationship between owned garments visible; collections support reuse. | Reuse complete garment compositions and make the owned-clothes job explicit. Do not borrow social sharing, styling subscriptions, calendar or cost-per-wear claims without their underlying behavior. |
+| [Whering: outfit suggestions](https://whering.co.uk/faq/can-whering-make-outfits-for-me) | A person can inspect combinations or start from a particular item. | Provide a bounded, deliberate four-look comparison, with an accessible selected state. Do not present random shuffling or the current constraint checker as personalized fashion judgment. |
 
-Claude, Apple, Linear, and Pinterest were inspected in Chrome. ChatGPT and Vestiaire showed browser access challenges; their primary-page content was reviewed without bypassing those challenges. Airbnb's browser capture remained in a loading state, so its finished visual hierarchy is not claimed as inspected. No authenticated competitor flows were studied.
+## Routes and states
 
-## Chosen direction: the outfit, explained
-
-The visual center is a complete arrangement of real garments and a short explanation. The page should read as a useful personal clothing product, with the care and clarity of the references, rather than a login form or an AI dashboard.
-
-Seven structures were considered: a wardrobe flat lay, a fitting-room sequence, an explained outfit composition, a personal photo album, clothing-label fact summaries, a fashion spread, and a collection gallery. The explained composition best joins the first value moment to the private wardrobe and supports correction without changing visual language. The others contribute photographic scale, simple sequencing, and legible facts; they do not become decorative motifs. The design study's direction seed was `1d1d28e4`, assigned candidate 3.
-
-The foreign directions from the study lose product clarity: constructed type grids, painted posters, industrial textile quotations, architectural sections, risograph layouts, and laboratory counters would compete with actual clothing. Keep their disciplines of alignment, commitment, and structural honesty. The user's product-quality brief takes precedence over their visual motifs. Implementation is code-led with real photographs; generated clothing or generated page artwork is excluded.
-
-### Direction contract
-
-**Thesis:** Show one complete outfit and its reasons before account creation. The garment arrangement is the proposition.
-
-**Own-world:** Cool near-white canvas, dark green-black type, white photo surfaces, one deep green action color, clear sans-serif type, and restrained corners. Real garments supply the color and texture.
-
-**Story:** Understand what the product can do, inspect a labeled worked example, understand where photos go, then choose **Build my wardrobe**. Returning wearers can choose **Sign in** directly.
-
-**First viewport:** A compact header, one value statement, and a composed outfit occupy the first view. At 390px, the complete garment set and primary action remain reachable without a long marketing preamble. At 768px and 1440px, photographs gain scale and the explanation sits alongside or immediately beneath the arrangement. There is no row of interchangeable feature cards.
-
-**Form:** Explained outfit composition, candidate 3, seed `1d1d28e4`. The signature interaction is inspecting the outfit's reasons, then starting with one's own wardrobe. It does not imitate a conversation.
-
-**Finish:** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
-
-## Type scale
-
-Use self-hosted Manrope with system sans-serif fallbacks. Its [font log](https://github.com/google/fonts/blob/main/ofl/manrope/FONTLOG.txt) identifies the designers and variable weight support. Ship its license and font log with the actual font asset. No runtime font request goes to a third party.
-
-| Role | 390px | 768px | 1440px | Weight / line height |
-| --- | --- | --- | --- | --- |
-| Public value statement | 40px | 52px | 64px | 600 / 1.08 |
-| Outfit or page title | 32px | 40px | 48px | 600 / 1.15 |
-| Section title | 24px | 28px | 32px | 600 / 1.2 |
-| Garment title | 20px | 20px | 22px | 600 / 1.3 |
-| Main explanation | 18px | 20px | 20px | 400 / 1.5 |
-| Body, labels, inputs, buttons | 16px | 16px | 16px | 400 or 600 / 1.5 |
-| Helper text and photo credits | 14px | 14px | 14px | 400 / 1.5 |
-
-Use sentence case. Keep long text within 65 characters per line. Headline tracking may reach -0.035em; body tracking stays normal. Inputs remain at least 16px on phones. Replace tiny uppercase monospace labels and version labels with readable task language. Each page has one primary heading; subsequent section headings follow its hierarchy.
-
-## Color and contrast
-
-The light surface follows the use scene: a wearer inspecting clothing and entering facts in ordinary room light. The restrained palette lets their photographs lead.
-
-| Token | Value | Use |
+| Surface | Existing reachable behavior retained | Design treatment and recovery |
 | --- | --- | --- |
-| Canvas | `#F7F8F5` | Page background |
-| Surface | `#FFFFFF` | Photo and input surfaces |
-| Ink | `#1D2724` | Primary text |
-| Muted ink | `#56645D` | Helper text, placeholders, secondary text |
-| Action | `#285342` | Primary action, links, focus |
-| Action hover | `#183B2E` | Active primary controls |
-| Rule | `#DDE3DF` | Decorative separators |
-| Control boundary | `#7F8F85` | Required visible input outlines |
-| Error ink / surface | `#9F392F` / `#FFF3F0` | Errors with text and a recovery action |
-| Warning ink / surface | `#75520D` / `#FFF7DF` | Warnings with text |
+| `/` | Public example without account APIs, sign-in, account entry, planner | Explicit two-job choice; complete real example; visible illustrative limits, reasons and photo credits; keyboard comparison announces pieces. |
+| `/plan` | Occasion, weather, outfit type, budget, currency, dress code; examples; image download; save entry | Carried preview selection, useful sample before submission, selected result, input validation, failed image-download notice, save disclosure. Browser values stay until navigation; saving uses the existing pending plan. |
+| `/sign-up`, `/sign-in`, account callback/query paths | Email/password, age gate, authenticator challenge, recovery-unavailable explanation, connection retry | Focused fields, retained input on rejection, focused errors, visible busy state, accurate hosted-storage copy. Optional pending-look context. No new recovery or identity promises. |
+| `/wardrobe` | Loading/retry, empty wardrobe, actual garments, edit/remove confirmation | Role counts describe items added, never outfit eligibility. Search name/colour and category filter, result count, no-match recovery. Existing ownership, fit and availability remain visible. |
+| Garment dialog | Permission before file selection, image decoding/size errors, recognition loading/progress/manual path, confirmed facts, correction/save failures | Full-screen phone dialog, focus restoration, readable fields and semantic checkboxes. Recognition failure stays distinct from manual confirmation. No loader or inference changes in this lane. |
+| `/wardrobe#outfit` | Missing-context and missing-fit questions, complete/incomplete result, exclusions and undo, API errors | One clear factual-check form, complete photo set, explanation, explicit correction controls. Inputs and previous facts survive failures. No claim that the exact checker learns taste. |
+| `/wardrobe#build-plan` | Pending save/retry, saved look first, choose look, needs editing, owned confirmation, replace/reject/history, shopping links | Main saved board and chosen look remain prominent; secondary needs and shopping disclosures stay in the existing disclosure. Shopping destinations remain general links with unknown prices, stock and fit. |
+| `/account` | Privacy, export, sessions/signout, password, TOTP setup, delete confirmation, failures | Quiet settings rows, destructive actions distinguished with text and color, export/delete contracts unchanged. No added telemetry or consent claim. |
+| Lazy/session loading and outages | Text status, auth retry, wardrobe retry, saved-plan retry, API request bounds | Shared typography and colors, retained focused errors and retries. No change to auth budgets, CSP, security headers, tenant isolation or release identity. |
 
-The following sRGB relative-luminance calculations were checked before implementation. Ratios are displayed rounded; comparisons use their full values. [WCAG contrast guidance](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) requires 4.5:1 for normal text and 3:1 for large text. All text pairs below exceed the normal-text threshold.
+The proposed intent-engine integration remains a future contract: `IntentOutfit.tsx` mounts above the existing factual checker within `Outfit.tsx`, with model-download consent, reviewed constraints, questions/abstention and fresh account-fact validation. Shared styles are available to it. This redesign does not implement or advertise that unlanded behavior.
 
-| Pair | Contrast |
-| --- | --- |
-| Ink on canvas | 14.40:1 |
-| Muted ink on canvas | 5.83:1 |
-| Muted ink on white | 6.22:1 |
-| White on action | 8.73:1 |
-| Action on canvas | 8.19:1 |
-| Error ink on error surface | 6.23:1 |
-| Warning ink on warning surface | 6.61:1 |
-| Control boundary against white | 3.40:1 |
+## Verification and limits
 
-Palette arithmetic is not page conformance. The production-built acceptance scans must verify actual rendered text, including helper text, errors, and placeholders. Do not communicate state through color alone. Focus uses a 3px action outline with a 3px offset and must remain visible on every surface.
+The builder's local browser evidence and independent delivery instructions live in the task evidence directory under `gyf-experience-redesign/`. No source test result is relabeled as live-product proof. The no-mistakes pipeline owns independent review, tests, updated Linux goldens, publication and CI. Provide it this contract and the rendered before/after artifact. Inspect all 390/768/1440 screenshots, including dialogs as viewport captures. Existing known-bad accessibility and acceptance cases must still fail.
 
-## Spacing, corners, and composition
+Budget: no new font or remote image dependency, same licensed responsive image set, public compressed entry under 130 KiB, CSS under 12 KiB compressed, and no speculative prefetch of model files on public entry. Model payload and inference correctness belong to the recognition and intent owners. Budget checks are upper limits, not measured speedup claims. Reduced motion removes the look-change reveal; all content is visible without waiting for animation.
 
-Spacing tokens are `4, 8, 12, 16, 24, 32, 48, 64, 96px`. Use 8-12px inside a label/control group, 16-24px between related controls, and 48-64px between tasks. Phone gutters are 24px; tablet gutters are 32px; desktop content is capped at 1240px with at least 48px side space. Breakpoints follow content at 600px and 1000px, verified at the three requested widths.
+The current [requirements registry](requirements.md) retains R1-R37. This release improves entry, visual coherence, comparison, finding garments and continuity; it does not close natural intent, learned judgment, style memory, look adaptation, validated fit/VTO, creator/retailer platforms, real-user outcomes or production rollout.
 
-Radius tokens are `0, 8, 12, 16px`: 8px for controls, 12px for photographs, and 16px for a genuinely grouped panel. Use borders for controls and modest separators for sections. Avoid nested cards, repeated framed sections, hard shadows, and decorative pills. A garment grid is a photo collection, not a set of feature cards.
+## Business assumptions and measurement
 
-All primary controls and standalone links have at least a 44px touch area; primary actions use 48px. The example composition shows a complete set together. Use `object-fit: contain` where cropping could conceal a garment's identity. The outfit result gives photographs more space than its context form; the reasons are readable prose, followed by a correction action.
+Owner: GetYourFit product. Baseline: no redesign cohort or conversion result has been measured. Existing anonymous funnel counters in `src/funnel.ts` and `npm run funnel` report plan opening, submission, showing, save prompting, account creation and saving. They count steps, not unique people or causal growth. Existing private corrections and plans are actual stored outcomes; they are not confirmed wear.
 
-## Motion and states
-
-Use 120-180ms color and opacity transitions for controls. State changes may use one 180ms opacity transition after the content is available. No entrance animation delays the first image, controls, or explanation. No autoplay, parallax, animated typing, floating garments, or shimmer is required.
-
-With `prefers-reduced-motion: reduce`, remove transitions and spinner rotation. Keep a written loading message. Reserve image dimensions and result space before loading; measure layout shift rather than assuming it is absent.
-
-Empty wardrobe: explain the first useful step and offer **Add a garment**. Loading: identify the operation through a status announcement. Failure: retain the entered information, explain what failed, and offer a direct retry. Save: announce the result and restore focus to the next useful control. Opening signup or a garment editor moves focus to its entry point; closing it restores focus to its trigger. Labels and helper text remain associated with their inputs. Signup submits through both a touch action and Enter.
-
-## Imagery and honest examples
-
-Use real licensed garment photographs or the wearer's consented photographs. No generated garments, stock avatars, synthetic reviews, inferred customer outcomes, or copied competitor photography.
-
-The current repository has CC0 Wikimedia photographs documented in [acceptance attribution](../tests/acceptance/fixtures/ATTRIBUTION.md) and [verification attribution](../tests/fixtures/README.md). No Met photographs were found in this checkout at the start of the study. Additional [Met Open Access photographs](https://www.metmuseum.org/hubs/open-access) may be used only after checking the individual object record's public-domain status and recording its source. Museum or demonstration garments must not imply ownership by the visitor.
-
-Every public photograph ships with a source URL, creator or collection, license, original file hash, and a note about resizing or cropping. Optimization can change encoding and dimensions, not the depicted garment. Keep originals or source records available for review. Public example images stay separate from private uploads and are never inserted into an account's wardrobe.
-
-The first screen labels the set **Example outfit** and explains that its context and confirmed facts are illustrative. It demonstrates the current factual decision, not learned taste or fit prediction. The primary action leads to creating a private account and building one's own wardrobe, including the zero-garment path.
-
-## Privacy language
-
-Explain the [photo recognition privacy contract](photo-recognition.md) in plain words before photo consent. Distinguish on-device review from saved account data. Do not say hosted data stays on the wearer's phone. Export and deletion remain visible account actions.
-
-User copy excludes release numbers, **Local Edition**, **local app**, provider setup details, and developer-only provenance fields. A disabled recovery service is described as **Password reset isn't available here. Keep your password safe.** It does not promise a future release date. Technical provenance remains available in a secondary details view when useful.
-
-## Increment order and proof
-
-1. Public first screen: worked example, plain privacy explanation, **Build my wardrobe**, and a separate sign-in path. Account creation follows the value moment.
-2. Private outfit result: composed photographs, designed explanation, and clear correction.
-3. Shared controls across wardrobe, photo review, facts, outfit, and privacy; fix the reproduced focus and recovery defects.
-4. Measure classification cold start before and after its separate performance change.
-
-Each UI PR records before/after screenshots at 390px, 768px, and 1440px from the production build. Record Lighthouse performance, accessibility, and best-practices scores with its version and settings. Targets are performance at least 90, accessibility 100, best practices 100, and measured CLS 0; these are targets, not current results. Keep the required acceptance and quality checks green. Extend mandatory WCAG AA scans and give each repaired behavior a targeted known-bad variant. A score alone does not prove keyboard, screen-reader, or submit behavior; drive those flows directly.
-
-Review one complete capture batch, fix the concrete defects it exposes in one batch, and confirm at most once. Record unresolved limits honestly. Rewrite DESIGN.md from the implemented system after the first redesign increment, so documentation describes the built product.
+Hypothesis: explicit job choice plus visible complete looks improves the proportion of submitted plans that reach a saved plan. Next experiment: compare the same seven-day counter windows before and after a merged rollout, report raw counts and uncertainty, and keep no growth conclusion when traffic is too small or noncomparable. A provisional decision threshold is a five percentage point increase in saved/submitted counts with no new journey failures; this is a product threshold, not a statistical significance claim. Retention, willingness to pay, distribution and unit economics have no valid baseline in this UI task. Observe real returning use through existing lawful records before designing another feature. No campaigns, accounts, spending or telemetry integrations were added.

@@ -129,7 +129,7 @@ fieldset.field-group:disabled { opacity: 0.6; }
 
 /* Dialog */
 .dialog { width: min(720px, 100vw - 32px); max-width: none; max-height: min(92vh, 1000px); margin: auto; border: 0; border-radius: var(--radius-panel); padding: 0; background: var(--color-surface); color: var(--color-ink); box-shadow: var(--shadow-dialog); }
-.dialog::backdrop { background: rgb(29 39 36 / 45%); }
+.dialog::backdrop { background: rgb(54 38 51 / 45%); }
 .dialog[open] { display: flex; flex-direction: column; }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); border-bottom: 1px solid var(--color-rule); padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5); }
 .dialog-body { display: grid; gap: var(--space-6); overflow-y: auto; padding: var(--space-5); overscroll-behavior: contain; }

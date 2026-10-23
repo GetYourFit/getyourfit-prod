@@ -175,6 +175,14 @@ test('wardrobe, outfit suggestion and account', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Black trainers' })).toBeVisible();
   await checkScreen(page, 'wardrobe-filled');
 
+  await page.getByLabel('Find your clothes').fill('grey');
+  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.getByRole('article', { name: 'Grey crew tee' })).toBeVisible();
+  await page.getByLabel('Show', { exact: true }).selectOption('footwear');
+  await expect(page.getByRole('heading', { name: 'No clothes match that search' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show all clothes', exact: true }).click();
+  await expect(page.getByRole('article')).toHaveCount(3);
+
   const occasion = page.getByLabel('Occasion', { exact: true });
   await occasion.fill('Dinner with friends');
   await page.getByRole('button', { name: 'Find an outfit' }).click();
@@ -264,8 +272,17 @@ test('concurrent wardrobe refreshes and edits preserve confirmed facts', async (
 
 test('plan page', async ({ page }) => {
   await page.goto('/plan');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('See your outfit in a minute.');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/A wardrobe starts\s*with a plan\./);
   await checkScreen(page, 'plan-empty');
+  await page.goto('/plan?look=3');
+  await page.getByLabel('What is the occasion?').fill('One-piece evening');
+  await page.getByRole('radio', { name: 'One-piece and shoes', exact: true }).check();
+  await page.getByRole('button', { name: 'Show my outfit', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('figure').getByRole('img')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
+  await expect(page.locator('.auth-story')).toContainText('Your chosen Look 1 for One-piece evening');
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.selectedLook)).toBe(0);
 });
 
 test('visitor gets an outfit board without an account, then saves it after sign-up', async ({ page }) => {
@@ -276,8 +293,10 @@ test('visitor gets an outfit board without an account, then saves it after sign-
     if (request.url().endsWith('/api/funnel')) steps.push(request.postDataJSON().event);
   });
   await page.goto('/');
-  await page.getByRole('link', { name: 'Plan an outfit now' }).click();
-  await expect(page).toHaveURL(/\/plan$/);
+  await page.getByRole('button', { name: 'Preview Look 4', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Preview Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('link', { name: 'Build my wardrobe', exact: true }).click();
+  await expect(page).toHaveURL(/\/plan\?look=3$/);
   await page.getByLabel('What is the occasion?').fill('Dinner with friends');
   await page.getByRole('radio', { name: 'Cold' }).check();
   await page.getByRole('button', { name: 'Show my outfit' }).click();
@@ -289,6 +308,8 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   await expect(page.getByRole('heading', { name: 'Why this works' })).toBeVisible();
   await expect(page.getByText('For cold weather')).toBeVisible();
   const alts = () => board.locator('img').evaluateAll((images) => images.map((image) => image.alt));
+  await expect(page.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Look 1', exact: true }).click();
   const first = await alts();
   await page.getByRole('button', { name: 'Look 2' }).click();
   await expect(page.getByRole('button', { name: 'Look 2' })).toHaveAttribute('aria-pressed', 'true');

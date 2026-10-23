@@ -100,7 +100,7 @@ fieldset.field-group > legend.step-title { margin-bottom: var(--space-4); }
 .dropzone img { width: 96px; height: 96px; flex: 0 0 auto; border-radius: var(--radius-control); background: var(--color-surface); object-fit: contain; }
 .dropzone-copy { display: grid; gap: 2px; }
 .dropzone-title { color: var(--color-accent); font-weight: var(--weight-strong); }
-.photo-check { display: grid; gap: var(--space-1); border-left: 3px solid var(--color-accent-border); padding-left: var(--space-3); }
+.photo-check { display: grid; gap: var(--space-1); border-left: 1px solid var(--color-accent-border); padding-left: var(--space-3); }
 
 /* Outfit */
 .outfit-form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: var(--space-4); }
@@ -235,4 +235,76 @@ fieldset.field-group > legend.step-title { margin-bottom: var(--space-4); }
 @media (max-width: 479px) {
   .settings-card { grid-template-columns: minmax(0, 1fr); }
   .settings-action { grid-column: 1; }
+}
+
+/* The private fitting room keeps work areas quiet within the plum shell. */
+.app-header { background: var(--color-shell); border-color: var(--color-shell); }
+.app-header .brand { color: var(--color-on-shell); }
+.app-header .brand-mark { background: var(--color-highlight); color: var(--color-shell); border-radius: var(--radius-control); }
+.app-header-inner { min-height: 88px; }
+.app-nav a { color: var(--color-shell-muted); border-radius: 0; min-height: 88px; border-bottom: 3px solid transparent; }
+.app-nav a:hover { background: transparent; color: var(--color-on-shell); }
+.app-nav a[aria-current='page'] { background: transparent; color: var(--color-highlight); border-bottom-color: var(--color-highlight); }
+.app-header :focus-visible { outline-color: var(--color-highlight); }
+.page-heading { max-width: 640px; }
+.page-title { font-weight: 500; }
+.clothes-section { padding-bottom: var(--space-6); }
+.wardrobe-coverage { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-6); padding: var(--space-5); background: var(--color-surface-muted); border-radius: var(--radius-photo); }
+.wardrobe-coverage > p { max-width: 25ch; font-weight: var(--weight-strong); }
+.wardrobe-coverage ul { display: flex; flex: 1; flex-wrap: wrap; gap: var(--space-5); padding: 0; list-style: none; }
+.wardrobe-coverage li { display: grid; gap: var(--space-1); font-size: var(--text-caption); }
+.wardrobe-coverage li > span { color: var(--color-ink-muted); }
+.wardrobe-tools { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; align-items: end; gap: var(--space-4); }
+.wardrobe-tools > p { align-self: center; }
+.garment-card { border: 0; border-radius: 0; background: transparent; }
+.garment-photo { overflow: hidden; border-radius: var(--radius-photo); background: var(--color-surface); }
+.garment-body { padding-left: 0; padding-right: 0; }
+.garment-actions { padding-left: 0; padding-right: 0; }
+.empty-state { border-style: solid; background: var(--color-surface); }
+.empty-state-icon { background: var(--color-accent-subtle); }
+.outfit-card, .starter-plan-section { border: 0; padding: var(--space-6) 0; background: transparent; border-radius: 0; border-top: 1px solid var(--color-rule); }
+.outfit-card > .card-header { max-width: 760px; }
+.outfit-form { padding: var(--space-5); background: var(--color-surface); border-radius: var(--radius-photo); }
+.settings-card { border: 0; border-radius: 0; border-top: 1px solid var(--color-rule); padding-left: 0; padding-right: 0; background: transparent; }
+.settings-icon { background: var(--color-surface-muted); color: var(--color-ink); }
+.page-narrow { max-width: 920px; }
+.auth-main { max-width: 1100px; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: var(--space-8); align-items: start; padding: var(--space-5) 0 var(--space-8); }
+.auth-content { display: grid; gap: var(--space-5); min-width: 0; }
+.auth-panel { border: 0; padding: var(--space-6) 0; background: transparent; }
+.auth-story { display: grid; align-content: start; gap: var(--space-5); padding: var(--space-7); background: var(--color-shell); color: var(--color-on-shell); border-radius: var(--radius-panel); }
+.auth-story h2 { white-space: pre-line; font-size: var(--text-page); font-weight: 500; letter-spacing: var(--tracking-display); line-height: var(--leading-tight); color: var(--color-highlight); }
+.auth-story > p { max-width: 38ch; }
+.auth-story-piece { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: var(--space-5); border-top: 1px solid var(--color-shell-muted); padding-top: var(--space-5); }
+.auth-story-piece img { width: 100%; height: auto; border-radius: var(--radius-photo); }
+.auth-story-piece span { font-size: var(--text-title-sm); line-height: var(--leading-snug); }
+.auth-story .auth-story-note { color: var(--color-shell-muted); font-size: var(--text-caption); }
+.auth-story :focus-visible { outline-color: var(--color-highlight); }
+@media (max-width: 999px) {
+  .auth-main { gap: var(--space-6); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .auth-story { padding: var(--space-6); }
+  .auth-story-piece { grid-template-columns: minmax(0, 1fr); }
+  .auth-story-piece img { max-width: 200px; }
+}
+@media (max-width: 760px) {
+  .auth-main { grid-template-columns: minmax(0, 1fr); max-width: 440px; gap: var(--space-4); padding-top: 0; }
+  .auth-story { padding: var(--space-5); gap: var(--space-3); }
+  .auth-story h2 { font-size: var(--text-title); white-space: normal; }
+  .auth-story-piece, .auth-story .auth-story-note { display: none; }
+  .auth-story > p { font-size: var(--text-caption); }
+  .auth-panel { padding: var(--space-3) 0; }
+  .wardrobe-tools { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .wardrobe-tools > p { grid-column: 1 / -1; }
+}
+@media (max-width: 599px) {
+  .app-header-inner { min-height: 0; }
+  .app-header .brand { align-self: flex-start; }
+  .app-nav a { min-height: 52px; }
+  .page-actions { align-items: stretch; }
+  .page-actions .button { white-space: normal; }
+  .wardrobe-coverage { gap: var(--space-4); }
+  .wardrobe-coverage > p, .wardrobe-coverage ul { flex-basis: 100%; max-width: none; }
+  .wardrobe-coverage ul { justify-content: space-between; gap: var(--space-3); }
+  .garment-body { padding-left: 0; padding-right: 0; }
+  .outfit-form { padding: var(--space-4); }
+  .outfit-card, .starter-plan-section { padding: var(--space-5) 0; }
 }

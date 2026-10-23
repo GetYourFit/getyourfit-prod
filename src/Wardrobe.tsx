@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { z } from 'zod';
-import { Pencil, Plus, Shirt, Trash2 } from 'lucide-react';
+import { ArrowRight, Pencil, Plus, Shirt, Trash2 } from 'lucide-react';
 import { wardrobeSchema, type Garment } from '../shared/wardrobe';
 import { GarmentForm } from './GarmentForm';
 import { wardrobeRequest } from './wardrobe-api';
 import { StarterPlan } from './StarterPlan';
 import { Outfit } from './Outfit';
 import { categoryLabel, dressCodeLabel, fitLabel, weatherLabel } from './labels';
-import { Notice } from './ui';
+import { Field, Notice } from './ui';
 
 type Editor = { kind: 'closed' } | { kind: 'add' } | { kind: 'edit'; garmentId: string };
 
@@ -21,6 +21,8 @@ export function Wardrobe({ account }: { account: string }) {
   const [remove, setRemove] = useState('');
   const [revision, setRevision] = useState(0);
   const [planFirst, setPlanFirst] = useState(false);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState<Garment['facts']['category'] | 'all'>('all');
   const titleRef = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const refreshRequest = useRef(0);
@@ -64,13 +66,14 @@ export function Wardrobe({ account }: { account: string }) {
   }
 
   const full = garments !== null && garments.length >= 50;
+  const visibleGarments = garments?.filter((item) => (category === 'all' || item.facts.category === category) && `${item.facts.name} ${item.facts.color}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   const editedGarment = editor.kind === 'edit' ? garments?.find((item) => item.id === editor.garmentId) : undefined;
   if (editor.kind === 'edit' && garments !== null && !editedGarment) setEditor({ kind: 'closed' });
   return <div className="page">
     <header className="page-header">
       <div className="page-heading">
         <h1 id="wardrobe-title" className="page-title" ref={titleRef} tabIndex={-1}>Your wardrobe</h1>
-        {!planFirst && <p className="lead">Add the clothes you own, then get one complete outfit for your plans, with the reasons.</p>}
+        {!planFirst && <p className="lead">A little more possibility in what you already own. Add your clothes, confirm the details, then dress for your day.</p>}
       </div>
       {!planFirst && <div className="button-row page-actions">
         <a className="button button-secondary" href="#build-plan">Build my wardrobe</a>
@@ -83,12 +86,22 @@ export function Wardrobe({ account }: { account: string }) {
 
     {planFirst && <StarterPlan key="starter-plan" account={account} onPresenceChange={setPlanFirst} />}
 
-    <section className="page-section" aria-labelledby="clothes-title">
+    <section className="page-section clothes-section" aria-labelledby="clothes-title">
       <div className="section-head">
         <h2 id="clothes-title" className="section-title">Clothes</h2>
         {planFirst && <button id="add-garment" className="button button-primary" disabled={busy || garments === null || full || editor.kind !== 'closed'} onClick={(event) => open({ kind: 'add' }, event.currentTarget)}><Plus size={18} aria-hidden="true" />Add garment</button>}
         {garments !== null && <p className="caption">{garments.length === 0 ? 'None added yet' : `${garments.length} ${garments.length === 1 ? 'garment' : 'garments'} · Private to your account`}{full ? ' · Wardrobe full' : ''}</p>}
       </div>
+      {garments !== null && <div className="wardrobe-coverage">
+        <p>{garments.length === 0 ? 'A complete outfit starts with a few pieces.' : 'Build an outfit from your confirmed details.'}</p>
+        <ul aria-label="Garments added by role">{(garments.some((item) => item.facts.category === 'one-piece') ? ['one-piece', 'footwear'] as const : ['top', 'bottom', 'footwear'] as const).map((role) => <li key={role}><span>{categoryLabel[role]}</span><strong>{garments.filter((item) => item.facts.category === role).length} added</strong></li>)}</ul>
+        {garments.length > 0 && <a className="text-link" href="#outfit">Check an outfit<ArrowRight size={18} aria-hidden="true" /></a>}
+      </div>}
+      {garments !== null && garments.length > 0 && <div className="wardrobe-tools">
+        <Field label="Find your clothes">{(control) => <input {...control} type="search" className="input" placeholder="Search by name or colour" value={search} onChange={(event) => setSearch(event.target.value)} />}</Field>
+        <Field label="Show">{(control) => <select {...control} className="select" value={category} onChange={(event) => { const next = event.target.value; if (next === 'all' || next === 'top' || next === 'bottom' || next === 'footwear' || next === 'one-piece') setCategory(next); }}><option value="all">All clothes</option><option value="top">Tops</option><option value="bottom">Bottoms</option><option value="one-piece">One-pieces</option><option value="footwear">Footwear</option></select>}</Field>
+        <p className="caption" role="status">{visibleGarments?.length} of {garments.length} shown</p>
+      </div>}
       {garments === null ? !error && <div className="garment-grid" aria-busy="true"><p role="status" className="caption">Opening your wardrobe…</p></div>
         : garments.length === 0 ? <div className="empty-state">
           <span className="empty-state-icon" aria-hidden="true"><Shirt size={24} /></span>
@@ -96,7 +109,8 @@ export function Wardrobe({ account }: { account: string }) {
           <p>Start with one real photo, then confirm the facts only you know. For a complete outfit, add a top and a bottom (or a one-piece) and footwear.</p>
           <div className="button-row"><button className="button button-primary" disabled={busy || editor.kind !== 'closed'} onClick={(event) => open({ kind: 'add' }, event.currentTarget)}><Plus size={18} aria-hidden="true" />Add a garment</button><a className="text-link" href="#build-plan">Or plan what you need first</a></div>
         </div>
-        : <ul className="garment-grid">{garments.map((item) => <li key={item.id}><article className="garment-card" aria-labelledby={`garment-${item.id}`}>
+        : visibleGarments?.length === 0 ? <div className="empty-state"><h3 className="card-title">No clothes match that search</h3><p>Try a different name or colour, or show all your clothes.</p><button className="button button-secondary" onClick={() => { setSearch(''); setCategory('all'); }}>Show all clothes</button></div>
+        : <ul className="garment-grid">{visibleGarments?.map((item) => <li key={item.id}><article className="garment-card" aria-labelledby={`garment-${item.id}`}>
           <div className="garment-photo"><img src={item.photoUrl} alt={item.facts.name} loading="lazy" width={400} height={400} /></div>
           <div className="garment-body">
             <h3 id={`garment-${item.id}`} className="card-title">{item.facts.name}</h3>
