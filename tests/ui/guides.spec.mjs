@@ -22,7 +22,7 @@ test('guides remain readable without JavaScript, with accessible links and respo
         await page.keyboard.press('Tab');
         await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
         await page.keyboard.press('Enter');
-        expect(new URL(page.url()).hash).toBe('#guide-main');
+        await expect.poll(() => new URL(page.url()).hash).toBe('#guide-main');
         const invalidAnchors = await page.locator('a[href^="#"]').evaluateAll((links) => links.filter((link) => !document.getElementById(link.hash.slice(1))).map((link) => link.href));
         expect(invalidAnchors).toEqual([]);
         expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
