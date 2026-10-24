@@ -176,6 +176,10 @@ if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
   app.use(express.static(staticRoot, { etag: true, maxAge: '1h' }));
   app.use((request, response) => {
     if (request.path.startsWith('/api/')) return response.status(404).json({ error: 'This action is not available.' });
+    if (request.path.startsWith('/guides/')) {
+      response.setHeader('X-Robots-Tag', 'noindex');
+      return response.status(404).sendFile('guide-not-found.html', { root: staticRoot });
+    }
     response.sendFile('index.html', { root: staticRoot });
   });
 }

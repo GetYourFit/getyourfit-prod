@@ -1,0 +1,50 @@
+.guide-page main { padding-block: var(--space-6) var(--space-8); }
+.guide-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); color: var(--color-ink-muted); font-size: var(--text-caption); }
+.guide-breadcrumb a { display: inline-flex; align-items: center; min-height: var(--target-min); }
+.guide-heading { max-width: var(--reading-max); margin-bottom: var(--space-7); }
+.guide-heading h1 { text-wrap: balance; }
+.guide-heading .lead { margin-top: var(--space-5); }
+.guide-answer, .guide-reading { max-width: var(--reading-max); }
+.guide-answer { font-size: var(--text-lead); }
+.guide-page article p + p { margin-top: var(--space-4); }
+.guide-contents { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-5); padding-block: var(--space-5); margin-block: var(--space-6) var(--space-7); border-block: 1px solid var(--color-rule); }
+.guide-contents span { font-weight: var(--weight-strong); }
+.guide-contents a, .guide-page .text-link { display: inline-flex; align-items: center; gap: var(--space-3); min-height: var(--target-min); color: var(--color-accent); }
+.guide-reading section + section { margin-top: var(--space-7); }
+.guide-reading section { scroll-margin-top: var(--space-5); }
+.guide-reading h2 { margin-bottom: var(--space-4); }
+.guide-reading ul, .guide-reading ol { padding-inline-start: var(--space-5); margin-block: var(--space-4); }
+.guide-reading li + li { margin-top: var(--space-3); }
+.guide-reading a { color: var(--color-accent); }
+.guide-table-wrap { margin-block: var(--space-5); }
+.guide-page table { width: 100%; border-collapse: collapse; font-size: var(--text-body); }
+.guide-page caption { text-align: start; color: var(--color-ink-muted); font-size: var(--text-caption); margin-bottom: var(--space-3); }
+.guide-page th, .guide-page td { vertical-align: top; text-align: start; padding: var(--space-3); border-bottom: 1px solid var(--color-rule); overflow-wrap: anywhere; }
+.guide-page thead { background: var(--color-surface-muted); }
+.guide-page th { font-weight: var(--weight-strong); }
+.guide-next { display: grid; gap: var(--space-6); margin-block: var(--space-7); padding: var(--space-6); background: var(--color-surface-muted); border-radius: var(--radius-panel); }
+.guide-next h2 { margin-bottom: var(--space-4); }
+.guide-next p { max-width: var(--reading-max); }
+.guide-next-actions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+.guide-next-actions .button { white-space: normal; height: auto; min-height: var(--control-height); padding-block: var(--space-3); }
+.guide-photo-strip { margin-block: var(--space-7); max-width: var(--reading-max); }
+.guide-photo-strip > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); background: var(--color-surface); border-radius: var(--radius-photo); padding: var(--space-4); }
+.guide-photo-strip img { width: 100%; height: 200px; object-fit: contain; }
+.guide-photo-strip figcaption { font-size: var(--text-caption); color: var(--color-ink-muted); margin-top: var(--space-3); }
+.guide-editorial { margin-top: var(--space-7); font-size: var(--text-caption); color: var(--color-ink-muted); }
+.guide-editorial h2 { color: var(--color-ink); }
+.guide-editorial summary { display: flex; align-items: center; min-height: var(--target-min); text-decoration: underline; text-underline-offset: 4px; }
+.guide-related { display: grid; justify-items: start; gap: var(--space-3); border-top: 1px solid var(--color-rule); padding-top: var(--space-6); margin-top: var(--space-7); }
+.guide-index { max-width: var(--reading-max); }
+.guide-index section { padding-block: var(--space-6); border-top: 1px solid var(--color-rule); }
+.guide-index h2 a { display: flex; align-items: center; gap: var(--space-5); color: var(--color-accent); }
+.guide-index h2 svg { flex-shrink: 0; }
+.guide-index section p { margin-top: var(--space-4); }
+.guide-index > p { margin-block: var(--space-6); }
+.guide-page .public-footer { flex-wrap: wrap; }
+@media (min-width: 1000px) { .guide-next { grid-template-columns: 1.25fr 1fr; } }
+@media (max-width: 599px) {
+  .guide-next { padding: var(--space-5); }
+  .guide-photo-strip img { height: 140px; }
+  .guide-page th, .guide-page td { padding: var(--space-3) var(--space-2); }
+}

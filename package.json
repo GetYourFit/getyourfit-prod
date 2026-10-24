@@ -29,7 +29,7 @@
     "predev": "node scripts/copy-onnx.mjs",
     "prebuild": "node scripts/copy-onnx.mjs",
     "verify:classification": "node scripts/verify-classification.mjs",
-    "postbuild": "node scripts/write-release.mjs"
+    "postbuild": "node scripts/write-release.mjs && node scripts/write-guides.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
