@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  build: { manifest: true },
+  build: { manifest: true, rollupOptions: { input: { main: 'index.html', 'guide-measure': 'src/guide-measure.ts' } } },
   worker: { format: 'es' },
   server: {
     headers: {

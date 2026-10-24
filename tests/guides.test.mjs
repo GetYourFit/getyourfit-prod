@@ -19,7 +19,14 @@ test('public guide HTTP documents contain readable content and canonical metadat
     assert.match(html, /href="\/sign-up\?next=%2Fplan"/);
     assert.doesNotMatch(html, /href="\/plan"/);
     assert.match(html, guide.slug.startsWith('capsule') ? /href="\/sign-up\?next=%2Fwardrobe"/ : /href="\/sign-in\?next=%2Fplan"/);
-    assert.doesNotMatch(html, /<script\b|private-test-marker|\/api\/funnel/);
+    assert.doesNotMatch(html, /private-test-marker|<script>|<img[^>]+api\/funnel/);
+    const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((match) => match[0]);
+    assert.equal(scripts.length, 1);
+    const source = scripts[0].match(/^<script type="module" src="([^"]+)"><\/script>$/)?.[1];
+    assert.ok(source);
+    const script = await fetch(`${origin}${source}`);
+    assert.equal(script.status, 200);
+    assert.match(script.headers.get('content-type'), /javascript/);
     const head = await fetch(`${origin}${guidePath(guide)}`, { method: 'HEAD' });
     assert.equal(head.status, 200);
     assert.equal(await head.text(), '');

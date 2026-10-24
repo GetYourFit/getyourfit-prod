@@ -18,6 +18,8 @@ function collectStyles(key) {
 }
 collectStyles('index.html');
 collectStyles('src/GuidePage.tsx');
+const measureScript = manifest['src/guide-measure.ts']?.file;
+if (!measureScript) throw new Error('Missing build manifest entry: src/guide-measure.ts');
 
 const escape = (value) => value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const vite = await createServer({ root, server: { middlewareMode: true }, appType: 'custom' });
@@ -30,7 +32,7 @@ try {
   ];
   for (const { route, guide, title, description } of routes) {
     const canonical = `${guideOrigin}${route}`;
-    const html = `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#f7f8f5"><title>${escape(title)} - GetYourFit</title><meta name="description" content="${escape(description)}">${guide === undefined ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${canonical}"><meta property="og:url" content="${canonical}">`}<meta property="og:type" content="${guide ? 'article' : 'website'}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description)}"><meta property="og:site_name" content="GetYourFit"><link rel="icon" href="/favicon.svg"><link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>${[...styles].map((file) => `<link rel="stylesheet" href="/${escape(file)}">`).join('')}</head><body>${renderToStaticMarkup(createElement(GuidePage, { guide }))}</body></html>`;
+    const html = `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#f7f8f5"><title>${escape(title)} - GetYourFit</title><meta name="description" content="${escape(description)}">${guide === undefined ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${canonical}"><meta property="og:url" content="${canonical}">`}<meta property="og:type" content="${guide ? 'article' : 'website'}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description)}"><meta property="og:site_name" content="GetYourFit"><link rel="icon" href="/favicon.svg"><link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>${[...styles].map((file) => `<link rel="stylesheet" href="/${escape(file)}">`).join('')}</head><body>${renderToStaticMarkup(createElement(GuidePage, { guide }))}${guide ? `<script type="module" src="/${escape(measureScript)}"></script>` : ''}</body></html>`;
     const file = route.endsWith('/') ? path.join(dist, route, 'index.html') : path.join(dist, route);
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, html);

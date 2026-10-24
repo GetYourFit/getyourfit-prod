@@ -11,7 +11,7 @@ function NextStep({ wardrobe = false }: { wardrobe?: boolean }) {
     <div><h2 id="guide-next-title" className="section-title">{wardrobe ? 'Try it with your own clothes' : 'Turn your checklist into a plan'}</h2>
       <p>{wardrobe ? 'Create a private wardrobe, add photos of a complete set and confirm the facts. GYF can check the ownership, availability, fit and occasion facts you provide. You decide whether you like the combination.' : 'Create an account, then choose your occasion, weather, dress code and spending ceiling in the planner. It shows general outfit ideas with example garment photos; it does not verify your office policy, fabric or fit.'}</p></div>
     <div className="guide-next-actions">
-      <a className="button button-primary" href={wardrobe ? wardrobeEntry.signUp : planEntry.signUp}>{wardrobe ? 'Start my private wardrobe' : 'Create an account to plan'}<ArrowRight size={18} aria-hidden="true" /></a>
+      <a className="button button-primary" data-guide-cta href={wardrobe ? wardrobeEntry.signUp : planEntry.signUp}>{wardrobe ? 'Start my private wardrobe' : 'Create an account to plan'}<ArrowRight size={18} aria-hidden="true" /></a>
       <p className="caption">{wardrobe ? 'Account required. Saving stores your photos on the GetYourFit server. Photo consent is separate.' : 'Account required. You choose your occasion and what to save after you sign in. Photo consent is separate.'}</p>
       <a className="text-link" href={wardrobe ? wardrobeEntry.signIn : planEntry.signIn}>Already have an account? Sign in</a>
     </div>
@@ -84,7 +84,7 @@ function CapsuleGuide() {
       <section id="keep-a-record"><h2 className="section-title">Keep a record you can use again</h2>
         <p>Try the rotation through a normal week. Keep a note or photo of combinations you want to repeat, and change those that felt uncomfortable or impractical. That is stronger evidence for your next choice than an arbitrary capsule size.</p>
         <p>GYF’s private wardrobe can hold your garment photos and the facts you confirm. Start with one complete set: top, bottom and footwear, or a one-piece and footwear. Mark what is owned, available and fits now. The current factual checker can ask about missing facts or identify a complete set; it does not learn your taste or automatically track what you wore.</p>
-        <p>If you want to explore first, <a href="/sign-up?next=%2Fplan">create an account and open the planner</a>. It uses illustrative garment photos. Selecting and saving a plan is separate from adding the real pieces you own.</p>
+        <p>If you want to explore first, <a data-guide-cta href="/sign-up?next=%2Fplan">create an account and open the planner</a>. It uses illustrative garment photos. Selecting and saving a plan is separate from adding the real pieces you own.</p>
       </section>
     </div>
     <NextStep wardrobe />

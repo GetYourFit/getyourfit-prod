@@ -83,3 +83,22 @@ for (const width of [390, 1440]) test(`guide to account entry and saved plan at 
   expect(plans).toHaveLength(1);
   expect(plans[0].input).toMatchObject({ occasion: 'Office day', weather: 'warm', dressCode: 'smart-casual' });
 });
+
+for (const [name, signal] of [['Do Not Track', 'Object.defineProperty(navigator, "doNotTrack", { value: "1" })'], ['Global Privacy Control', 'Object.defineProperty(navigator, "globalPrivacyControl", { value: true })'], ['no signal', '']]) {
+  test(`guide measurement with ${name} counts only when no privacy signal is sent`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL });
+    try {
+      if (signal) await context.addInitScript(signal);
+      const page = await context.newPage();
+      const counted = [];
+      page.on('request', (request) => { if (new URL(request.url()).pathname === '/api/funnel') counted.push(JSON.parse(request.postData() ?? '{}')); });
+      await page.route('**/sign-up**', (route) => route.abort());
+      await page.goto(guidePath(guides[0]));
+      await page.getByRole('link', { name: 'Create an account to plan' }).click({ noWaitAfter: true });
+      await page.waitForTimeout(500);
+      expect(counted).toEqual(signal ? [] : [{ event: 'guide_viewed' }, { event: 'guide_cta_clicked' }]);
+    } finally {
+      await context.close();
+    }
+  });
+}

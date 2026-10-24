@@ -42,6 +42,21 @@ for (const backend of backends) {
     assert.match(output, /save accepted -> plan saved: 100%/);
   });
 
+  test(`stores no cookie, address, user agent, query or path with guide counters [${backend}]`, async (t) => {
+    const server = await start(t, {}, { backend });
+    for (const event of ['guide_viewed', 'guide_cta_clicked']) {
+      const response = await server.request({ method: 'POST', route: '/api/funnel?q=private-marker',
+        headers: { Origin: server.origin, 'Content-Type': 'application/json', Cookie: 'sid=private-marker', 'User-Agent': 'private-marker', Referer: `${server.origin}/guides/private-marker/` },
+        body: { event, guide: 'private-marker', path: '/guides/private-marker/', userAgent: 'private-marker' } });
+      assert.equal(response.status, 204);
+    }
+    const rows = await inspect(server, 'SELECT * FROM funnel_counts ORDER BY event');
+    assert.deepEqual(rows.map((row) => [row.event, row.count, Object.keys(row).sort().join()]),
+      [['guide_cta_clicked', 1, 'count,day,event'], ['guide_viewed', 1, 'count,day,event']]);
+    assert.doesNotMatch(JSON.stringify(rows), /private-marker/);
+    assert.doesNotMatch(await report(server), /private-marker/);
+  });
+
   test(`rejects unknown steps and rate-limits floods without counting them [${backend}]`, async (t) => {
     const server = await start(t, {}, { backend });
     assert.equal((await post(server, { event: 'page_view' })).status, 400);
