@@ -66,6 +66,7 @@ def drill(workflow, root):
         weekly.write_queue(root, updated, created)
     assert observations_proof == ['insufficient_data', 'eligible'], observations_proof
     assert len(weekly.queue_rows(root)) == 1
+    rerun = adapter.plan(root, {'date': day, 'signal': signal})
     baseline_runs = [evaluate(root) for _ in range(3)]
     assert len({json.dumps(x, sort_keys=True) for x in baseline_runs}) == 1
     baseline = baseline_runs[0]
@@ -122,7 +123,7 @@ def drill(workflow, root):
             'observedAt': dt.datetime.now(dt.timezone.utc).isoformat(),
             'workflowHead': subprocess.run(['git', '-C', str(workflow), 'rev-parse', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip(),
             'workflowFiles': {name: sha(workflow / 'scripts' / name) for name in ['weekly.py', 'observations.py', 'freshness.py']},
-            'queueTransitions': observations_proof, 'queueItems': len(weekly.queue_rows(root)), 'outcomes': outcomes,
+            'queueTransitions': observations_proof, 'persistedRerun': {'status': rerun['status'], 'reason': rerun['reason']}, 'queueItems': len(weekly.queue_rows(root)), 'outcomes': outcomes,
             'productionChanges': False, 'scheduleInstalled': False, 'liveScheduleExecuted': False}
 
 

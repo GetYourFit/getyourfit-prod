@@ -113,6 +113,7 @@ test('existing workflow ingestion, kept change, known-bad regression, contradict
   const proof = JSON.parse(stdout);
   assert.equal(proof.synthetic, true);
   assert.deepEqual(proof.queueTransitions, ['insufficient_data', 'eligible']);
+  assert.deepEqual(proof.persistedRerun, { status: 'eligible', reason: 'existing_queue_recurrence_met' });
   assert.deepEqual(proof.outcomes.map((row) => row.decision), ['kept', 'discarded', 'discarded', 'inconclusive']);
   assert.ok(proof.outcomes.every((row) => row.undoVerified));
   assert.equal(proof.productionChanges, false);
