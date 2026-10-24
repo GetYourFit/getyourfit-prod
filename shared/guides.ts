@@ -1,5 +1,8 @@
 export const guideOrigin = 'https://app.getyourfit.co';
 
+export const planEntry = { signUp: '/sign-up?next=%2Fplan', signIn: '/sign-in?next=%2Fplan' } as const;
+export const wardrobeEntry = { signUp: '/sign-up?next=%2Fwardrobe', signIn: '/sign-in?next=%2Fwardrobe' } as const;
+
 export const guides = [
   {
     slug: 'smart-casual-office-outfits',

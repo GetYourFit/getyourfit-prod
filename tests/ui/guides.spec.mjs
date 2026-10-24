@@ -39,7 +39,7 @@ test('guides remain readable without JavaScript, with accessible links and respo
     await page.getByText('Photograph credits and licences', { exact: true }).click();
     await expect(page.getByRole('link', { name: 'Source records and image provenance' })).toBeVisible();
     await page.getByRole('link', { name: 'Start my private wardrobe', exact: true }).click();
-    await expect(page).toHaveURL(/\/sign-up$/);
+    await expect(page).toHaveURL(/\/sign-up\?next=%2Fwardrobe$/);
   } finally {
     await context.close();
   }
@@ -57,33 +57,29 @@ test('guide accessibility at mobile, tablet and desktop widths', async ({ page }
   }
 });
 
-for (const width of [390, 1440]) test(`guide to selected and saved plan at ${width}px`, async ({ page }) => {
+for (const width of [390, 1440]) test(`guide to account entry and saved plan at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   await page.goto(guidePath(guides[0]));
-  await page.getByRole('link', { name: 'Open the outfit planner', exact: true }).click();
-  await expect(page).toHaveURL(/\/plan$/);
-  await page.getByLabel('What is the occasion?').fill('Office day');
-  await page.getByRole('radio', { name: 'Warm', exact: true }).check();
-  await page.getByLabel('Dress code', { exact: false }).selectOption('smart-casual');
-  await page.getByRole('button', { name: 'Show my outfit', exact: true }).click();
-  await page.getByRole('button', { name: 'Look 4', exact: true }).click();
-  const chosen = await page.getByRole('figure').locator('img').evaluateAll((images) => images.map((image) => image.alt));
-  await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
+  await page.getByRole('link', { name: 'Create an account to plan', exact: true }).click();
+  await expect(page).toHaveURL(/\/sign-up\?next=%2Fplan$/);
   await page.getByLabel('Your name', { exact: true }).fill('Guide journey test');
   await page.getByLabel('Email', { exact: true }).fill(`guide-${randomUUID()}@example.test`);
   await page.getByLabel('Password', { exact: true }).fill(`guide-test-${randomUUID()}`);
   await page.getByRole('checkbox', { name: /18 or older/ }).check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await page.waitForURL((url) => ['/wardrobe', '/plan'].includes(url.pathname));
+  await page.goto('/wardrobe#build-plan');
   const builder = page.locator('#build-plan');
-  await expect(builder.getByRole('status').filter({ hasText: 'Plan saved' })).toBeVisible();
-  await expect(builder.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await builder.getByLabel('What is the occasion?').fill('Office day');
+  await builder.getByLabel('Spending ceiling').fill('3000');
+  await builder.getByLabel('Plan weather').selectOption('warm');
+  await builder.getByLabel('Plan dress code').selectOption('smart-casual');
+  await builder.getByRole('button', { name: 'Make my starter plan' }).click();
+  await builder.getByRole('button', { name: 'Save plan', exact: true }).click();
+  await expect(builder.getByRole('heading', { name: 'Your starter plan for Office day' })).toBeVisible();
   await page.reload();
-  await expect(builder.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  expect(await builder.getByRole('figure').locator('img').evaluateAll((images) => images.map((image) => image.alt))).toEqual(chosen);
-  const privateState = await page.evaluate(async () => {
-    const [wardrobe, plans] = await Promise.all(['/api/wardrobe', '/api/wardrobe/starter-plans'].map(async (route) => (await fetch(route)).json()));
-    return { wardrobe, plans };
-  });
-  expect(privateState.wardrobe).toEqual([]);
-  expect(privateState.plans[0].input.selectedLook).toBe(3);
+  await expect(builder.getByRole('heading', { name: 'Your starter plan for Office day' })).toBeVisible();
+  const plans = await page.evaluate(async () => (await fetch('/api/wardrobe/starter-plans')).json());
+  expect(plans).toHaveLength(1);
+  expect(plans[0].input).toMatchObject({ occasion: 'Office day', weather: 'warm', dressCode: 'smart-casual' });
 });

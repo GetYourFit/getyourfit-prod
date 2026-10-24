@@ -1,5 +1,5 @@
 import { ArrowRight } from 'lucide-react';
-import { guides, guidePath, type Guide } from '../shared/guides';
+import { guides, guidePath, planEntry, wardrobeEntry, type Guide } from '../shared/guides';
 import { garments } from '../shared/outfit-board';
 import { Brand } from './ui';
 import { PhotoCredits } from './PhotoCredits';
@@ -9,11 +9,11 @@ import './styles/guides.css';
 function NextStep({ wardrobe = false }: { wardrobe?: boolean }) {
   return <section className="guide-next" aria-labelledby="guide-next-title">
     <div><h2 id="guide-next-title" className="section-title">{wardrobe ? 'Try it with your own clothes' : 'Turn your checklist into a plan'}</h2>
-      <p>{wardrobe ? 'Create a private wardrobe, add photos of a complete set and confirm the facts. GYF can check the ownership, availability, fit and occasion facts you provide. You decide whether you like the combination.' : 'Try the planner without an account. Choose your occasion, weather, dress code and spending ceiling. It shows general outfit ideas with example garment photos; it does not verify your office policy, fabric or fit.'}</p></div>
+      <p>{wardrobe ? 'Create a private wardrobe, add photos of a complete set and confirm the facts. GYF can check the ownership, availability, fit and occasion facts you provide. You decide whether you like the combination.' : 'Create an account, then choose your occasion, weather, dress code and spending ceiling in the planner. It shows general outfit ideas with example garment photos; it does not verify your office policy, fabric or fit.'}</p></div>
     <div className="guide-next-actions">
-      <a className="button button-primary" href={wardrobe ? '/sign-up' : '/plan'}>{wardrobe ? 'Start my private wardrobe' : 'Open the outfit planner'}<ArrowRight size={18} aria-hidden="true" /></a>
-      <p className="caption">{wardrobe ? 'Account required. Saving stores your photos on the GetYourFit server. Photo consent is separate.' : 'Your planner answers stay in this browser until you choose to save. Saving a plan requires an account.'}</p>
-      <a className="text-link" href={wardrobe ? '/sign-in' : '/sign-up'}>{wardrobe ? 'Already have a wardrobe? Sign in' : 'Prefer your own clothes? Start a wardrobe'}</a>
+      <a className="button button-primary" href={wardrobe ? wardrobeEntry.signUp : planEntry.signUp}>{wardrobe ? 'Start my private wardrobe' : 'Create an account to plan'}<ArrowRight size={18} aria-hidden="true" /></a>
+      <p className="caption">{wardrobe ? 'Account required. Saving stores your photos on the GetYourFit server. Photo consent is separate.' : 'Account required. You choose your occasion and what to save after you sign in. Photo consent is separate.'}</p>
+      <a className="text-link" href={wardrobe ? wardrobeEntry.signIn : planEntry.signIn}>Already have an account? Sign in</a>
     </div>
   </section>;
 }
@@ -84,7 +84,7 @@ function CapsuleGuide() {
       <section id="keep-a-record"><h2 className="section-title">Keep a record you can use again</h2>
         <p>Try the rotation through a normal week. Keep a note or photo of combinations you want to repeat, and change those that felt uncomfortable or impractical. That is stronger evidence for your next choice than an arbitrary capsule size.</p>
         <p>GYF’s private wardrobe can hold your garment photos and the facts you confirm. Start with one complete set: top, bottom and footwear, or a one-piece and footwear. Mark what is owned, available and fits now. The current factual checker can ask about missing facts or identify a complete set; it does not learn your taste or automatically track what you wore.</p>
-        <p>If you want to explore first, <a href="/plan">open the no-account planner</a>. It uses illustrative garment photos. Selecting and saving a plan is separate from adding the real pieces you own.</p>
+        <p>If you want to explore first, <a href="/sign-up?next=%2Fplan">create an account and open the planner</a>. It uses illustrative garment photos. Selecting and saving a plan is separate from adding the real pieces you own.</p>
       </section>
     </div>
     <NextStep wardrobe />
@@ -100,9 +100,9 @@ export default function GuidePage({ guide }: { guide: Guide | null | undefined }
     <main id="guide-main">
       <nav className="guide-breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span>{guide || missing ? <a href="/guides/">Outfit guides</a> : <span aria-current="page">Outfit guides</span>}</nav>
       <div className="guide-heading"><h1 className="page-title">{guide?.title ?? (missing ? 'This guide could not be found' : 'Make more of the clothes you own')}</h1><p className="lead">{guide?.summary ?? (missing ? 'Choose a guide below or go straight to planning an outfit.' : 'Practical outfit and capsule-wardrobe guides. Start with your day, use what you have, and check the whole outfit.')}</p></div>
-      {guide ? <article aria-label={guide.title}>{guide.slug === 'smart-casual-office-outfits' ? <OfficeGuide /> : <CapsuleGuide />}</article> : <div className="guide-index">{guides.map((item) => <section key={item.slug}><h2 className="section-title"><a href={guidePath(item)}>{item.title}<ArrowRight size={22} aria-hidden="true" /></a></h2><p>{item.summary}</p></section>)}<p>These guides use India-first examples without assuming everyone has the same climate, wardrobe or dress code. They offer practical checks, not rules about bodies or personal style.</p><a className="button button-primary" href="/plan">Plan an outfit<ArrowRight size={18} aria-hidden="true" /></a></div>}
+      {guide ? <article aria-label={guide.title}>{guide.slug === 'smart-casual-office-outfits' ? <OfficeGuide /> : <CapsuleGuide />}</article> : <div className="guide-index">{guides.map((item) => <section key={item.slug}><h2 className="section-title"><a href={guidePath(item)}>{item.title}<ArrowRight size={22} aria-hidden="true" /></a></h2><p>{item.summary}</p></section>)}<p>These guides use India-first examples without assuming everyone has the same climate, wardrobe or dress code. They offer practical checks, not rules about bodies or personal style.</p><a className="button button-primary" href={planEntry.signUp}>Plan an outfit<ArrowRight size={18} aria-hidden="true" /></a></div>}
       {guide && <aside className="guide-related" aria-labelledby="guide-related-title"><h2 id="guide-related-title" className="section-title">Keep reading</h2>{guides.filter((item) => item.slug !== guide.slug).map((item) => <a key={item.slug} className="text-link" href={guidePath(item)}>{item.title}<ArrowRight size={18} aria-hidden="true" /></a>)}<a className="text-link" href="/guides/">All outfit guides</a></aside>}
     </main>
-    <footer className="public-footer"><span>GetYourFit</span><a className="public-link" href="/guides/">Outfit guides</a><a className="public-link" href="/plan">Plan an outfit</a><a className="public-link" href="/sign-in">Back to my wardrobe</a></footer>
+    <footer className="public-footer"><span>GetYourFit</span><a className="public-link" href="/guides/">Outfit guides</a><a className="public-link" href={planEntry.signUp}>Plan an outfit</a><a className="public-link" href="/sign-in">Back to my wardrobe</a></footer>
   </div>;
 }

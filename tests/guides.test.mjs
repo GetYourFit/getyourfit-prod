@@ -16,8 +16,9 @@ test('public guide HTTP documents contain readable content and canonical metadat
     assert.ok(html.includes(`<link rel="canonical" href="${guideOrigin}${guidePath(guide)}"`));
     assert.ok(html.includes(`<meta name="description" content="${guide.description}"`));
     assert.match(html, /<article[ >]/);
-    assert.match(html, /href="\/plan"/);
-    assert.match(html, /href="\/sign-up"/);
+    assert.match(html, /href="\/sign-up\?next=%2Fplan"/);
+    assert.doesNotMatch(html, /href="\/plan"/);
+    assert.match(html, guide.slug.startsWith('capsule') ? /href="\/sign-up\?next=%2Fwardrobe"/ : /href="\/sign-in\?next=%2Fplan"/);
     assert.doesNotMatch(html, /<script\b|private-test-marker|\/api\/funnel/);
     const head = await fetch(`${origin}${guidePath(guide)}`, { method: 'HEAD' });
     assert.equal(head.status, 200);
