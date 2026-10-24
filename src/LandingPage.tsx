@@ -51,6 +51,6 @@ export function LandingPage() {
         <a className="button button-secondary" href="/sign-up">Start my wardrobe<ArrowRight size={18} aria-hidden="true" /></a>
       </section>
     </main>
-    <footer className="public-footer"><Brand href="/" /><p>Wear what works for you.</p><a className="public-link" href="/guides/">Outfit guides</a><a className="public-link" href="/sign-in">Back to my wardrobe<ArrowRight size={16} aria-hidden="true" /></a></footer>
+    <footer className="public-footer"><Brand href="/" /><p>Wear what works for you.</p><a className="public-link" href="/sign-in">Back to my wardrobe<ArrowRight size={16} aria-hidden="true" /></a></footer>
   </div>;
 }

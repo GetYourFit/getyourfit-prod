@@ -19,7 +19,7 @@
 .guide-table-wrap { margin-block: var(--space-5); }
 .guide-page table { width: 100%; border-collapse: collapse; font-size: var(--text-body); }
 .guide-page caption { text-align: start; color: var(--color-ink-muted); font-size: var(--text-caption); margin-bottom: var(--space-3); }
-.guide-page th, .guide-page td { vertical-align: top; text-align: start; padding: var(--space-3); border-bottom: 1px solid var(--color-rule); overflow-wrap: anywhere; }
+.guide-page th, .guide-page td { vertical-align: top; text-align: start; padding: var(--space-3); border-bottom: 1px solid var(--color-rule); overflow-wrap: break-word; }
 .guide-page thead { background: var(--color-surface-muted); }
 .guide-page th { font-weight: var(--weight-strong); }
 .guide-next { display: grid; gap: var(--space-6); margin-block: var(--space-7); padding: var(--space-6); background: var(--color-surface-muted); border-radius: var(--radius-panel); }
