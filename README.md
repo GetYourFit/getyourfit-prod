@@ -16,7 +16,7 @@ The answers are not sent to a server while planning (only the anonymous counters
 
 Pending saves use this tab's session storage and are cleared after saving, signing out, or abandoning the draft. If storage is blocked, in-page navigation retains the draft in memory; keep the tab open until saving finishes. Failed saves retain the chosen board and offer **Try saving plan again**. Retrying a save whose response was lost returns the same plan rather than creating a duplicate.
 
-Drop-off is measured with anonymous daily counters in the local database: `plan_opened`, `plan_submitted`, `outfit_shown`, `save_prompt_shown`, `save_prompt_accepted` and `plan_saved_after_visit`. The `funnel_counts` table holds only a UTC day, a step name and a number: no cookie, identifier, IP address or plan content, and no third-party tracker. Browsers that send Do Not Track or Global Privacy Control are not counted. Run `npm run funnel` with the same `GYF_DATA_DIR` and `BETTER_AUTH_SECRET` as the server to read the totals and step rates.
+Drop-off is measured with anonymous daily counters in the local database: `plan_opened`, `plan_submitted`, `outfit_shown`, `save_prompt_shown`, `save_prompt_accepted` and `plan_saved_after_visit`, plus `guide_viewed` and `guide_cta_clicked` from the public guides. `guide_viewed` counts a guide page load and `guide_cta_clicked` counts a click on a guide's account link; both are daily totals, not unique people, conversion or revenue, and do not say which guide. The `funnel_counts` table holds only a UTC day, a step name and a number: no cookie, identifier, IP address or plan content, and no third-party tracker. Browsers that send Do Not Track or Global Privacy Control are not counted. Run `npm run funnel` with the same `GYF_DATA_DIR` and `BETTER_AUTH_SECRET` as the server to read the totals and step rates.
 
 ## Build my wardrobe
 
@@ -84,6 +84,7 @@ npm run acceptance
 - [Acceptance matrix](docs/slice-1-acceptance.md) records the slice's end-to-end gates and evidence status.
 - [Evidence ledger](docs/evidence-ledger.md) records research, decisions, and observed results.
 - [Feature map](FEATURE_MAP.md) links to generated account, wardrobe, outfit, and data-control browser guides.
+- [Outfit guides](docs/acquisition-guides.md) records the public `/guides/` pages, their evidence limits, and measurement boundaries.
 - [Workflow kit](docs/workflow-kit.md) records the pinned adoption, CI checks, and product acceptance hook.
 - [Deployment inputs](docs/deploy-inputs.md) records host, vault, storage, and public-origin requirements for the deployment item.
 
