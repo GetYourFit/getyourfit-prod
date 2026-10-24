@@ -84,6 +84,7 @@ npm run acceptance
 - [Acceptance matrix](docs/slice-1-acceptance.md) records the slice's end-to-end gates and evidence status.
 - [Evidence ledger](docs/evidence-ledger.md) records research, decisions, and observed results.
 - [Feature map](FEATURE_MAP.md) links to generated account, wardrobe, outfit, and data-control browser guides.
+- [Outfit guides](docs/acquisition-guides.md) records the public `/guides/` pages, their evidence limits, and measurement boundaries.
 - [Workflow kit](docs/workflow-kit.md) records the pinned adoption, CI checks, and product acceptance hook.
 - [Deployment inputs](docs/deploy-inputs.md) records host, vault, storage, and public-origin requirements for the deployment item.
 
