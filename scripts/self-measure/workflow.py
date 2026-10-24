@@ -21,8 +21,12 @@ def plan(root, request):
     seen = observations.from_signals(
         [(signal['class'], signal['key'], 'Aggregate product weakness; recommendation only')],
         f'W-{today.isoformat()}', today.isoformat())
-    updated, created, _ = weekly.plan_queue(root, weekly.queue_rows(root), history, current, today.isoformat())
-    matching = [row for row in [*updated.values(), *created] if row['Class'] == signal['class']]
+    rows = weekly.queue_rows(root)
+    updated, created, _ = weekly.plan_queue(root, rows, history, current, today.isoformat())
+    merged = {row['Item']: row for row in rows if row['Status'] == 'open'}
+    merged.update(updated)
+    merged.update({row['Item']: row for row in created})
+    matching = [row for row in merged.values() if row['Class'] == signal['class']]
     eligible = len(recurrence) >= 2 and bool(matching)
     return {'status': 'eligible' if eligible else 'insufficient_data',
             'reason': 'existing_queue_recurrence_met' if eligible else 'two_distinct_observations_required',
