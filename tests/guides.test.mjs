@@ -22,7 +22,7 @@ test('public guide HTTP documents contain readable content and canonical metadat
     assert.doesNotMatch(html, /private-test-marker|<script>|<img[^>]+api\/funnel/);
     const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((match) => match[0]);
     assert.equal(scripts.length, 1);
-    const source = scripts[0].match(/^<script type="module" src="([^"]+)"><\/script>$/)?.[1];
+    const source = scripts[0].match(/^<script type="module" src="([^"]+)">$/)?.[1];
     assert.ok(source);
     const script = await fetch(`${origin}${source}`);
     assert.equal(script.status, 200);
