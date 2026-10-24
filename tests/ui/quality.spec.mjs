@@ -122,6 +122,74 @@ test('public page', async ({ page }) => {
   await checkScreen(page, 'public');
 });
 
+test('public hover contrast, keyboard focus and entry routes', async ({ page }) => {
+  function contrast(first, second) {
+    const luminance = (color) => color.match(/[\d.]+/g).slice(0, 3)
+      .map((channel) => Number(channel) / 255)
+      .map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+      .reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0);
+    const values = [luminance(first), luminance(second)].sort((a, b) => b - a);
+    return (values[0] + 0.05) / (values[1] + 0.05);
+  }
+
+  async function tabTo(control, color) {
+    for (let step = 0; step < 30 && !await control.evaluate((element) => element === document.activeElement); step++) {
+      await page.keyboard.press('Tab');
+    }
+    await expect(control).toBeFocused();
+    await expect(control).toBeVisible();
+    expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+    await expect(control).toHaveCSS('outline-style', 'solid');
+    await expect(control).toHaveCSS('outline-width', '3px');
+    await expect(control).toHaveCSS('outline-color', color);
+  }
+
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    for (const name of ['Use my own clothes', 'Build my wardrobe']) {
+      const action = page.getByRole('link', { name, exact: true });
+      await tabTo(action, 'rgb(233, 242, 157)');
+      await action.hover();
+      const primary = name === 'Use my own clothes';
+      await expect(action).toHaveCSS(primary ? 'background-color' : 'border-top-color', 'rgb(255, 248, 238)');
+      const colors = await action.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const panel = getComputedStyle(element.closest('.dressing-room')).backgroundColor;
+        return { text: style.color, background: style.backgroundColor === 'rgba(0, 0, 0, 0)' ? panel : style.backgroundColor, border: style.borderTopColor, panel };
+      });
+      expect(contrast(colors.text, colors.background), `${name} hover text at ${width}px`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(primary ? colors.background : colors.border, colors.panel), `${name} hover boundary at ${width}px`).toBeGreaterThanOrEqual(3);
+    }
+    await page.mouse.move(0, 0);
+    const example = page.getByRole('region', { name: 'Example outfit', exact: true });
+    for (const preview of await example.getByRole('button', { name: /^Preview Look/ }).all()) {
+      await tabTo(preview, 'rgb(163, 59, 36)');
+      await page.keyboard.press('Space');
+      await expect(preview).toHaveAttribute('aria-pressed', 'true');
+    }
+    const credits = example.locator('summary');
+    await tabTo(credits, 'rgb(163, 59, 36)');
+    await page.keyboard.press('Enter');
+    const links = example.getByRole('link');
+    expect(await links.count()).toBeGreaterThan(0);
+    for (const link of await links.all()) await tabTo(link, 'rgb(163, 59, 36)');
+
+    const planner = page.getByRole('link', { name: 'Build my wardrobe', exact: true });
+    await tabTo(planner, 'rgb(233, 242, 157)');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/plan\?look=3$/);
+    await expect(page.getByLabel('Email', { exact: true })).toHaveCount(0);
+
+    await page.goto('/');
+    await tabTo(page.getByRole('link', { name: 'Use my own clothes', exact: true }), 'rgb(233, 242, 157)');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/sign-up$/);
+    await expect(page.getByLabel('Your name')).toBeFocused();
+    await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  }
+});
+
 test('account entry', async ({ page }) => {
   await page.goto('/sign-in');
   await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
@@ -174,6 +242,14 @@ test('wardrobe, outfit suggestion and account', async ({ page }) => {
   await page.goto('/wardrobe');
   await expect(page.getByRole('img', { name: 'Black trainers' })).toBeVisible();
   await checkScreen(page, 'wardrobe-filled');
+
+  await page.getByLabel('Find your clothes').fill('grey');
+  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.getByRole('article', { name: 'Grey crew tee' })).toBeVisible();
+  await page.getByLabel('Show', { exact: true }).selectOption('footwear');
+  await expect(page.getByRole('heading', { name: 'No clothes match that search' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show all clothes', exact: true }).click();
+  await expect(page.getByRole('article')).toHaveCount(3);
 
   const occasion = page.getByLabel('Occasion', { exact: true });
   await occasion.fill('Dinner with friends');
@@ -264,8 +340,17 @@ test('concurrent wardrobe refreshes and edits preserve confirmed facts', async (
 
 test('plan page', async ({ page }) => {
   await page.goto('/plan');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('See your outfit in a minute.');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/A wardrobe starts\s*with a plan\./);
   await checkScreen(page, 'plan-empty');
+  await page.goto('/plan?look=3');
+  await page.getByLabel('What is the occasion?').fill('One-piece evening');
+  await page.getByRole('radio', { name: 'One-piece and shoes', exact: true }).check();
+  await page.getByRole('button', { name: 'Show my outfit', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('figure').getByRole('img')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
+  await expect(page.locator('.auth-story')).toContainText('Your chosen Look 1 for One-piece evening');
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.selectedLook)).toBe(0);
 });
 
 test('visitor gets an outfit board without an account, then saves it after sign-up', async ({ page }) => {
@@ -276,8 +361,10 @@ test('visitor gets an outfit board without an account, then saves it after sign-
     if (request.url().endsWith('/api/funnel')) steps.push(request.postDataJSON().event);
   });
   await page.goto('/');
-  await page.getByRole('link', { name: 'Plan an outfit now' }).click();
-  await expect(page).toHaveURL(/\/plan$/);
+  await page.getByRole('button', { name: 'Preview Look 4', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Preview Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('link', { name: 'Build my wardrobe', exact: true }).click();
+  await expect(page).toHaveURL(/\/plan\?look=3$/);
   await page.getByLabel('What is the occasion?').fill('Dinner with friends');
   await page.getByRole('radio', { name: 'Cold' }).check();
   await page.getByRole('button', { name: 'Show my outfit' }).click();
@@ -289,6 +376,8 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   await expect(page.getByRole('heading', { name: 'Why this works' })).toBeVisible();
   await expect(page.getByText('For cold weather')).toBeVisible();
   const alts = () => board.locator('img').evaluateAll((images) => images.map((image) => image.alt));
+  await expect(page.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Look 1', exact: true }).click();
   const first = await alts();
   await page.getByRole('button', { name: 'Look 2' }).click();
   await expect(page.getByRole('button', { name: 'Look 2' })).toHaveAttribute('aria-pressed', 'true');

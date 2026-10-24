@@ -1,53 +1,62 @@
-import { ArrowRight, Check, LockKeyhole } from 'lucide-react';
-import { garments } from '../shared/outfit-board';
-import { PhotoCredits } from './PhotoCredits';
+import './zod-config';
+import { useState } from 'react';
+import { ArrowDown, ArrowRight, LockKeyhole } from 'lucide-react';
+import { buildStarterRoles, starterInputSchema } from '../shared/starter-plan';
+import { composeBoard } from '../shared/outfit-board';
+import { OutfitBoard } from './OutfitBoard';
 import { Brand } from './ui';
 import './LandingPage.css';
 
+const exampleInput = starterInputSchema.parse({ occasion: 'Dinner with friends', outfitType: 'separates', budget: 5000, currency: 'INR', weather: 'mild', dressCode: 'casual', mustHave: '', ownedRoles: [] });
+const exampleBoard = composeBoard(exampleInput, buildStarterRoles(exampleInput, '2026-01-01T00:00:00.000Z'));
+
 export function LandingPage() {
-  return <div className="public-page">
+  const [selectedLook, setSelectedLook] = useState(0);
+  const look = exampleBoard.looks[selectedLook];
+  return <div className="public-page landing-page">
     <a className="skip-link" href="#public-main">Skip to content</a>
     <header className="public-header">
       <Brand href="/" />
-      <a className="public-link" href="/sign-in">Sign in<ArrowRight size={16} aria-hidden="true" /></a>
+      <nav aria-label="Main"><a className="public-link public-about" href="#how-it-works">How it works</a><a className="public-link" href="/sign-in">Sign in<ArrowRight size={18} aria-hidden="true" /></a></nav>
     </header>
     <main id="public-main">
-      <div className="public-intro">
-        <div className="public-intro-copy"><h1>Your clothes.<br />One clear outfit.</h1>
-        <p>Add your clothes. Tell us your plans.<br className="desktop-break" /> Get a complete outfit, with the reasons.</p></div>
-        <div className="public-intro-action">
-          <a className="public-primary" href="/plan">Plan an outfit now<ArrowRight size={18} aria-hidden="true" /></a>
-          <p className="public-start-note">No account needed. See a full outfit in a minute.</p>
-        </div>
-      </div>
-      <section className="example-outfit" aria-labelledby="example-title">
-        <div className="example-heading"><h2 id="example-title">Example outfit</h2><p>Dinner with friends · Mild weather · Casual</p></div>
-        <div className="example-layout">
-          <div className="outfit-photographs" aria-label="A complete example: top, trousers and footwear">
-            <figure className="example-piece example-shirt"><img src="/example/shirt.webp" srcSet="/example/shirt-360.webp 360w, /example/shirt-600.webp 600w, /example/shirt.webp 900w" sizes="(max-width: 600px) 50vw, (max-width: 1000px) 48vw, 32vw" alt="Checked short-sleeve shirt" width={900} height={824} fetchPriority="high" /><figcaption>Checked short-sleeve shirt</figcaption></figure>
-            <figure className="example-piece example-trousers"><img src="/example/trousers.webp" srcSet="/example/trousers-360.webp 360w, /example/trousers-600.webp 600w, /example/trousers.webp 646w" sizes="(max-width: 600px) 36vw, (max-width: 1000px) 35vw, 23vw" alt="Stone chinos" width={646} height={1200} /><figcaption>Stone chinos</figcaption></figure>
-            <figure className="example-piece example-shoes"><img src="/example/oxfords.webp" srcSet="/example/oxfords-360.webp 360w, /example/oxfords-600.webp 600w, /example/oxfords.webp 900w" sizes="(max-width: 600px) 50vw, (max-width: 1000px) 48vw, 32vw" alt="Brown leather derbies" width={900} height={600} /><figcaption>Leather derbies</figcaption></figure>
+      <section className="dressing-room" aria-labelledby="public-title">
+        <div className="dressing-copy">
+          <h1 id="public-title">Less wondering.<br /><span>More wearing.</span></h1>
+          <p className="dressing-lead">Decide what to wear with what you own.<br />Or make a plan for the pieces you need.</p>
+          <div className="dressing-actions">
+            <a className="button button-primary button-split" href="/sign-up">Use my own clothes<ArrowRight size={20} aria-hidden="true" /></a>
+            <a className="button button-secondary button-split" href={`/plan?look=${selectedLook}`}>Build my wardrobe<ArrowRight size={20} aria-hidden="true" /></a>
           </div>
-          <div className="example-reasons">
-            <h3>Why this works</h3>
-            <p className="example-explanation">A complete set, marked for mild weather and casual plans.</p>
-            <a className="public-primary" href="/sign-up">Build my wardrobe<ArrowRight size={18} aria-hidden="true" /></a>
-            <p className="public-start-note">Start with one photo. Add a complete set when you're ready.</p>
-            <details className="example-details"><summary>About this example</summary><ul>
-              <li><Check size={18} aria-hidden="true" /><span>A top, bottom and footwear. Nothing missing.</span></li>
-              <li><Check size={18} aria-hidden="true" /><span>Each piece is marked for mild weather and casual plans.</span></li>
-              <li><Check size={18} aria-hidden="true" /><span>Fit and availability are confirmed by the wearer.</span></li>
-            </ul>
-            <p className="example-disclosure">These are illustrative facts. The garment photographs are stand-ins for similar pieces. Your outfits use only clothes you add. You confirm fit; we don't predict it.</p>
-            </details><p className="example-label">Illustrative example with stand-in garment photos. Your wardrobe starts empty.</p>
-          </div>
+          <p className="dressing-note">Try a wardrobe plan before creating an account.</p>
+          <a className="dressing-scroll" href="#how-it-works">A little less effort, every morning<ArrowDown size={18} aria-hidden="true" /></a>
         </div>
+        <section className="dressing-example" aria-labelledby="example-title">
+          <div className="dressing-example-heading"><h2 id="example-title">Example outfit</h2><span>Dinner with friends · Mild weather · Casual</span></div>
+          {look && <OutfitBoard look={look} heading="Illustrative example outfit" />}
+          <div className="look-strip" role="group" aria-label="Compare example looks">
+            <span>Try another look</span>
+            <div>{exampleBoard.looks.map((item, index) => <button type="button" key={item.name} aria-label={`Preview ${item.name}`} aria-pressed={selectedLook === index} onClick={() => setSelectedLook(index)}>{index + 1}</button>)}</div>
+          </div>
+          <p className="caption" aria-live="polite">{look?.name}: {look?.pieces.map((piece) => piece.owned ? piece.label : piece.garment.caption).join(' + ')}.</p>
+          <div className="example-reason"><h3>Why this works</h3><p>A top, a bottom and shoes cover the complete set. These example pieces illustrate casual plans in mild weather.</p></div>
+          <p className="caption">Illustrative plan with real stand-in photos. Fit and availability are unverified. Your private wardrobe starts empty.</p>
+        </section>
+      </section>
+      <section className="wearer-path" id="how-it-works" aria-labelledby="path-title">
+        <div className="wearer-path-intro"><h2 id="path-title">Start with your clothes.<br />End with a decision.</h2><p>No need to catalogue your whole life. Start with a top, a bottom and shoes, or a one-piece and shoes.</p></div>
+        <ol className="wearer-steps">
+          <li><h3>Make it yours</h3><p>Add real garment photos. Review recognition suggestions and confirm the details only you know.</p></li>
+          <li><h3>Dress for your day</h3><p>Choose an occasion, weather and dress code. Check a complete outfit against your confirmed garment facts.</p></li>
+          <li><h3>Keep the useful parts</h3><p>Correct an item, exclude it for an occasion, or save a wardrobe plan. Come back to what you kept.</p></li>
+        </ol>
       </section>
       <section className="public-privacy" aria-labelledby="public-privacy-title">
-        <LockKeyhole size={24} aria-hidden="true" />
-        <div><h2 id="public-privacy-title">Your wardrobe stays private.</h2><p>Photo recognition runs on your device. Saving sends your photo to your private account on the GetYourFit server. Photos are never sold or used for model training. You can download or delete your data.</p></div>
+        <LockKeyhole size={28} aria-hidden="true" />
+        <div><h2 id="public-privacy-title">Your wardrobe stays private.</h2><p>Recognition runs on your device. Only saving sends a photo to your private account on the GetYourFit server. Photos are never sold or used for model training. Download or delete your data from Account.</p></div>
+        <a className="button button-secondary" href="/sign-up">Start my wardrobe<ArrowRight size={18} aria-hidden="true" /></a>
       </section>
     </main>
-    <footer className="public-footer"><span>GetYourFit</span><details><summary>Example photo credits</summary><PhotoCredits items={garments.filter((garment) => ['shirt', 'trousers', 'oxfords'].includes(garment.id))} /></details></footer>
+    <footer className="public-footer"><Brand href="/" /><p>Wear what works for you.</p><a className="public-link" href="/sign-in">Back to my wardrobe<ArrowRight size={16} aria-hidden="true" /></a></footer>
   </div>;
 }

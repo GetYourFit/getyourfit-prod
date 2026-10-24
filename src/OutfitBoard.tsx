@@ -12,7 +12,7 @@ const dressCodeNames: Record<StarterInput['dressCode'], string> = { casual: 'Cas
 export function OutfitBoard({ look, heading }: { look: BoardLook; heading: string }) {
   const rects = layoutFor(look.pieces);
   const credits = look.pieces.flatMap((piece) => piece.owned ? [] : [piece.garment]);
-  return <div className="board-preview"><figure className="outfit-board" aria-label={`${heading}: ${look.pieces.map((piece) => piece.label).join(', ')}`}>
+  return <div className="board-preview"><figure key={look.name} className="outfit-board" aria-label={`${heading}: ${look.pieces.map((piece) => piece.label).join(', ')}`}>
     {look.pieces.map((piece, index) => {
       const rect = rects[index];
       if (!rect) return null;

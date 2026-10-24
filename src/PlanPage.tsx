@@ -16,12 +16,17 @@ const dressCodes: { value: StarterInput['dressCode']; label: string }[] = [{ val
 const label = <T extends string>(options: { value: T; label: string }[], value: T) => options.find((option) => option.value === value)?.label ?? value;
 
 const sampleInput = starterInputSchema.parse({ occasion: 'Dinner with friends', outfitType: 'separates', budget: 5000, currency: 'INR', weather: 'mild', dressCode: 'casual', mustHave: '', ownedRoles: [] });
-const sample = composeBoard(sampleInput, buildStarterRoles(sampleInput, '2026-01-01T00:00:00.000Z')).looks[0]!;
+const sampleBoard = composeBoard(sampleInput, buildStarterRoles(sampleInput, '2026-01-01T00:00:00.000Z'));
+
+function startingLook() {
+  const value = Number(new URLSearchParams(window.location.search).get('look'));
+  return Number.isInteger(value) && value >= 0 && value < 4 ? value : 0;
+}
 
 export default function PlanPage() {
   const [values, setValues] = useState<Values>({ occasion: '', outfitType: 'separates', budget: '5000', currency: 'INR', weather: 'mild', dressCode: 'unknown' });
   const [input, setInput] = useState<StarterInput | null>(null);
-  const [selectedLook, setSelectedLook] = useState(0);
+  const [selectedLook, setSelectedLook] = useState(startingLook);
   const [error, setError] = useState('');
   const resultHeading = useRef<HTMLHeadingElement>(null);
   const formHeading = useRef<HTMLHeadingElement>(null);
@@ -33,6 +38,7 @@ export default function PlanPage() {
 
   const board = useMemo(() => input ? composeBoard(input, buildStarterRoles(input, new Date().toISOString())) : null, [input]);
   const look = board?.looks[0];
+  const sample = sampleBoard.looks[selectedLook] ?? sampleBoard.looks[0]!;
 
   useEffect(() => {
     if (!board) return;
@@ -56,7 +62,7 @@ export default function PlanPage() {
     }
     setError('');
     countStep('plan_submitted', { once: false });
-    setSelectedLook(0);
+    if (input || parsed.data.outfitType === 'one-piece') setSelectedLook(0);
     setInput(parsed.data);
   }
 
@@ -77,8 +83,8 @@ export default function PlanPage() {
     </header>
     <main id="plan-main">
       <div className="plan-intro">
-        <h1>See your outfit in a minute.</h1>
-        <p>Tell us the occasion, the weather and your budget. No account needed.</p>
+        <h1>A wardrobe starts<br />with a plan.</h1>
+        <p>Start with your occasion. Explore an illustrative outfit plan, then save the look you want to keep. No account needed to try.</p>
       </div>
       <div className={`plan-layout${input ? ' has-result' : ''}`}>
         <form className="plan-form card" onSubmit={submit} noValidate aria-labelledby="plan-form-title">
@@ -129,9 +135,9 @@ export default function PlanPage() {
               <button className="button button-primary button-split" type="button" onClick={saveAfterValue}>Save this plan<ArrowRight size={18} aria-hidden="true" /></button>
             </div>
           </> : <div className="plan-placeholder">
-            <h2 id="plan-result-title" className="card-title">Your outfit appears here</h2>
+            <h2 id="plan-result-title" className="card-title">The pieces, together.</h2>
             <OutfitBoard look={sample} heading="Example outfit" />
-            <p className="caption">An example board. Yours is built from your answers.</p>
+            <p className="caption">Example garment photos. Your answers shape a general needs plan, not a fit prediction or a verified shopping offer.</p>
           </div>}
         </section>
       </div>

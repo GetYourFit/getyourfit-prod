@@ -464,7 +464,7 @@ async function starterPlanJourney(context, page) {
     else await route.continue();
   });
   await page.goto(baseURL);
-  await page.getByRole('link', { name: /^build my wardrobe/i }).click();
+  await page.getByRole('link', { name: /^use my own clothes$/i }).click();
   const user = credentials();
   await page.getByLabel(/your name/i).fill(user.name);
   await page.getByLabel(/^email/i).fill(user.email);
@@ -840,7 +840,7 @@ async function frontDoorJourney(context, page) {
   assert.match(await example.innerText(), /illustrative|example facts/i, 'The public example presents invented wearer facts as real');
   assert.match(await page.getByRole('region', { name: /wardrobe.*private/i }).innerText(), /GetYourFit server/i, 'Privacy copy falsely claims hosted photos stay on the phone');
   assert.doesNotMatch(await page.getByRole('main').innerText(), /v0\.[12]|local edition|local app|private on this device/i, 'The public screen exposes release jargon or false device-local promises');
-  const primary = page.getByRole('link', { name: /^build my wardrobe/i });
+  const primary = page.getByRole('link', { name: /^use my own clothes$/i });
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 844 });
     assert(await primary.evaluate(element => element.getBoundingClientRect().height >= 44), 'The primary wardrobe action is too small to tap');
@@ -963,7 +963,7 @@ async function browserJourney(context, page) {
   });
   await page.goto(baseURL);
   await page.getByRole('main').waitFor();
-  await page.getByRole('link', { name: /build my wardrobe|get started|sign up|create.*account/i }).or(page.getByRole('button', { name: /get started|sign up|create.*account/i })).first().click();
+  await page.getByRole('link', { name: /^use my own clothes$/i }).click();
   const user = credentials();
   await page.getByLabel(/^email/i).fill(user.email);
   await page.getByLabel(/^password/i).fill(user.password);
