@@ -1,5 +1,4 @@
 import './zod-config';
-import { useState } from 'react';
 import { ArrowDown, ArrowRight, LockKeyhole } from 'lucide-react';
 import { buildStarterRoles, starterInputSchema } from '../shared/starter-plan';
 import { composeBoard } from '../shared/outfit-board';
@@ -11,8 +10,7 @@ const exampleInput = starterInputSchema.parse({ occasion: 'Dinner with friends',
 const exampleBoard = composeBoard(exampleInput, buildStarterRoles(exampleInput, '2026-01-01T00:00:00.000Z'));
 
 export function LandingPage() {
-  const [selectedLook, setSelectedLook] = useState(0);
-  const look = exampleBoard.looks[selectedLook];
+  const look = exampleBoard.looks[0];
   return <div className="public-page landing-page">
     <a className="skip-link" href="#public-main">Skip to content</a>
     <header className="public-header">
@@ -26,19 +24,15 @@ export function LandingPage() {
           <p className="dressing-lead">Decide what to wear with what you own.<br />Or make a plan for the pieces you need.</p>
           <div className="dressing-actions">
             <a className="button button-primary button-split" href="/sign-up">Use my own clothes<ArrowRight size={20} aria-hidden="true" /></a>
-            <a className="button button-secondary button-split" href={`/plan?look=${selectedLook}`}>Build my wardrobe<ArrowRight size={20} aria-hidden="true" /></a>
+            <a className="button button-secondary button-split" href="/sign-up?next=%2Fplan">Build my wardrobe<ArrowRight size={20} aria-hidden="true" /></a>
           </div>
-          <p className="dressing-note">Try a wardrobe plan before creating an account.</p>
+          <p className="dressing-note">Sign in or create an account to plan and use your wardrobe.</p>
           <a className="dressing-scroll" href="#how-it-works">A little less effort, every morning<ArrowDown size={18} aria-hidden="true" /></a>
         </div>
         <section className="dressing-example" aria-labelledby="example-title">
           <div className="dressing-example-heading"><h2 id="example-title">Example outfit</h2><span>Dinner with friends · Mild weather · Casual</span></div>
           {look && <OutfitBoard look={look} heading="Illustrative example outfit" />}
-          <div className="look-strip" role="group" aria-label="Compare example looks">
-            <span>Try another look</span>
-            <div>{exampleBoard.looks.map((item, index) => <button type="button" key={item.name} aria-label={`Preview ${item.name}`} aria-pressed={selectedLook === index} onClick={() => setSelectedLook(index)}>{index + 1}</button>)}</div>
-          </div>
-          <p className="caption" aria-live="polite">{look?.name}: {look?.pieces.map((piece) => piece.owned ? piece.label : piece.garment.caption).join(' + ')}.</p>
+          <p className="caption">Static marketing illustration: {look?.pieces.map((piece) => piece.owned ? piece.label : piece.garment.caption).join(' + ')}.</p>
           <div className="example-reason"><h3>Why this works</h3><p>A top, a bottom and shoes cover the complete set. These example pieces illustrate casual plans in mild weather.</p></div>
           <p className="caption">Illustrative plan with real stand-in photos. Fit and availability are unverified. Your private wardrobe starts empty.</p>
         </section>

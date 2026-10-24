@@ -28,11 +28,6 @@
 .dressing-example .plan-credits { order: 2; }
 .dressing-example .outfit-board { aspect-ratio: 1.12; }
 .dressing-example .plan-credits summary { font-weight: var(--weight-regular); }
-.look-strip { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); border-top: 1px solid var(--color-rule); padding-top: var(--space-3); font-size: var(--text-caption); }
-.look-strip > div { display: flex; gap: var(--space-2); }
-.look-strip button { display: grid; place-items: center; width: var(--target-min); min-height: var(--target-min); border: 1px solid var(--color-control-border); border-radius: var(--radius-control); background: transparent; font-weight: var(--weight-strong); }
-.look-strip button:hover { background: var(--color-surface); }
-.look-strip button[aria-pressed='true'] { color: var(--color-on-accent); background: var(--color-accent); border-color: var(--color-accent); }
 .wearer-path { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8); padding: var(--space-9) var(--space-7); scroll-margin-top: var(--space-6); }
 .wearer-path-intro h2 { font-size: var(--text-page); letter-spacing: var(--tracking-display); line-height: var(--leading-tight); }
 .wearer-path-intro p { margin-top: var(--space-5); max-width: 40ch; color: var(--color-ink-muted); }

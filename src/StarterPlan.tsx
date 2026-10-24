@@ -9,6 +9,7 @@ import { claimPendingPlan, clearPendingPlan, discardPendingPlan, updatePendingLo
 import { ShoppingLinks } from './ShoppingLinks';
 import { wardrobeRequest } from './wardrobe-api';
 import { Notice } from './ui';
+import { requireSession } from './session';
 
 type FormValues = Omit<StarterInput, 'budget'> & { budget: string };
 type Draft = { input: StarterInput; roles: StarterRoleState[] };
@@ -130,7 +131,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
     setBusy(action);
     setError('');
     setStatus('');
-    try { await callback(); }
+    try { await requireSession(account); await callback(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'That plan change could not be saved. Try again.'); }
     finally { setBusy(''); }
   }
@@ -313,7 +314,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
         <p className="starter-note">This is a planning allocation, split evenly across needs you have not marked owned. It is not a quote or a promise that an outfit is within budget. Size, delivery cost, taxes, and checkout total are unknown.</p>
       </div>
       {input.budget === 0 && remaining.length > 0 && <p className="starter-no-cash">With a zero spending ceiling, consider reusing something you have or asking whether someone can lend a suitable piece. Availability is not guaranteed.</p>}
-      {!visitorPlan && <OutfitBoardPanel key={`${input.occasion}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} />}
+      {!visitorPlan && <OutfitBoardPanel account={account} key={`${input.occasion}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} />}
       <div className="starter-capsule" aria-label="Starter capsule">
         <h4>Your starter capsule</h4>
         <p className="starter-note">{capsule.climate} These are general suggestions built from what you told us, not a verified fit, a taste prediction, or a shopping list for a specific product.</p>
@@ -353,7 +354,7 @@ export function StarterPlan({ account, onPresenceChange }: { account: string; on
       <div className="starter-result-heading"><div><h3 tabIndex={-1}>{heading}</h3>{!visitorPlan && <p>{input.outfitType === 'separates' ? 'Top, bottom and footwear' : 'One-piece garment and footwear'} for one occasion.</p>}</div><span className={`starter-state starter-state-${planStatus}`}>{planStatus === 'active' ? visitorPlan ? 'Saved' : 'Active plan' : planStatus === 'draft' ? 'Not saved yet' : planStatus}</span></div>
       {visitorPlan ? <>
         <p className="starter-explanation">Example garment photos, not clothes you own. Fit and availability are unverified.</p>
-        <OutfitBoardPanel key={`${current?.id ?? 'draft'}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} selection={{ index: input.selectedLook ?? 0, disabled: busy !== '' || loading || planStatus !== 'active' && planStatus !== 'draft', onChange: (index) => current && saved ? void chooseSavedLook(current, index) : chooseLook(index) }} />
+        <OutfitBoardPanel account={account} key={`${current?.id ?? 'draft'}-${roles.map((role) => role.state).join()}`} input={input} board={composeBoard(input, roles)} selection={{ index: input.selectedLook ?? 0, disabled: busy !== '' || loading || planStatus !== 'active' && planStatus !== 'draft', onChange: (index) => current && saved ? chooseSavedLook(current, index) : chooseLook(index) }} />
         {saved ? <details className="disclosure starter-details"><summary>Review needs and plan details</summary>{details}</details>
           : !loadFailed && <button className="button button-primary" disabled={busy !== '' || loading} onClick={() => void saveDraft()}>{busy === 'save' ? 'Saving plan…' : 'Try saving plan again'}</button>}
       </> : details}

@@ -602,9 +602,6 @@ async function starterPlanJourney(context, page) {
   const rejected = await jsonOK(await api(context, 'GET', contract.starterPlans), 'Rejected plan after reload');
   assert.equal(rejected.find(plan => plan.status === 'rejected')?.status, 'rejected', 'Reject did not persist');
   assert.deepEqual(await jsonOK(await api(context, 'GET', contract.wardrobe), 'Final owned clothes collection'), [], 'Starter planning or ownership confirmation changed owned clothes');
-  await jsonOK(await api(context, 'DELETE', '/api/data', { confirm: 'delete my account' }), 'Delete account and starter plans');
-  const deletedPlans = await api(context, 'GET', contract.starterPlans);
-  assert.equal(deletedPlans.status(), 401, 'Deleted account retained access to saved plans');
   await builder.getByRole('button', { name: /start a new plan/i }).click();
   await builder.getByLabel(/what is the occasion/i).fill('Acceptance with no cash');
   await builder.getByLabel(/spending ceiling/i).fill('0');
@@ -612,6 +609,13 @@ async function starterPlanJourney(context, page) {
   await builder.getByText(/zero spending ceiling/i).waitFor();
   assert.equal(await builder.locator('a.starter-search').count(), 0, 'Zero-budget plan sends the wearer toward product shopping');
   assert.match(await builder.innerText(), /borrow|lend|reuse/i, 'Zero-budget plan gives no no-cost next step');
+  await jsonOK(await api(context, 'DELETE', '/api/data', { confirm: 'delete my account' }), 'Delete account and starter plans');
+  const deletedPlans = await api(context, 'GET', contract.starterPlans);
+  assert.equal(deletedPlans.status(), 401, 'Deleted account retained access to saved plans');
+  await builder.getByRole('button', { name: /^save plan$/i }).click();
+  await page.getByLabel(/^email/i).waitFor();
+  assert.match(await page.getByRole('alert').innerText(), /session has ended or changed/i, 'A deleted session can continue using the planner');
+  assert.equal(await page.locator('#build-plan').count(), 0, 'Private planner remained visible after session invalidation');
   assert.deepEqual(errors, [], 'Starter plan caused browser errors');
   assert.deepEqual(outsideRequests, [], 'Starter plan sends requests to an external service before the wearer opens a link');
 }
@@ -749,11 +753,7 @@ async function isolation(context) {
     assert(Array.isArray(own), 'Other user wardrobe response is not a collection');
     assert.equal(own.length, 0, 'Other user list leaked private garment');
     const anonymousList = await api(anonymous, 'GET', contract.wardrobe);
-    if (anonymousList.ok()) {
-      const anonymousItems = await jsonOK(anonymousList, 'Anonymous wardrobe');
-      assert(Array.isArray(anonymousItems), 'Anonymous wardrobe response is not a collection');
-      assert.equal(anonymousItems.length, 0, 'Anonymous wardrobe leaked private garment');
-    } else assert([401, 403, 404].includes(anonymousList.status()), 'Anonymous wardrobe exposed private garments');
+    assert.equal(anonymousList.status(), 401, 'Wardrobe access requires a signed-in session');
   } finally { await other.close(); await anonymous.close(); }
 }
 async function selectByText(select, pattern) {
@@ -837,7 +837,10 @@ async function frontDoorJourney(context, page) {
     });
     assert(decoded.width >= 200 && decoded.height >= 200, 'The public example photo is missing or a placeholder');
   }
-  assert.match(await example.innerText(), /illustrative|example facts/i, 'The public example presents invented wearer facts as real');
+  assert.match(await example.innerText(), /static marketing illustration/i, 'The public example must be labelled static marketing');
+  assert.equal(await example.getByRole('button').count(), 0, 'Guests can select interactive looks before authentication');
+  const plannerEntry = page.getByRole('link', { name: /^build my wardrobe$/i });
+  assert.equal(await plannerEntry.getAttribute('href'), '/sign-up?next=%2Fplan', 'Planner entry must authenticate before product use');
   assert.match(await page.getByRole('region', { name: /wardrobe.*private/i }).innerText(), /GetYourFit server/i, 'Privacy copy falsely claims hosted photos stay on the phone');
   assert.doesNotMatch(await page.getByRole('main').innerText(), /v0\.[12]|local edition|local app|private on this device/i, 'The public screen exposes release jargon or false device-local promises');
   const primary = page.getByRole('link', { name: /^use my own clothes$/i });

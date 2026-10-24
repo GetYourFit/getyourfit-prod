@@ -183,3 +183,51 @@ for (const backend of backends) {
     assert.ok(await count("SELECT count(*) AS count FROM auth_audit WHERE action = 'account-deleted'") >= 1);
   });
 }
+
+for (const backend of backends) {
+  test(`auth-first routes reject forged and expired sessions without losing photos or plans [${backend}]`, async (t) => {
+    const server = await start(t, {}, { backend });
+    const owner = await signUp(server, 'auth-first');
+    const garment = (await owner.add()).body;
+    const input = { occasion: 'Dinner', outfitType: 'separates', budget: 5000, currency: 'INR', weather: 'mild', dressCode: 'casual', mustHave: '', ownedRoles: [], selectedLook: 3 };
+    const saved = await owner.call({ method: 'POST', route: '/api/wardrobe/starter-plans', body: input });
+    assert.equal(saved.status, 201);
+    const before = await owner.call({ route: '/api/data/export' });
+    const privateRoutes = ['/plan', '/plan?look=3', '/wardrobe', '/account'];
+    for (const route of privateRoutes) {
+      const anonymous = await fetch(`${server.origin}${route}`, { redirect: 'manual' });
+      assert.equal(anonymous.status, 303);
+      const entry = new URL(anonymous.headers.get('location'), server.origin);
+      assert.equal(entry.pathname, '/sign-in');
+      assert.equal(entry.searchParams.get('next'), route.split('?')[0]);
+      const signedIn = await fetch(`${server.origin}${route}`, { headers: owner.headers, redirect: 'manual' });
+      assert.equal(signedIn.status, 200);
+      assert.match(await signedIn.text(), /<html/);
+    }
+    const apiRoutes = [['GET', '/api/wardrobe'], ['GET', `/api/wardrobe/${garment.id}/photo`], ['GET', '/api/wardrobe/starter-plans'], ['POST', '/api/wardrobe/starter-plans'], ['POST', '/api/wardrobe/outfit'], ['GET', '/api/wardrobe/shopping-sources'], ['GET', '/api/data/export']];
+    for (const [method, route] of apiRoutes) {
+      const response = await server.request({ method, route, headers: { Origin: server.origin, Cookie: '__Secure-gyf.session_token=forged', 'Content-Type': 'application/json' }, ...(method === 'POST' ? { body: input } : {}) });
+      assert.equal(response.status, 401, route);
+    }
+    const driver = backend === 'sqlite' ? sqliteDriver(server.store.dataDir) : postgresDriver(server.store.database.url);
+    try {
+      await driver.query('UPDATE "session" SET "expiresAt" = $1', [backend === 'sqlite' ? 1 : '2000-01-01T00:00:00.000Z']);
+    } finally { await driver.close(); }
+    assert.deepEqual((await owner.call({ route: '/api/session' })).body, { signedIn: false });
+    for (const [method, route] of apiRoutes) {
+      assert.equal((await owner.call({ method, route, ...(method === 'POST' ? { body: input } : {}) })).status, 401, route);
+    }
+    assert.equal((await fetch(`${server.origin}/plan`, { headers: owner.headers, redirect: 'manual' })).status, 303);
+    for (const route of ['/', '/sign-in', '/sign-up', '/privacy', '/api/health', '/api/release']) {
+      assert.equal((await fetch(`${server.origin}${route}`, { redirect: 'manual' })).status, 200, route);
+    }
+    const signedIn = await server.request({ method: 'POST', route: '/api/auth/sign-in/email', headers: { Origin: server.origin, 'Content-Type': 'application/json' }, body: { email: owner.email, password: owner.password } });
+    assert.equal(signedIn.status, 200);
+    const cookie = signedIn.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
+    const exported = await server.request({ route: '/api/data/export', headers: { Cookie: cookie } });
+    assert.equal(exported.body.wardrobe[0].id, garment.id);
+    assert.deepEqual(exported.body.wardrobe, before.body.wardrobe);
+    assert.equal(exported.body.starterPlans[0].input.selectedLook, 3);
+    assert.equal(exported.body.starterPlans[0].id, saved.body.id);
+  });
+}

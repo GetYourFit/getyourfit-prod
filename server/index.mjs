@@ -13,6 +13,7 @@ import { audit, closeDatabase, query, reclaimDeletedData, runMigrations } from '
 import { funnelRouter } from './funnel.mjs';
 import { exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
 import { allowedHosts, allowedOrigins, apiPort, trustedProxies } from './config.mjs';
+import { accountEntry } from '../shared/auth-return.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = express();
@@ -164,6 +165,14 @@ app.use('/api/auth', async (request, response, next) => {
 if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
   const staticRoot = path.join(root, 'dist');
   app.use(compression({ filter: (request, response) => !request.path.startsWith('/api/') && compression.filter(request, response) }));
+  app.use(['/plan', '/wardrobe', '/account'], async (request, response, next) => {
+    try {
+      if (await userFor(request)) return next();
+      response.redirect(303, accountEntry('/sign-in', request.baseUrl));
+    } catch {
+      response.status(503).send('GetYourFit is temporarily unavailable. Reload to try again.');
+    }
+  });
   app.use(express.static(staticRoot, { etag: true, maxAge: '1h' }));
   app.use((request, response) => {
     if (request.path.startsWith('/api/')) return response.status(404).json({ error: 'This action is not available.' });

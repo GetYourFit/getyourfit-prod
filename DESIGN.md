@@ -73,7 +73,7 @@ Controls have compact corners; photograph and panel corners are quieter. Small c
 
 - **Actions:** Primary, secondary, ghost and danger variants retain explicit labels and 48px primary targets. Public entry uses citron on plum. Busy controls keep written progress; disabled controls retain their labels.
 - **Fields:** Native inputs, selects and checkboxes keep associated labels, hints, focus and error state. White inputs contrast with paper. Selection, carets and scrollbars use the palette.
-- **Look comparison:** The public strip and saved boards expose selected state with aria-pressed. Changing a look reveals the complete composition over 220ms; reduced motion removes the reveal. Selection survives the existing visitor-to-account save boundary.
+- **Look comparison:** The landing illustration is static. Signed-in planner and saved boards expose selected state with aria-pressed. Changing a look reveals the complete composition over 220ms; reduced motion removes the reveal. Selection survives saving and session renewal within the same account.
 - **Wardrobe:** Role counts show actual items added, without claiming eligibility. Name/colour search and category filtering show a result count and a clear action when nothing matches.
 - **Notices and disclosures:** Written errors and retries remain next to the relevant task. Technical provenance, needs editing and shopping limitations stay in existing disclosures. Error and result focus behavior is preserved.
 - **Garment review:** The existing consent, image review and correctable facts remain in a focused native dialog. Model progress and manual confirmation are different states; manual details do not prove recognition.

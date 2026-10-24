@@ -8,13 +8,13 @@ web
 
 ## Users and purpose
 
-People deciding what to wear from clothes they own, or planning the pieces they need to start a wardrobe. The public entry demonstrates an illustrative outfit plan; the private app uses garments the wearer adds and confirms. Success means a useful, complete, correctable fashion decision, with continuity when the wearer returns.
+People deciding what to wear from clothes they own, or planning the pieces they need to start a wardrobe. The public entry shows a static, labelled marketing illustration; the private app uses garments the wearer adds and confirms. Success means a useful, complete, correctable fashion decision, with continuity when the wearer returns.
 
 ## Product truth and constraints
 
 The current implementation and limitations are documented in [the consumer product contract](docs/PRODUCT.md). Route behavior is in `src/App.tsx` and `src/AccountApp.tsx`. Existing email/password authentication, explicit photo consent, private server storage, corrections, selected-plan continuity, export and deletion must survive visual changes. Preserve the security and release contracts in `docs/evidence/` and the deployment runbook. No production data changes are authorized by a redesign.
 
-The public planner is illustrative and constraint based. It does not establish taste prediction, fit prediction, retailer stock or real prices. Recognition suggestions need wearer review. The separately owned intent-engine and recognition repairs supply intelligence improvements; this interface must state current limitations honestly.
+The signed-in planner is illustrative and constraint based. Product use requires a server-validated session. It does not establish taste prediction, fit prediction, retailer stock or real prices. Recognition suggestions need wearer review. The separately owned intent-engine and recognition repairs supply intelligence improvements; this interface must state current limitations honestly.
 
 ## Brand commitments
 
