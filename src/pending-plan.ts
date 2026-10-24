@@ -11,8 +11,8 @@ function persist(plan: PendingPlan) {
   try { window.sessionStorage.setItem(KEY, JSON.stringify(plan)); } catch { /* In-page account entry retains the memory copy. */ }
 }
 
-export function holdPendingPlan(input: StarterInput) {
-  persist({ id: crypto.randomUUID(), input });
+export function holdPendingPlan(input: StarterInput, account: string) {
+  persist({ id: crypto.randomUUID(), input, account });
 }
 
 export function updatePendingLook(id: string, selectedLook: number) {

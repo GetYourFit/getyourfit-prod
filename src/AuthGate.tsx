@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LockKeyhole } from 'lucide-react';
 import { Brand, Field, Notice } from './ui';
 import { readPendingPlan } from './pending-plan';
+import { accountEntry, intendedPath } from '../shared/auth-return';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot';
 function authTitle(mode: Mode, needsCode: boolean) {
@@ -108,25 +109,27 @@ export function AuthGate({ onSignedIn, initialError = '' }: { onSignedIn: () => 
   function switchMode(next: Mode) {
     setMode(next);
     setError('');
-    if (next === 'sign-in' || next === 'sign-up') window.history.replaceState({}, '', `/${next}`);
+    if (next === 'sign-in' || next === 'sign-up') window.history.replaceState({}, '', accountEntry(`/${next}`, intendedPath()));
   }
 
   const title = authTitle(mode, needsCode);
-  const intro = mode === 'sign-up' ? 'Use an email address you can access. Your wardrobe is private to your account.' : mode === 'forgot' ? 'Email reset is not available yet.' : needsCode ? 'Enter the six-digit code from your authenticator app.' : 'Welcome back. Sign in to see your wardrobe.';
+  const planning = intendedPath() === '/plan';
+  const intro = mode === 'sign-up' ? 'Create an account to plan outfits and keep your wardrobe private.' : mode === 'forgot' ? 'Email reset is not available yet.' : needsCode ? 'Enter the six-digit code from your authenticator app.' : planning ? 'Sign in to start your wardrobe plan.' : 'Welcome back. Sign in to see your wardrobe.';
   const submitLabel = mode === 'sign-up' ? 'Create account' : 'Sign in';
+  const canRetry = error.includes('connect to GetYourFit') || error.includes('temporarily unavailable') || error.includes('check your session');
 
   return <div className="auth-page">
     <header className="auth-header"><Brand href="/" /></header>
     <main className="auth-main">
       <aside className="auth-story" aria-label="Your wardrobe, your way">
         <h2>{pending ? 'Keep the look.\nMake it yours.' : 'Good mornings\nstart here.'}</h2>
-        <p>{pending ? `Your chosen Look ${(pending.input.selectedLook ?? 0) + 1} for ${pending.input.occasion} is waiting. Sign in or create an account to save it privately.` : 'A place for the clothes you own, the plans you make, and the outfits you come back to.'}</p>
+        <p>{pending ? 'Sign in to continue saving your plan privately. Your plan stays with the account that created it.' : 'A place for the clothes you own, the plans you make, and the outfits you come back to.'}</p>
         <div className="auth-story-piece"><img src="/example/sweater-360.webp" alt="Textured sweater shown as an illustrative example" width={360} height={330} /><span>Real clothes. A little more possibility.</span></div>
         <p className="auth-story-note">Example photo. Your wardrobe starts empty. <a href="https://commons.wikimedia.org/?curid=46436817" target="_blank" rel="noopener noreferrer">Sweater by Robert Sheie</a>, <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener noreferrer">CC BY 2.0</a>.</p>
       </aside>
       <div className="auth-content"><div className="auth-panel">
         <div className="auth-intro"><h1 className="page-title">{title}</h1><p className="muted">{intro}</p></div>
-        {error && <Notice ref={errorRef} id="auth-error" tone="error" role="alert" focusable>{error}{error.includes('connect to GetYourFit') && <span><button type="button" className="text-link" onClick={() => void retryService()} disabled={busy}>Try the connection again</button></span>}</Notice>}
+        {error && <Notice ref={errorRef} id="auth-error" tone="error" role="alert" focusable>{error}{canRetry && <span><button type="button" className="text-link" onClick={() => void retryService()} disabled={busy}>Try the connection again</button></span>}</Notice>}
         {mode === 'forgot' ? <Notice tone="info" role="status">We can’t email password reset links yet. Changing your password requires your current password. A forgotten password cannot be recovered until email reset is connected, even if you are signed in.</Notice> : needsCode ? <form ref={formRef} onSubmit={verifyCode} className="auth-form" aria-busy={busy}>
           <Field label="Authenticator code">{(control) => <input {...control} className="input" name="code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} required />}</Field>
           <button className="button button-primary button-block" disabled={busy}>{busy ? 'Checking…' : 'Verify code'}</button>

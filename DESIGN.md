@@ -59,7 +59,7 @@ Self-hosted Manrope is the only family, with system fallbacks and optional font 
 
 ## Layout
 
-Content is capped at 1240px; gutters are 24px, 32px and 48px across the existing 600px and 1000px type breakpoints. Public entry pairs job choice with a complete outfit, stacking below 760px. Private navigation is a plum top bar and becomes two rows on phones. Account entry pairs a contextual panel with its form, stacking below 760px. Long garment grids use two columns on phones, with wrapping facts and explicit actions. The saved visitor plan remains before the wardrobe. Account settings use separated rows rather than a dashboard of cards.
+Content is capped at 1240px; gutters are 24px, 32px and 48px across the existing 600px and 1000px type breakpoints. Public entry pairs job choice with a complete outfit, stacking below 760px. Private navigation is a plum top bar and becomes two rows on phones. Account entry pairs a contextual panel with its form, stacking below 760px. Long garment grids use two columns on phones, with wrapping facts and explicit actions. The saved plan remains before the wardrobe. Account settings use separated rows rather than a dashboard of cards.
 
 ## Elevation & Depth
 
@@ -73,7 +73,7 @@ Controls have compact corners; photograph and panel corners are quieter. Small c
 
 - **Actions:** Primary, secondary, ghost and danger variants retain explicit labels and 48px primary targets. Public entry uses citron on plum. Busy controls keep written progress; disabled controls retain their labels.
 - **Fields:** Native inputs, selects and checkboxes keep associated labels, hints, focus and error state. White inputs contrast with paper. Selection, carets and scrollbars use the palette.
-- **Look comparison:** The public strip and saved boards expose selected state with aria-pressed. Changing a look reveals the complete composition over 220ms; reduced motion removes the reveal. Selection survives the existing visitor-to-account save boundary.
+- **Look comparison:** The landing illustration is static. Signed-in planner and saved boards expose selected state with aria-pressed. Changing a look reveals the complete composition over 220ms; reduced motion removes the reveal. The [planning guide](README.md#plan-after-signing-in) owns save continuity and session recovery.
 - **Wardrobe:** Role counts show actual items added, without claiming eligibility. Name/colour search and category filtering show a result count and a clear action when nothing matches.
 - **Notices and disclosures:** Written errors and retries remain next to the relevant task. Technical provenance, needs editing and shopping limitations stay in existing disclosures. Error and result focus behavior is preserved.
 - **Garment review:** The existing consent, image review and correctable facts remain in a focused native dialog. Model progress and manual confirmation are different states; manual details do not prove recognition.

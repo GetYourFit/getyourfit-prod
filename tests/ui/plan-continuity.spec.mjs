@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.mjs';
 
 const axeSource = await readFile(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
 const password = `continuity-${randomUUID()}`;
@@ -29,20 +29,27 @@ async function register(page, address = `${randomUUID()}@example.test`) {
     await page.waitForTimeout(61_000);
     await page.getByRole('button', { name: 'Create account', exact: true }).click();
   }
-  await expect(page.getByRole('heading', { name: 'Your wardrobe', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Your wardrobe|A wardrobe starts/);
 }
 
 async function choose(page, { onePiece = false, zeroBudget = false } = {}) {
   const occasion = `Dinner ${randomUUID().slice(0, 8)}`;
   await page.goto('/plan');
+  let address;
+  if (new URL(page.url()).pathname === '/sign-in') {
+    address = `${randomUUID()}@example.test`;
+    await page.getByRole('button', { name: 'Create an account', exact: true }).click();
+    await register(page, address);
+  }
   await page.getByLabel('What is the occasion?').fill(occasion);
   if (onePiece) await page.getByRole('radio', { name: 'One-piece and shoes', exact: true }).check();
   if (zeroBudget) await page.getByLabel('Spending ceiling').fill('0');
   await page.getByRole('button', { name: 'Show my outfit' }).click();
   const look = onePiece ? 'Look 2' : 'Look 4';
   await page.getByRole('button', { name: look, exact: true }).click();
+  await expect(page.getByRole('button', { name: look, exact: true })).toHaveAttribute('aria-pressed', 'true');
   const images = await garments(page);
-  return { occasion, look, images };
+  return { occasion, look, images, address };
 }
 
 async function garments(page) {
@@ -92,16 +99,14 @@ for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     });
 
-    test('Look 4 is saved after signup, then survives refresh and return', async ({ page }) => {
+    test('Look 4 is planned after signup, then survives saving, refresh and return', async ({ page }) => {
       const chosen = await choose(page);
       const image = await downloadBoard(page);
-      await page.screenshot({ path: test.info().outputPath('visitor-chosen-look.png'), fullPage: true });
+      await page.screenshot({ path: test.info().outputPath('signed-in-chosen-look.png'), fullPage: true });
       let saves = 0;
       page.on('request', (request) => { if (request.method() === 'POST' && request.url().endsWith('/starter-plans')) saves += 1; });
       await save(page);
-      await expect(page).toHaveURL(/\/sign-up$/);
-      const address = `${randomUUID()}@example.test`;
-      await register(page, address);
+      const address = chosen.address;
       await assertSaved(page, chosen);
       await page.screenshot({ path: test.info().outputPath('saved-chosen-look.png'), fullPage: true });
       expect(saves).toBe(1);
@@ -122,16 +127,18 @@ for (const width of [390, 1440]) {
     });
 
     test('existing-user signin keeps Look 4 and the saved result first', async ({ page }) => {
+      await page.goto('/plan');
+      await page.getByLabel('Email', { exact: true }).fill(email);
+      await page.getByLabel('Password', { exact: true }).fill(password);
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await expect(page.getByLabel('What is the occasion?')).toBeVisible();
       const chosen = await choose(page);
       await page.getByRole('button', { name: 'Show my outfit' }).click();
       await expect(page.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
       await page.getByRole('button', { name: 'Look 4', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
       expect(await garments(page)).toEqual(chosen.images);
       await save(page);
-      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-      await page.getByLabel('Email', { exact: true }).fill(email);
-      await page.getByLabel('Password', { exact: true }).fill(password);
-      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
       await assertSaved(page, chosen);
       await page.getByRole('link', { name: 'Account', exact: true }).click();
       await page.getByRole('link', { name: 'Wardrobe', exact: true }).click();
@@ -143,7 +150,7 @@ for (const width of [390, 1440]) {
       await expect(page.locator('.starter-form').getByLabel('What is the occasion?', { exact: true })).toHaveValue('Another occasion');
     });
 
-    test('blocked browser storage retains the selected plan through signup', async ({ page }) => {
+    test('blocked browser storage retains the selected plan through saving', async ({ page }) => {
       await page.addInitScript(() => {
         for (const method of ['getItem', 'setItem', 'removeItem']) {
           Storage.prototype[method] = () => { throw new DOMException('Storage blocked', 'SecurityError'); };
@@ -151,7 +158,6 @@ for (const width of [390, 1440]) {
       });
       const chosen = await choose(page);
       await save(page);
-      await register(page);
       const builder = page.locator('#build-plan');
       await expect(builder.locator('.starter-state-active')).toBeVisible();
       await expect(builder.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -205,7 +211,6 @@ for (const width of [390, 1440]) {
         const chosen = await choose(page);
         await page.route(endpoint, (route) => route.request().method() === 'POST' ? route.abort('connectionfailed') : route.continue());
         await save(page);
-        await register(page);
         await expect(page.locator('#build-plan').getByRole('alert')).toContainText('could not be saved');
         await page.unroute(endpoint);
         if (signOut) {
@@ -242,6 +247,7 @@ for (const width of [390, 1440]) {
         const builder = page.locator('#build-plan');
         await expect(builder.getByRole('alert')).toContainText('could not be saved');
         await builder.getByRole('button', { name: 'Look 2', exact: true }).click();
+        await expect(builder.getByRole('button', { name: 'Look 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
         const images = await garments(page);
         const occasion = await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.occasion);
         await page.unroute(endpoint);
@@ -285,6 +291,7 @@ for (const width of [390, 1440]) {
       const builder = page.locator('#build-plan');
       await expect(builder.getByRole('alert')).toContainText('could not connect');
       await builder.getByRole('button', { name: 'Look 2', exact: true }).click();
+      await expect(builder.getByRole('button', { name: 'Look 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
       const images = await garments(page);
       const occasion = await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.occasion);
       await page.unroute(endpoint);
@@ -391,14 +398,17 @@ for (const width of [390, 1440]) {
       const chosen = await choose(page);
       await page.route(endpoint, (route) => route.request().method() === 'POST' ? route.abort('connectionfailed') : route.continue());
       await save(page);
-      await register(page);
       const builder = page.locator('#build-plan');
       await expect(builder.getByRole('alert')).toContainText('could not be saved');
       await page.unroute(endpoint);
       await page.context().clearCookies();
       await page.context().addCookies(cookies);
       await builder.getByRole('button', { name: 'Try saving plan again' }).click();
-      await expect(builder.getByRole('alert')).toContainText('different account');
+      await expect(page.getByRole('alert')).toContainText('session has ended or changed');
+      await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+      await expect(page.locator('main')).not.toContainText(chosen.occasion);
+      await page.goto('/wardrobe');
+      await expect(page.getByRole('heading', { name: 'Your wardrobe', exact: true })).toBeVisible();
       const plans = await page.evaluate(async () => (await fetch('/api/wardrobe/starter-plans')).json());
       expect(plans.filter((plan) => plan.input.occasion === chosen.occasion)).toEqual([]);
       expect(await page.evaluate(() => sessionStorage.getItem('gyf.pending-plan'))).toBeNull();

@@ -163,11 +163,8 @@ test('public hover contrast, keyboard focus and entry routes', async ({ page }) 
     }
     await page.mouse.move(0, 0);
     const example = page.getByRole('region', { name: 'Example outfit', exact: true });
-    for (const preview of await example.getByRole('button', { name: /^Preview Look/ }).all()) {
-      await tabTo(preview, 'rgb(163, 59, 36)');
-      await page.keyboard.press('Space');
-      await expect(preview).toHaveAttribute('aria-pressed', 'true');
-    }
+    await expect(example.getByRole('button')).toHaveCount(0);
+    await expect(example).toContainText('Static marketing illustration');
     const credits = example.locator('summary');
     await tabTo(credits, 'rgb(163, 59, 36)');
     await page.keyboard.press('Enter');
@@ -178,13 +175,14 @@ test('public hover contrast, keyboard focus and entry routes', async ({ page }) 
     const planner = page.getByRole('link', { name: 'Build my wardrobe', exact: true });
     await tabTo(planner, 'rgb(233, 242, 157)');
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/\/plan\?look=3$/);
-    await expect(page.getByLabel('Email', { exact: true })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/sign-up\?next=%2Fplan$/);
+    await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('What is the occasion?')).toHaveCount(0);
 
     await page.goto('/');
     await tabTo(page.getByRole('link', { name: 'Use my own clothes', exact: true }), 'rgb(233, 242, 157)');
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/\/sign-up$/);
+    await expect(page).toHaveURL(/\/sign-up(?:\?next=%2Fwardrobe)?$/);
     await expect(page.getByLabel('Your name')).toBeFocused();
     await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
   }
@@ -195,7 +193,7 @@ test('account entry', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
   await checkScreen(page, 'sign-in');
   await page.getByRole('button', { name: 'Create an account' }).click();
-  await expect(page).toHaveURL(/\/sign-up$/);
+  await expect(page).toHaveURL(/\/sign-up(?:\?next=%2Fwardrobe)?$/);
   await expect(page.getByLabel('Your name')).toBeFocused();
   await checkScreen(page, 'sign-up');
   await page.getByLabel('Your name').fill('Quality check');
@@ -338,7 +336,8 @@ test('concurrent wardrobe refreshes and edits preserve confirmed facts', async (
   }
 });
 
-test('plan page', async ({ page }) => {
+test('signed-in plan page', async ({ page }) => {
+  await signUp(page, `one-piece-${randomUUID()}@example.test`);
   await page.goto('/plan');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/A wardrobe starts\s*with a plan\./);
   await checkScreen(page, 'plan-empty');
@@ -349,11 +348,12 @@ test('plan page', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('figure').getByRole('img')).toHaveCount(2);
   await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
-  await expect(page.locator('.auth-story')).toContainText('Your chosen Look 1 for One-piece evening');
-  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('gyf.pending-plan')).input.selectedLook)).toBe(0);
+  await expect(page.locator('#build-plan .starter-state-active')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('gyf.pending-plan'))).toBeNull();
 });
 
-test('visitor gets an outfit board without an account, then saves it after sign-up', async ({ page }) => {
+test('visitor signs up before planning, then saves the chosen outfit', async ({ page }) => {
   const hosts = new Set();
   const steps = [];
   page.on('request', (request) => {
@@ -361,10 +361,15 @@ test('visitor gets an outfit board without an account, then saves it after sign-
     if (request.url().endsWith('/api/funnel')) steps.push(request.postDataJSON().event);
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Preview Look 4', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Preview Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('link', { name: 'Build my wardrobe', exact: true }).click();
-  await expect(page).toHaveURL(/\/plan\?look=3$/);
+  await expect(page).toHaveURL(/\/sign-up\?next=%2Fplan$/);
+  await expect(page.getByLabel('What is the occasion?')).toHaveCount(0);
+  await page.getByLabel('Your name').fill('Planner');
+  await page.getByLabel('Email', { exact: true }).fill(`planner-${randomUUID()}@example.test`);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('checkbox', { name: /18 or older/ }).check();
+  await submitSignUp(page);
+  await expect(page).toHaveURL(/\/plan$/);
   await page.getByLabel('What is the occasion?').fill('Dinner with friends');
   await page.getByRole('radio', { name: 'Cold' }).check();
   await page.getByRole('button', { name: 'Show my outfit' }).click();
@@ -376,13 +381,13 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   await expect(page.getByRole('heading', { name: 'Why this works' })).toBeVisible();
   await expect(page.getByText('For cold weather')).toBeVisible();
   const alts = () => board.locator('img').evaluateAll((images) => images.map((image) => image.alt));
-  await expect(page.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Look 1', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
   const first = await alts();
   await page.getByRole('button', { name: 'Look 2' }).click();
   await expect(page.getByRole('button', { name: 'Look 2' })).toHaveAttribute('aria-pressed', 'true');
   expect(await alts()).not.toEqual(first);
   await page.getByRole('button', { name: 'Look 1' }).click();
+  await expect(page.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(await alts()).toEqual(first);
   await checkScreen(page, 'plan-result');
   const downloading = page.waitForEvent('download');
@@ -392,12 +397,7 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   const image = await sharp(await download.path()).metadata();
   expect({ width: image.width, height: image.height, format: image.format }).toEqual({ width: 1080, height: 1570, format: 'png' });
   await page.getByRole('button', { name: 'Save this plan' }).click();
-  await expect(page).toHaveURL(/\/sign-up$/);
-  await page.getByLabel('Your name').fill('Visitor');
-  await page.getByLabel('Email', { exact: true }).fill(`visitor-${randomUUID()}@example.test`);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('checkbox', { name: /18 or older/ }).check();
-  await submitSignUp(page);
+  await expect(page).toHaveURL(/\/wardrobe#build-plan$/);
   const builder = page.locator('#build-plan');
   await expect(builder.getByRole('heading', { name: 'Your starter plan for Dinner with friends' })).toBeVisible();
   await expect(builder.getByRole('status').filter({ hasText: 'Plan saved' })).toBeVisible();
@@ -406,15 +406,10 @@ test('visitor gets an outfit board without an account, then saves it after sign-
   expect([...hosts]).toEqual([new URL(page.url()).host]);
 });
 
-test('visitor signup retries a confirmed rate limit and saves the chosen outfit', async ({ page }) => {
-  await page.goto('/plan');
-  await page.getByLabel('What is the occasion?').fill('Dinner with friends');
-  await page.getByRole('button', { name: 'Show my outfit' }).click();
-  await page.getByRole('button', { name: 'Look 4', exact: true }).click();
-  await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
-  await expect(page).toHaveURL(/\/sign-up$/);
-  await page.getByLabel('Your name').fill('Rate limited visitor');
-  await page.getByLabel('Email', { exact: true }).fill(`visitor-${randomUUID()}@example.test`);
+test('signup retries a confirmed rate limit before opening the planner', async ({ page }) => {
+  await page.goto('/sign-up?next=%2Fplan');
+  await page.getByLabel('Your name').fill('Rate limited planner');
+  await page.getByLabel('Email', { exact: true }).fill(`planner-${randomUUID()}@example.test`);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('checkbox', { name: /18 or older/ }).check();
   for (let request = 0; request < 5; request += 1) {
@@ -427,6 +422,12 @@ test('visitor signup retries a confirmed rate limit and saves the chosen outfit'
   });
   await submitSignUp(page);
   expect(statuses).toEqual([429, 200]);
+  await expect(page).toHaveURL(/\/plan$/);
+  await page.getByLabel('What is the occasion?').fill('Dinner with friends');
+  await page.getByRole('button', { name: 'Show my outfit' }).click();
+  await page.getByRole('button', { name: 'Look 4', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
   const builder = page.locator('#build-plan');
   await expect(builder.getByRole('heading', { name: 'Your starter plan for Dinner with friends' })).toBeVisible();
   await expect(builder.getByRole('status').filter({ hasText: 'Plan saved' })).toBeVisible();

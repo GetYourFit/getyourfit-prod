@@ -1,18 +1,21 @@
 import './zod-config';
-import { useCallback, useEffect, useState, type MouseEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState, type MouseEvent } from 'react';
 import { AuthGate } from './AuthGate';
 import { AccountPage } from './AccountPage';
 import { Wardrobe } from './Wardrobe';
-import { request } from './api';
+import { accountEntry, intendedPath } from '../shared/auth-return';
+import { readSession, SESSION_CHECK, SESSION_EXPIRED, type SessionState } from './session';
+import type { SignedInSession } from './session';
 import { LoadingScreen } from './LoadingScreen';
 import { Brand } from './ui';
+import { readPendingPlan } from './pending-plan';
 
-export type SignedInSession = { signedIn: true; id: string; email: string; twoFactorEnabled: boolean };
-type SessionState = { signedIn: false } | SignedInSession;
-type Route = '/wardrobe' | '/account';
+export type { SignedInSession };
+type Route = '/wardrobe' | '/account' | '/plan';
+const PlanPage = lazy(() => import('./PlanPage'));
 
-const titles: Record<Route, string> = { '/wardrobe': 'Wardrobe', '/account': 'Account' };
-const routeOf = (pathname: string): Route => pathname === '/account' ? '/account' : '/wardrobe';
+const titles: Record<Route, string> = { '/wardrobe': 'Wardrobe', '/account': 'Account', '/plan': 'Plan an outfit' };
+const routeOf = (pathname: string): Route => pathname === '/account' ? '/account' : pathname === '/plan' ? '/plan' : '/wardrobe';
 
 export default function AccountApp() {
   const [session, setSession] = useState<SessionState | null>(null);
@@ -20,16 +23,23 @@ export default function AccountApp() {
   const [route, setRoute] = useState<Route>(() => routeOf(window.location.pathname));
 
   const refresh = useCallback(async () => {
-    setSession(await request<SessionState>('/api/session'));
-    window.history.replaceState({}, '', '/wardrobe');
-    setRoute('/wardrobe');
+    const state = await readSession();
+    setSession(state);
+    if (!state.signedIn) return;
+    const destination = intendedPath();
+    window.history.replaceState({}, '', destination);
+    setRoute(routeOf(window.location.pathname));
+    setError('');
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    void request<SessionState>('/api/session').then((state) => {
+    void readSession().then((state) => {
       if (!mounted) return;
-      if (state.signedIn && !['/wardrobe', '/account'].includes(window.location.pathname)) window.history.replaceState({}, '', `/wardrobe${window.location.hash}`);
+      if (state.signedIn) {
+        window.history.replaceState({}, '', intendedPath());
+        setRoute(routeOf(window.location.pathname));
+      }
       setSession(state);
     }).catch((cause: unknown) => {
       if (!mounted) return;
@@ -40,6 +50,40 @@ export default function AccountApp() {
     window.addEventListener('popstate', onPop);
     return () => { mounted = false; window.removeEventListener('popstate', onPop); };
   }, []);
+
+  useEffect(() => {
+    if (!session?.signedIn) return;
+    let mounted = true;
+    const expire = () => {
+      if (!mounted) return;
+      const pending = readPendingPlan();
+      const destination = pending?.account === session.id ? '/wardrobe#build-plan' : intendedPath();
+      window.history.replaceState({}, '', accountEntry('/sign-in', destination));
+      setError('Your session has ended or changed. Sign in again to continue. Your saved plans and photos stay in your account.');
+      setSession({ signedIn: false });
+    };
+    const confirm = () => {
+      void readSession().then((state) => {
+        if (mounted && (!state.signedIn || state.id !== session.id)) expire();
+      }).catch(() => { /* The next action offers a connection retry without discarding input. */ });
+    };
+    const check = () => {
+      if (document.visibilityState !== 'hidden') confirm();
+    };
+    window.addEventListener(SESSION_EXPIRED, expire);
+    window.addEventListener(SESSION_CHECK, confirm);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    const timer = window.setInterval(check, 30_000);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+      window.removeEventListener(SESSION_EXPIRED, expire);
+      window.removeEventListener(SESSION_CHECK, confirm);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [session]);
 
   useEffect(() => {
     if (!session?.signedIn) return;
@@ -64,6 +108,7 @@ export default function AccountApp() {
 
   if (!session) return <LoadingScreen />;
   if (!session.signedIn) return <AuthGate onSignedIn={refresh} initialError={error} />;
+  if (route === '/plan') return <Suspense fallback={<LoadingScreen message="Opening your plan…" />}><PlanPage account={session.id} /></Suspense>;
 
   return <div className="app">
     <a className="skip-link" href="#main">Skip to content</a>
@@ -78,6 +123,6 @@ export default function AccountApp() {
         </nav>
       </div>
     </header>
-    <main id="main" className="app-main">{route === '/account' ? <AccountPage session={session} /> : <Wardrobe account={session.id} />}</main>
+    <main id="main" className="app-main" key={session.id}>{route === '/account' ? <AccountPage session={session} /> : <Wardrobe account={session.id} />}</main>
   </div>;
 }

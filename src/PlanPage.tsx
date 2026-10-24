@@ -7,6 +7,7 @@ import { countStep } from './funnel';
 import { holdPendingPlan } from './pending-plan';
 import { OutfitBoard, OutfitBoardPanel } from './OutfitBoard';
 import { Brand, Field, Notice } from './ui';
+import { requireSession } from './session';
 import './LandingPage.css';
 
 type Values = { occasion: string; outfitType: StarterInput['outfitType']; budget: string; currency: StarterInput['currency']; weather: StarterInput['weather']; dressCode: StarterInput['dressCode'] };
@@ -18,22 +19,21 @@ const label = <T extends string>(options: { value: T; label: string }[], value: 
 const sampleInput = starterInputSchema.parse({ occasion: 'Dinner with friends', outfitType: 'separates', budget: 5000, currency: 'INR', weather: 'mild', dressCode: 'casual', mustHave: '', ownedRoles: [] });
 const sampleBoard = composeBoard(sampleInput, buildStarterRoles(sampleInput, '2026-01-01T00:00:00.000Z'));
 
-function startingLook() {
-  const value = Number(new URLSearchParams(window.location.search).get('look'));
-  return Number.isInteger(value) && value >= 0 && value < 4 ? value : 0;
-}
-
-export default function PlanPage() {
+export default function PlanPage({ account }: { account: string }) {
   const [values, setValues] = useState<Values>({ occasion: '', outfitType: 'separates', budget: '5000', currency: 'INR', weather: 'mild', dressCode: 'unknown' });
   const [input, setInput] = useState<StarterInput | null>(null);
-  const [selectedLook, setSelectedLook] = useState(startingLook);
+  const [selectedLook, setSelectedLook] = useState(0);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const pageHeading = useRef<HTMLHeadingElement>(null);
   const resultHeading = useRef<HTMLHeadingElement>(null);
   const formHeading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     countStep('plan_opened');
     document.title = 'Plan an outfit - GetYourFit';
+    window.scrollTo(0, 0);
+    pageHeading.current?.focus({ preventScroll: true });
   }, []);
 
   const board = useMemo(() => input ? composeBoard(input, buildStarterRoles(input, new Date().toISOString())) : null, [input]);
@@ -52,7 +52,7 @@ export default function PlanPage() {
     setValues((previous) => ({ ...previous, [key]: value }));
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsed = starterInputSchema.safeParse({ ...values, budget: Number(values.budget), mustHave: '', ownedRoles: [] });
     if (!parsed.success) {
@@ -61,33 +61,45 @@ export default function PlanPage() {
       return;
     }
     setError('');
-    countStep('plan_submitted', { once: false });
-    if (input || parsed.data.outfitType === 'one-piece') setSelectedLook(0);
-    setInput(parsed.data);
+    setBusy(true);
+    try {
+      await requireSession(account);
+      countStep('plan_submitted', { once: false });
+      if (input || parsed.data.outfitType === 'one-piece') setSelectedLook(0);
+      setInput(parsed.data);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Your plan could not be opened. Try again.');
+    } finally { setBusy(false); }
   }
 
-  function saveAfterValue() {
+  async function saveAfterValue() {
     if (!input) return;
-    holdPendingPlan({ ...input, selectedLook });
-    countStep('save_prompt_accepted');
-    window.history.pushState({}, '', '/sign-up');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-    window.scrollTo(0, 0);
+    setBusy(true);
+    try {
+      holdPendingPlan({ ...input, selectedLook }, account);
+      await requireSession(account);
+      countStep('save_prompt_accepted');
+      window.history.pushState({}, '', '/wardrobe#build-plan');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      window.scrollTo(0, 0);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Your plan could not be saved. Try again.');
+    } finally { setBusy(false); }
   }
 
   return <div className="public-page plan-page">
     <a className="skip-link" href="#plan-main">Skip to content</a>
     <header className="public-header">
       <Brand href="/" />
-      <a className="public-link" href="/sign-in">Sign in<ArrowRight size={16} aria-hidden="true" /></a>
+      <a className="public-link" href="/wardrobe">My wardrobe<ArrowRight size={16} aria-hidden="true" /></a>
     </header>
     <main id="plan-main">
       <div className="plan-intro">
-        <h1>A wardrobe starts<br />with a plan.</h1>
-        <p>Start with your occasion. Explore an illustrative outfit plan, then save the look you want to keep. No account needed to try.</p>
+        <h1 ref={pageHeading} tabIndex={-1}>A wardrobe starts<br />with a plan.</h1>
+        <p>Start with your occasion. Explore an illustrative outfit plan, then save the look you want to keep in your private account.</p>
       </div>
       <div className={`plan-layout${input ? ' has-result' : ''}`}>
-        <form className="plan-form card" onSubmit={submit} noValidate aria-labelledby="plan-form-title">
+        <form className="plan-form card" onSubmit={(event) => void submit(event)} noValidate aria-labelledby="plan-form-title" aria-busy={busy}>
           <h2 id="plan-form-title" className="card-title" tabIndex={-1} ref={formHeading}>Your plan</h2>
           <Field label="What is the occasion?" hint="Type your own or pick one.">
             {(control) => <input {...control} className="input" name="occasion" maxLength={120} required autoComplete="off" value={values.occasion} onChange={(event) => set('occasion', event.target.value)} aria-invalid={error.startsWith('Add the occasion') || undefined} />}
@@ -114,7 +126,7 @@ export default function PlanPage() {
           </div>
           <Field label="Dress code" optional>{(control) => <select {...control} className="select" name="dressCode" value={values.dressCode} onChange={(event) => set('dressCode', starterInputSchema.shape.dressCode.parse(event.target.value))}>{dressCodes.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}</Field>
           {error && <Notice tone="error" role="alert">{error}</Notice>}
-          <button className="button button-primary button-split" type="submit">Show my outfit<ArrowRight size={18} aria-hidden="true" /></button>
+          <button className="button button-primary button-split" type="submit" disabled={busy}>{busy ? 'Checking…' : 'Show my outfit'}<ArrowRight size={18} aria-hidden="true" /></button>
           <p className="caption plan-privacy"><LockKeyhole size={16} aria-hidden="true" />Your answers stay in this browser until you choose to save.</p>
         </form>
         <section className="plan-result" aria-labelledby="plan-result-title" aria-live="polite">
@@ -123,7 +135,7 @@ export default function PlanPage() {
               <h2 id="plan-result-title" tabIndex={-1} ref={resultHeading}>Your outfit for {input.occasion}</h2>
               <p>{input.weather === 'unknown' ? 'Weather not given' : `${label(weatherOptions, input.weather)} weather`} · {input.dressCode === 'unknown' ? 'Dress code not given' : label(dressCodes, input.dressCode)} · {input.outfitType === 'separates' ? 'Top, bottom and shoes' : 'One-piece and shoes'}</p>
             </div>
-            <OutfitBoardPanel input={input} board={board} selection={{ index: selectedLook, onChange: setSelectedLook }} />
+            <OutfitBoardPanel account={account} input={input} board={board} selection={{ index: selectedLook, disabled: busy, onChange: setSelectedLook, onPending: setBusy }} />
             <div className="plan-reasons">
               <h3>Why this works</h3>
               <ul>{board.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
@@ -131,8 +143,8 @@ export default function PlanPage() {
             </div>
             <div className="plan-save card" role="region" aria-labelledby="plan-save-title">
               <h3 id="plan-save-title">Keep this outfit</h3>
-              <p>Save this plan, including your chosen look, in your private account on the GetYourFit server. Create a free account or sign in to finish saving. Garment photos are examples; no clothes are added to your wardrobe.</p>
-              <button className="button button-primary button-split" type="button" onClick={saveAfterValue}>Save this plan<ArrowRight size={18} aria-hidden="true" /></button>
+              <p>Save this plan, including your chosen look, in your private account on the GetYourFit server. Garment photos are examples; no clothes are added to your wardrobe.</p>
+              <button className="button button-primary button-split" type="button" disabled={busy} onClick={() => void saveAfterValue()}>Save this plan<ArrowRight size={18} aria-hidden="true" /></button>
             </div>
           </> : <div className="plan-placeholder">
             <h2 id="plan-result-title" className="card-title">The pieces, together.</h2>
