@@ -28,7 +28,7 @@ All API requests use synthetic accounts and the local app Origin. JSON responses
 | `POST /api/wardrobe` | JSON `{facts:{name,category,color,size,fit,owned:true,available,weather,dressCode},consent:true,image}` where `image` is base64 JPEG bytes | 2xx garment record with stable `id`, nested confirmed `facts`, `photoConsent:true`, and `photoUrl` |
 | Rejected photo | Missing/false consent or damaged image bytes | 4xx; no new wardrobe record |
 | `GET /api/wardrobe` | Session cookie | Array of that person's garment records; no records for a new account |
-| `GET /api/wardrobe` | No session cookie | 401/403/404 or an empty array; never another person's records |
+| `GET /api/wardrobe` | No session cookie | 401; no wardrobe records |
 | `GET /api/wardrobe/:id/photo` | Owner session | Actual decodable image, at least 100 pixels per side, visually matching the uploaded shirt after resizing or re-encoding |
 | `PATCH /api/wardrobe/:id` | Owner session and flat confirmed-facts JSON object | Updated garment record; another user's or anonymous session cannot read, update, delete, list, or retrieve its photo |
 | `DELETE /api/wardrobe/:id` | Owner session | Removal; another user's or anonymous session cannot read, update, delete, or retrieve its photo |

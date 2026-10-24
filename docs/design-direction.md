@@ -33,7 +33,7 @@ Reviewed 2026-10-23. No competitor assets or copy are shipped. This two-product 
 
 | Surface | Existing reachable behavior retained | Design treatment and recovery |
 | --- | --- | --- |
-| `/` | Public example without account APIs, sign-in, account entry, planner | Explicit two-job choice; static real example; visible illustrative limits, reasons and photo credits. Both product journeys start after account entry. |
+| `/` | Public example without account APIs, sign-in, account entry | Explicit two-job choice; static real example; visible illustrative limits, reasons and photo credits. The [planning guide](../README.md#plan-after-signing-in) owns product entry behavior. |
 | `/plan` | Occasion, weather, outfit type, budget, currency, dress code; examples; image download; save entry | Signed-in session required. Useful sample before submission, selected result, input validation, failed image-download notice and save disclosure. Browser values stay until navigation; saving uses the existing pending plan. |
 | `/sign-up`, `/sign-in`, account callback/query paths | Email/password, age gate, authenticator challenge, recovery-unavailable explanation, connection retry | Focused fields, retained input on rejection, focused errors, visible busy state, accurate hosted-storage copy. Generic pending-save context without exposing private plan details. No new recovery or identity promises. |
 | `/wardrobe` | Loading/retry, empty wardrobe, actual garments, edit/remove confirmation | Role counts describe items added, never outfit eligibility. Search name/colour and category filter, result count, no-match recovery. Existing ownership, fit and availability remain visible. |
