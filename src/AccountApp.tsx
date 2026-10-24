@@ -4,7 +4,7 @@ import { AuthGate } from './AuthGate';
 import { AccountPage } from './AccountPage';
 import { Wardrobe } from './Wardrobe';
 import { accountEntry, intendedPath } from '../shared/auth-return';
-import { readSession, SESSION_EXPIRED, type SessionState } from './session';
+import { readSession, SESSION_CHECK, SESSION_EXPIRED, type SessionState } from './session';
 import type { SignedInSession } from './session';
 import { LoadingScreen } from './LoadingScreen';
 import { Brand } from './ui';
@@ -62,13 +62,16 @@ export default function AccountApp() {
       setError('Your session has ended or changed. Sign in again to continue. Your saved plans and photos stay in your account.');
       setSession({ signedIn: false });
     };
-    const check = () => {
-      if (document.visibilityState === 'hidden') return;
+    const confirm = () => {
       void readSession().then((state) => {
         if (mounted && (!state.signedIn || state.id !== session.id)) expire();
       }).catch(() => { /* The next action offers a connection retry without discarding input. */ });
     };
+    const check = () => {
+      if (document.visibilityState !== 'hidden') confirm();
+    };
     window.addEventListener(SESSION_EXPIRED, expire);
+    window.addEventListener(SESSION_CHECK, confirm);
     window.addEventListener('focus', check);
     document.addEventListener('visibilitychange', check);
     const timer = window.setInterval(check, 30_000);
@@ -76,6 +79,7 @@ export default function AccountApp() {
       mounted = false;
       window.clearInterval(timer);
       window.removeEventListener(SESSION_EXPIRED, expire);
+      window.removeEventListener(SESSION_CHECK, confirm);
       window.removeEventListener('focus', check);
       document.removeEventListener('visibilitychange', check);
     };

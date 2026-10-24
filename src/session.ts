@@ -8,6 +8,12 @@ export type SessionState = z.infer<typeof sessionSchema>;
 export type SignedInSession = Extract<SessionState, { signedIn: true }>;
 export const SESSION_EXPIRED = 'gyf:session-expired';
 
+export const SESSION_CHECK = 'gyf:session-check';
+
+export function sessionUnauthorized() {
+  window.dispatchEvent(new Event(SESSION_CHECK));
+}
+
 export function sessionExpired() {
   window.dispatchEvent(new Event(SESSION_EXPIRED));
 }

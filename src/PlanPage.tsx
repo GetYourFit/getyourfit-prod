@@ -135,7 +135,7 @@ export default function PlanPage({ account }: { account: string }) {
               <h2 id="plan-result-title" tabIndex={-1} ref={resultHeading}>Your outfit for {input.occasion}</h2>
               <p>{input.weather === 'unknown' ? 'Weather not given' : `${label(weatherOptions, input.weather)} weather`} · {input.dressCode === 'unknown' ? 'Dress code not given' : label(dressCodes, input.dressCode)} · {input.outfitType === 'separates' ? 'Top, bottom and shoes' : 'One-piece and shoes'}</p>
             </div>
-            <OutfitBoardPanel account={account} input={input} board={board} selection={{ index: selectedLook, disabled: busy, onChange: setSelectedLook }} />
+            <OutfitBoardPanel account={account} input={input} board={board} selection={{ index: selectedLook, disabled: busy, onChange: setSelectedLook, onPending: setBusy }} />
             <div className="plan-reasons">
               <h3>Why this works</h3>
               <ul>{board.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>

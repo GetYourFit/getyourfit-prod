@@ -125,3 +125,60 @@ test('planner connection failure retains answers and offers a useful retry', asy
   await page.getByRole('button', { name: 'Show my outfit', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your outfit for Dinner' })).toBeVisible();
 });
+
+async function slowSession(page) {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  await page.route('**/api/session', async (route) => { await gate; await route.continue(); });
+  return async () => { release(); };
+}
+
+test('slow look choice cannot race the planner save or a new submission', async ({ page }) => {
+  await page.goto('/plan');
+  await register(page);
+  await page.getByLabel('What is the occasion?').fill('Dinner');
+  await page.getByRole('button', { name: 'Show my outfit', exact: true }).click();
+  await page.getByRole('button', { name: 'Look 1', exact: true }).waitFor();
+  const release = await slowSession(page);
+  await page.getByRole('button', { name: 'Look 4', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save this plan', exact: true })).toBeDisabled();
+  await expect(page.getByLabel('What is the occasion?').locator('xpath=ancestor::form').locator('button[type=submit]')).toBeDisabled();
+  await release();
+  await expect(page.getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
+  await expect(page).toHaveURL('/wardrobe#build-plan');
+  await expect(page.locator('#build-plan').getByRole('button', { name: 'Look 4', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('slow look choice in the saved-plan builder blocks saving until it settles', async ({ page }) => {
+  await page.goto('/plan');
+  await register(page);
+  await page.getByLabel('What is the occasion?').fill('Dinner');
+  await page.getByRole('button', { name: 'Show my outfit', exact: true }).click();
+  await page.route('**/api/wardrobe/starter-plans', (route) => route.request().method() === 'POST' ? route.abort('internetdisconnected') : route.continue());
+  await page.getByRole('button', { name: 'Save this plan', exact: true }).click();
+  const builder = page.locator('#build-plan');
+  const retry = builder.getByRole('button', { name: 'Try saving plan again', exact: true });
+  await expect(retry).toBeEnabled();
+  await expect(builder.getByRole('button', { name: 'Look 1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const release = await slowSession(page);
+  await builder.getByRole('button', { name: 'Look 3', exact: true }).click();
+  await expect(retry).toBeDisabled();
+  await release();
+  await expect(builder.getByRole('button', { name: 'Look 3', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a wrong authenticator code keeps the valid session and the setup key', async ({ page }) => {
+  await page.goto('/account');
+  await register(page);
+  await page.goto('/account');
+  await page.getByLabel('Confirm your password').fill(password);
+  await page.getByRole('button', { name: 'Set up authenticator' }).click();
+  await expect(page.getByLabel('Setup key')).toBeVisible();
+  const key = await page.getByLabel('Setup key').inputValue();
+  await page.getByLabel('Code from your app').fill('000000');
+  await page.getByRole('button', { name: 'Turn on two-step sign-in' }).click();
+  await expect(page.getByRole('alert')).toContainText('incorrect');
+  await expect(page.getByLabel('Setup key')).toHaveValue(key);
+  expect((await page.evaluate(async () => (await fetch('/api/session')).json())).signedIn).toBe(true);
+});

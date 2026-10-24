@@ -35,7 +35,7 @@ export function OutfitBoard({ look, heading }: { look: BoardLook; heading: strin
 }
 
 // The board, a switch between the capsule's looks, the pieces in the chosen look, and a download of the board as one image.
-export function OutfitBoardPanel({ account, input, board, selection }: { account: string; input: StarterInput; board: Board; selection?: { index: number; disabled?: boolean; onChange: (index: number) => void | Promise<void> } }) {
+export function OutfitBoardPanel({ account, input, board, selection }: { account: string; input: StarterInput; board: Board; selection?: { index: number; disabled?: boolean; onChange: (index: number) => void | Promise<void>; onPending?: (pending: boolean) => void } }) {
   const [lookIndex, setLookIndex] = useState(input.selectedLook ?? 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -44,6 +44,7 @@ export function OutfitBoardPanel({ account, input, board, selection }: { account
 
   async function choose(index: number) {
     setBusy(true);
+    selection?.onPending?.(true);
     setError('');
     try {
       await requireSession(account);
@@ -51,7 +52,10 @@ export function OutfitBoardPanel({ account, input, board, selection }: { account
       else setLookIndex(index);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'This look could not be opened. Try again.');
-    } finally { setBusy(false); }
+    } finally {
+      selection?.onPending?.(false);
+      setBusy(false);
+    }
   }
 
   async function download(current: BoardLook) {
