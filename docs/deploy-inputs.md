@@ -18,6 +18,7 @@ Use an exact `main` revision with successful `quality` and `acceptance` checks. 
 | `GYF_TRUSTED_PROXIES` | Comma-separated ingress IP addresses or narrow CIDRs; empty trusts no forwarded client addresses |
 | `GYF_PORT` | A chosen loopback port from 1 through 65535, matching the ingress upstream; the default is 4174 |
 | `GYF_DATA_DIR` | A persistent directory outside the release checkout, writable by the service identity. Holds `getyourfit.sqlite` and is used only while `DATABASE_URL` is unset |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Optional, with `DATABASE_URL` only: store garment photos in a private Supabase Storage bucket instead of the database ([Photo storage](supabase.md#photo-storage)). The key comes from the vault and is never a literal in Git or logs |
 | `DATABASE_URL` | Unset by default, which keeps SQLite. Set at cutover to the Supabase session pooler connection string (port 5432), injected from the vault as `SUPABASE_DATABASE_URL`; never a literal value in Git or logs. The server applies pending `migrations/` at startup |
 | `BETTER_AUTH_SECRET` | A stable random key of at least 32 characters, injected from the vault; supply the vault reference and workload access, never a literal value in Git or logs |
 
@@ -27,7 +28,7 @@ Retain the secret with the database across releases and restores. Changing it in
 
 Email availability, recovery behavior, and API responses are owned by [Email](supabase.md#email). [Turning email on later](supabase.md#turning-email-on-later) records the setup steps.
 
-`getyourfit.sqlite` holds accounts, wardrobe records, garment photos as BLOBs, private starter plans, and anonymous daily funnel counters (`funnel_counts`, read with `npm run funnel`; see the README). Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Once `DATABASE_URL` is set the data lives in Postgres instead; the Supabase free plan has no point-in-time recovery or managed daily backups, so [Supabase](supabase.md#backups) records the backup and restore procedure the deployment owner runs. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
+`getyourfit.sqlite` holds accounts, wardrobe records, garment photos as BLOBs, private starter plans, and anonymous daily funnel counters (`funnel_counts`, read with `npm run funnel`; see the README). Supply a backup target and restore procedure preserving a consistent database and WAL state. The data directory has private permissions. Once `DATABASE_URL` is set the data lives in Postgres instead (and garment photos in a private Storage bucket when `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are also set, see [Photo storage](supabase.md#photo-storage)); the Supabase free plan has no point-in-time recovery or managed daily backups, so [Supabase](supabase.md#backups) records the backup and restore procedure the deployment owner runs. Source: [config](../server/config.mjs), [auth](../server/auth.mjs), [database](../server/database.mjs), and [wardrobe](../server/wardrobe.mjs).
 
 ## Public request boundary
 

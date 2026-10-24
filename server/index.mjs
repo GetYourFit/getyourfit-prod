@@ -12,6 +12,7 @@ import { auth, clearLockout, isLockedOut, prepareAuthSchema, recordSignInResult 
 import { audit, closeDatabase, query, reclaimDeletedData, runMigrations } from './database.mjs';
 import { funnelRouter } from './funnel.mjs';
 import { exportWardrobe, wardrobeRouter } from './wardrobe.mjs';
+import { ensurePhotoBucket, photoStorageEnabled, removeAccountPhotos } from './photos.mjs';
 import { allowedHosts, allowedOrigins, apiPort, trustedProxies } from './config.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -133,6 +134,10 @@ app.get('/api/data/export', requireUser, async (request, response) => {
 app.delete('/api/data', requireUser, async (request, response) => {
   if (request.body?.confirm !== 'delete my account') return response.status(400).json({ error: 'Confirm deletion to erase your local account.' });
   const { id, email } = request.user;
+  // Photos first: if Storage is down the account survives intact and the wearer can retry the deletion.
+  if (photoStorageEnabled) {
+    try { await removeAccountPhotos(id); } catch { return response.status(503).json({ error: 'Photo storage is unavailable. Try deleting again in a moment.' }); }
+  }
   await query('DELETE FROM "user" WHERE id = $1', [id]);
   await reclaimDeletedData();
   await clearLockout(email);
@@ -182,6 +187,7 @@ app.use((error, _request, response, next) => {
 
 await runMigrations();
 await prepareAuthSchema();
+if (photoStorageEnabled) await ensurePhotoBucket();
 const server = http.createServer(app);
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 66_000;

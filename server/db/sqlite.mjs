@@ -81,6 +81,7 @@ export function sqliteDriver(dataDirectory = process.env.GYF_DATA_DIR) {
           provenance TEXT NOT NULL,
           interpretation TEXT NOT NULL,
           photo BLOB NOT NULL,
+          photo_object TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
@@ -103,6 +104,10 @@ export function sqliteDriver(dataDirectory = process.env.GYF_DATA_DIR) {
         );
         CREATE INDEX IF NOT EXISTS starter_plans_owner ON starter_plans(user_id, created_at DESC);
       `);
+      // Databases written before photo_object existed gain the column; Storage itself is Postgres-only.
+      if (!database.prepare("SELECT 1 FROM pragma_table_info('garments') WHERE name = 'photo_object'").get()) {
+        database.exec('ALTER TABLE garments ADD COLUMN photo_object TEXT');
+      }
       return [];
     },
     // Deleted photo bytes must leave the file: checkpoint the WAL and vacuum.
